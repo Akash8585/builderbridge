@@ -28,7 +28,7 @@ export function ArchiveProjectButton({ projectId, isArchived }: { projectId: str
   return (
     <div className="text-right">
       <Button variant="secondary" onClick={handleClick} disabled={pending}>
-        {pending ? "…" : isArchived ? "Unarchive" : "Archive"}
+        {pending ? (isArchived ? "Unarchiving…" : "Archiving…") : isArchived ? "Unarchive" : "Archive"}
       </Button>
       <ErrorText>{error}</ErrorText>
     </div>

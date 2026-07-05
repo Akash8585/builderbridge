@@ -43,16 +43,19 @@ export function RoadblockDialog({ taskId, isRoadblock, roadblockNote, roadblockS
 
   if (isRoadblock && roadblockStatus) {
     return (
-      <div className="flex items-start gap-2">
-        <div>
-          <RoadblockBadge status={roadblockStatus} />
-          {roadblockNote && <p className="text-xs text-muted mt-1 max-w-[220px]">{roadblockNote}</p>}
+      <div className="max-w-[220px]">
+        <div className="flex items-start gap-2">
+          <div>
+            <RoadblockBadge status={roadblockStatus} />
+            {roadblockNote && <p className="text-xs text-muted mt-1">{roadblockNote}</p>}
+          </div>
+          {roadblockStatus === "OPEN" && canResolve && (
+            <Button variant="text" className="text-xs whitespace-nowrap" onClick={handleResolve} disabled={loading}>
+              {loading ? "Resolving…" : "Resolve"}
+            </Button>
+          )}
         </div>
-        {roadblockStatus === "OPEN" && canResolve && (
-          <Button variant="text" className="text-xs" onClick={handleResolve} disabled={loading}>
-            {loading ? "…" : "Resolve"}
-          </Button>
-        )}
+        <ErrorText>{error}</ErrorText>
       </div>
     );
   }

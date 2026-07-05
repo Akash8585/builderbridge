@@ -56,10 +56,23 @@ export default async function ProjectsPage({
       </div>
 
       {projects.length === 0 ? (
-        <Card className="p-10 text-center">
-          <p className="text-sm text-muted">
-            {showArchived ? "No archived projects." : "No projects yet. Create your first one."}
-          </p>
+        <Card className="p-14 text-center">
+          {showArchived ? (
+            <p className="text-sm text-muted">No archived projects.</p>
+          ) : (
+            <>
+              <h2 className="font-display text-xl mb-2">No projects yet</h2>
+              <p className="text-sm text-muted mb-6">
+                Create your first project to start scheduling tasks and inviting your team.
+              </p>
+              <Link
+                href="/projects/new"
+                className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-6 text-sm font-semibold text-on-primary hover:bg-primary-active transition-colors"
+              >
+                + Create your first project
+              </Link>
+            </>
+          )}
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">

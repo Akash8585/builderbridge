@@ -9,6 +9,14 @@ export function DashboardStats({
   percentComplete: number;
   openRoadblocks: number;
 }) {
+  if (totalTasks === 0) {
+    return (
+      <Card className="p-10 text-center">
+        <p className="text-sm text-muted">No tasks yet — add tasks on the Tasks tab to see progress here.</p>
+      </Card>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <Card className="p-6">

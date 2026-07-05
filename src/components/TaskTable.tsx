@@ -78,6 +78,7 @@ export function TaskTable({
               task={task}
               canEdit={canEdit}
               isOwner={isOwner}
+              colSpan={isOwner ? 7 : 6}
               onEdit={() => setEditingId(task.id)}
             />
           );
@@ -91,15 +92,18 @@ function TaskRow({
   task,
   canEdit,
   isOwner,
+  colSpan,
   onEdit,
 }: {
   task: TaskRow;
   canEdit: boolean;
   isOwner: boolean;
+  colSpan: number;
   onEdit: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [deleting, setDeleting] = useState(false);
 
   function handleStatusChange(status: TaskStatus) {
     setError(null);
@@ -111,56 +115,66 @@ function TaskRow({
 
   function handleDelete() {
     setError(null);
+    setDeleting(true);
     startTransition(async () => {
       const result = await deleteTask({ taskId: task.id });
+      setDeleting(false);
       if (!result.success) setError(result.error);
     });
   }
 
   return (
-    <tr className="border-b border-hairline-soft align-top">
-      <td className="py-3 pr-3 font-medium text-ink">{task.name}</td>
-      <td className="py-3 pr-3 text-body">{task.assignedTo?.user.name ?? "Unassigned"}</td>
-      <td className="py-3 pr-3 text-muted whitespace-nowrap">{formatDate(task.startDate)}</td>
-      <td className="py-3 pr-3 text-muted whitespace-nowrap">{formatDate(task.endDate)}</td>
-      <td className="py-3 pr-3">
-        {canEdit ? (
-          <select
-            value={task.status}
-            disabled={pending}
-            onChange={(e) => handleStatusChange(e.target.value as TaskStatus)}
-            className="h-8 rounded-md border border-hairline bg-canvas px-2 text-xs focus:outline-none focus:border-ink"
-          >
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {TASK_STATUS_LABELS[s]}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <StatusBadge status={task.status} />
-        )}
-        <ErrorText>{error}</ErrorText>
-      </td>
-      <td className="py-3 pr-3">
-        <RoadblockDialog
-          taskId={task.id}
-          isRoadblock={task.isRoadblock}
-          roadblockNote={task.roadblockNote}
-          roadblockStatus={task.roadblockStatus}
-          canResolve={canEdit}
-        />
-      </td>
-      {isOwner && (
-        <td className="py-3 text-right whitespace-nowrap">
-          <Button variant="text" className="text-xs" onClick={onEdit}>
-            Edit
-          </Button>
-          <Button variant="text" className="text-xs text-error ml-2" onClick={handleDelete} disabled={pending}>
-            Delete
-          </Button>
+    <>
+      <tr className="border-b border-hairline-soft align-top">
+        <td className="py-3 pr-3 font-medium text-ink">{task.name}</td>
+        <td className="py-3 pr-3 text-body">{task.assignedTo?.user.name ?? "Unassigned"}</td>
+        <td className="py-3 pr-3 text-muted whitespace-nowrap">{formatDate(task.startDate)}</td>
+        <td className="py-3 pr-3 text-muted whitespace-nowrap">{formatDate(task.endDate)}</td>
+        <td className="py-3 pr-3">
+          {canEdit ? (
+            <select
+              value={task.status}
+              disabled={pending}
+              onChange={(e) => handleStatusChange(e.target.value as TaskStatus)}
+              className="h-8 rounded-md border border-hairline bg-canvas px-2 text-xs focus:outline-none focus:border-ink disabled:opacity-50"
+            >
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {TASK_STATUS_LABELS[s]}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <StatusBadge status={task.status} />
+          )}
         </td>
+        <td className="py-3 pr-3">
+          <RoadblockDialog
+            taskId={task.id}
+            isRoadblock={task.isRoadblock}
+            roadblockNote={task.roadblockNote}
+            roadblockStatus={task.roadblockStatus}
+            canResolve={canEdit}
+          />
+        </td>
+        {isOwner && (
+          <td className="py-3 text-right whitespace-nowrap">
+            <Button variant="text" className="text-xs" onClick={onEdit} disabled={pending}>
+              Edit
+            </Button>
+            <Button variant="text" className="text-xs text-error ml-2" onClick={handleDelete} disabled={pending}>
+              {pending && deleting ? "Deleting…" : "Delete"}
+            </Button>
+          </td>
+        )}
+      </tr>
+      {error && (
+        <tr className="border-b border-hairline-soft">
+          <td colSpan={colSpan} className="pb-3">
+            <ErrorText>{error}</ErrorText>
+          </td>
+        </tr>
       )}
-    </tr>
+    </>
   );
 }

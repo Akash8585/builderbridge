@@ -1,0 +1,66 @@
+"use client";
+
+import { useState } from "react";
+import { createInvite } from "@/app/actions/members";
+import { Button } from "@/components/ui/Button";
+import { ErrorText } from "@/components/ui/ErrorText";
+
+export function InviteLinkGenerator({ projectId }: { projectId: string }) {
+  const [role, setRole] = useState<"GC_OWNER" | "TRADE">("TRADE");
+  const [link, setLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleGenerate() {
+    setError(null);
+    setCopied(false);
+    setLoading(true);
+    const result = await createInvite({ projectId, role });
+    setLoading(false);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+    setLink(`${window.location.origin}/invite/${result.data.token}`);
+  }
+
+  async function handleCopy() {
+    if (!link) return;
+    await navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <div className="border border-hairline rounded-lg p-5 bg-surface-soft">
+      <h3 className="text-sm font-semibold mb-3">Invite a teammate</h3>
+      <div className="flex flex-wrap items-center gap-3">
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value as "GC_OWNER" | "TRADE")}
+          className="h-10 rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink"
+        >
+          <option value="TRADE">Trade Partner</option>
+          <option value="GC_OWNER">GC / Owner</option>
+        </select>
+        <Button type="button" variant="secondary" onClick={handleGenerate} disabled={loading}>
+          {loading ? "Generating…" : "Generate invite link"}
+        </Button>
+      </div>
+      <ErrorText>{error}</ErrorText>
+      {link && (
+        <div className="mt-4 flex items-center gap-2">
+          <input
+            readOnly
+            value={link}
+            className="h-10 flex-1 min-w-0 rounded-md border border-hairline bg-canvas px-3 text-sm text-body"
+          />
+          <Button type="button" variant="secondary" onClick={handleCopy}>
+            {copied ? "Copied!" : "Copy"}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}

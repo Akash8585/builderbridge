@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# agent/tooling-generated docs (not project documentation)
+AGENTS.md
+CLAUDE.md
+DESIGN.md
+
+# editor/agent tooling
+.cursor/
+

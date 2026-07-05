@@ -1,0 +1,89 @@
+"use client";
+
+import { useState } from "react";
+import { flagRoadblock, resolveRoadblock } from "@/app/actions/tasks";
+import { Button } from "@/components/ui/Button";
+import { ErrorText } from "@/components/ui/ErrorText";
+import { RoadblockBadge } from "@/components/RoadblockBadge";
+
+type Props = {
+  taskId: string;
+  isRoadblock: boolean;
+  roadblockNote: string | null;
+  roadblockStatus: "OPEN" | "RESOLVED" | null;
+  canResolve: boolean;
+};
+
+export function RoadblockDialog({ taskId, isRoadblock, roadblockNote, roadblockStatus, canResolve }: Props) {
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleFlag() {
+    setError(null);
+    setLoading(true);
+    const result = await flagRoadblock({ taskId, roadblockNote: note });
+    setLoading(false);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+    setOpen(false);
+    setNote("");
+  }
+
+  async function handleResolve() {
+    setError(null);
+    setLoading(true);
+    const result = await resolveRoadblock({ taskId });
+    setLoading(false);
+    if (!result.success) setError(result.error);
+  }
+
+  if (isRoadblock && roadblockStatus) {
+    return (
+      <div className="flex items-start gap-2">
+        <div>
+          <RoadblockBadge status={roadblockStatus} />
+          {roadblockNote && <p className="text-xs text-muted mt-1 max-w-[220px]">{roadblockNote}</p>}
+        </div>
+        {roadblockStatus === "OPEN" && canResolve && (
+          <Button variant="text" className="text-xs" onClick={handleResolve} disabled={loading}>
+            {loading ? "…" : "Resolve"}
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  if (!open) {
+    return (
+      <Button variant="text" className="text-xs text-muted" onClick={() => setOpen(true)}>
+        Flag roadblock
+      </Button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2 w-56">
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="What's blocking this task?"
+        rows={2}
+        maxLength={500}
+        className="text-xs rounded-md border border-hairline px-2 py-1.5 focus:outline-none focus:border-ink resize-none"
+      />
+      <div className="flex gap-2">
+        <Button variant="secondary" className="h-7 px-2 text-xs" onClick={handleFlag} disabled={loading}>
+          {loading ? "Flagging…" : "Flag"}
+        </Button>
+        <Button variant="text" className="h-7 px-2 text-xs" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+      </div>
+      <ErrorText>{error}</ErrorText>
+    </div>
+  );
+}

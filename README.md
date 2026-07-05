@@ -32,6 +32,9 @@ A simplified, Outbuild-style scheduling & collaboration tool for construction pr
 - **Baselines**: snapshot every task's dates/status at a point in time, then compare against the current schedule to see day-by-day variance
 - **Activity Log**: an append-only audit trail of schedule-relevant changes (status changes, roadblocks, dependencies, commitments, SIR reviews, submittal/RFI decisions, drawing uploads, archiving) — who, when, what changed
 
+### Outbuild AI (Phase 4, scoped)
+- **Schedule Q&A Assistant**: a chat-style panel per project — ask natural-language questions ("what's blocking the schedule?", "which trades are behind on commitments?") and get answers grounded in that project's own tasks, roadblocks, PPC, submittals, and RFIs. Powered by [OpenRouter](https://openrouter.ai/) (`OPENROUTER_API_KEY` + `OPENROUTER_MODEL` env vars); gracefully shows a "not configured" message if no key is set. Chat history is session-only (not persisted).
+
 ## Tech Stack
 
 - [Next.js](https://nextjs.org/) 16 (App Router, Server Actions)
@@ -61,6 +64,8 @@ cp .env.example .env
 - `BETTER_AUTH_SECRET` — any random 32-byte string (e.g. `openssl rand -base64 32`).
 - `BETTER_AUTH_URL` — `http://localhost:3000` for local dev.
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — create OAuth credentials at the [Google Cloud Console](https://console.cloud.google.com/apis/credentials). Redirect URI for local dev: `http://localhost:3000/api/auth/callback/google`.
+- `OPENROUTER_API_KEY` — optional. Get one at [openrouter.ai/keys](https://openrouter.ai/keys) to enable the Schedule Q&A Assistant. Leave blank to skip — the rest of the app works fine without it.
+- `OPENROUTER_MODEL` — optional, defaults to `openrouter/free` (OpenRouter's auto-router — picks whichever free model is currently available, with automatic failover if one is rate-limited). Set to a specific model ID like `openai/gpt-oss-20b:free` if you'd rather pin one.
 
 ### 3. Run database migrations
 

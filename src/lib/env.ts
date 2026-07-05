@@ -6,6 +6,12 @@ const envSchema = z.object({
   BETTER_AUTH_URL: z.string().min(1, "BETTER_AUTH_URL is required"),
   GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
   GOOGLE_CLIENT_SECRET: z.string().min(1, "GOOGLE_CLIENT_SECRET is required"),
+  // Optional: powers the Schedule Q&A Assistant. Left unset, the app still
+  // runs fine — the assistant just shows a "not configured" message.
+  OPENROUTER_API_KEY: z.string().optional(),
+  // "openrouter/free" auto-selects an available free model with failover,
+  // which sidesteps rate limits on any single popular free model.
+  OPENROUTER_MODEL: z.string().default("openrouter/free"),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -22,9 +22,11 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  sessions       Session[]
-  accounts       Account[]
-  projectMembers ProjectMember[]
+  sessions           Session[]
+  accounts           Account[]
+  projectMembers     ProjectMember[]
+  taskUpdates        TaskUpdate[]
+  activityLogEntries ActivityLogEntry[]
 
   members     Member[]
   invitations Invitation[]
@@ -118,7 +120,9 @@ model Member {
 // ---------- App-specific models ----------
 
 enum ProjectRole {
-  GC_OWNER
+  PROJECT_MANAGER
+  SCHEDULER
+  SUPERINTENDENT
   TRADE
 }
 
@@ -132,6 +136,40 @@ enum TaskStatus {
 enum RoadblockStatus {
   OPEN
   RESOLVED
+}
+
+enum RoadblockType {
+  CHANGE_ORDER
+  INSPECTION
+  LABOR
+  MATERIAL
+  WEATHER
+  OTHER
+}
+
+enum CommitmentStatus {
+  COMMITTED
+  COMPLETED
+  NOT_COMPLETED
+}
+
+enum SirStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SubmittalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVISE_RESUBMIT
+}
+
+enum RfiStatus {
+  OPEN
+  ANSWERED
+  CLOSED
 }
 
 model Project {
@@ -150,6 +188,13 @@ model Project {
   invites ProjectInvite[]
   tasks   Task[]
 
+  scheduleImpactRequests ScheduleImpactRequest[]
+  submittals             Submittal[]
+  rfis                   RFI[]
+  drawings               Drawing[]
+  baselines              Baseline[]
+  activityLogEntries     ActivityLogEntry[]
+
   @@map("project")
 }
 
@@ -162,7 +207,17 @@ model ProjectMember {
   role      ProjectRole
   createdAt DateTime    @default(now())
 
-  tasks Task[] @relation("TaskAssignee")
+  tasks           Task[] @relation("TaskAssignee")
+  ownedRoadblocks Task[] @relation("RoadblockOwner")
+
+  weeklyCommitments WeeklyCommitment[]
+
+  submittedSirs    ScheduleImpactRequest[] @relation("SirSubmitter")
+  reviewedSirs     ScheduleImpactRequest[] @relation("SirReviewer")
+  submittals       Submittal[]
+  rfisRaised       RFI[]
+  drawingsUploaded Drawing[]
+  baselinesCreated Baseline[]
 
   @@unique([projectId, userId])
   @@map("project_member")
@@ -195,11 +250,208 @@ model Task {
   roadblockNote     String?
   roadblockStatus   RoadblockStatus?
   roadblockRaisedBy String?
+  roadblockType     RoadblockType?
+  roadblockOwnerId  String?
+  roadblockOwner    ProjectMember?   @relation("RoadblockOwner", fields: [roadblockOwnerId], references: [id], onDelete: SetNull)
+  roadblockDueDate  DateTime?
   resolvedAt        DateTime?
+  sequenceOrder     Int              @default(0)
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
+  predecessorLinks  TaskDependency[]   @relation("SuccessorTask")
+  successorLinks    TaskDependency[]   @relation("PredecessorTask")
+  weeklyCommitments WeeklyCommitment[]
+  updates           TaskUpdate[]
+
+  scheduleImpactRequests ScheduleImpactRequest[]
+  submittals             Submittal[]
+  rfis                   RFI[]
+  drawings               Drawing[]
+
   @@map("task")
+}
+
+// A directed edge: `predecessor` must happen before `successor`.
+model TaskDependency {
+  id            String   @id @default(cuid())
+  predecessorId String
+  predecessor   Task     @relation("PredecessorTask", fields: [predecessorId], references: [id], onDelete: Cascade)
+  successorId   String
+  successor     Task     @relation("SuccessorTask", fields: [successorId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  @@unique([predecessorId, successorId])
+  @@index([successorId])
+  @@map("task_dependency")
+}
+
+// A trade/team commits to completing a task within a given week (Last Planner / Weekly Work Plan).
+// Commits are one-way: once created, only its status/reasonForVariance can change.
+model WeeklyCommitment {
+  id                String           @id @default(cuid())
+  taskId            String
+  task              Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  weekStartDate     DateTime
+  committedById     String
+  committedBy       ProjectMember    @relation(fields: [committedById], references: [id], onDelete: Cascade)
+  status            CommitmentStatus @default(COMMITTED)
+  reasonForVariance String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@unique([taskId, weekStartDate])
+  @@index([weekStartDate])
+  @@map("weekly_commitment")
+}
+
+// Field Tracking: a running progress log on a task (note + optional photo), from any project member.
+model TaskUpdate {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  note      String?
+  photoUrl  String?
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+  @@map("task_update")
+}
+
+// A field-reported condition that may require changing the schedule. Trade
+// partners (typically) submit; a Project Manager or Superintendent reviews.
+model ScheduleImpactRequest {
+  id                 String         @id @default(cuid())
+  projectId          String
+  project            Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId             String?
+  task               Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  description        String
+  proposedNewEndDate DateTime?
+  status             SirStatus      @default(PENDING)
+  submittedById      String
+  submittedBy        ProjectMember  @relation("SirSubmitter", fields: [submittedById], references: [id], onDelete: Cascade)
+  reviewedById       String?
+  reviewedBy         ProjectMember? @relation("SirReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewNote         String?
+  createdAt          DateTime       @default(now())
+  reviewedAt         DateTime?
+
+  @@index([projectId])
+  @@map("schedule_impact_request")
+}
+
+// Native (no Procore) submittal tracking, linked to an optional schedule task.
+model Submittal {
+  id            String          @id @default(cuid())
+  projectId     String
+  project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId        String?
+  task          Task?           @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  title         String
+  specSection   String?
+  status        SubmittalStatus @default(PENDING)
+  dueDate       DateTime?
+  submittedById String
+  submittedBy   ProjectMember   @relation(fields: [submittedById], references: [id], onDelete: Cascade)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([projectId])
+  @@map("submittal")
+}
+
+// Native (no Procore) RFI tracking, linked to an optional schedule task.
+model RFI {
+  id         String        @id @default(cuid())
+  projectId  String
+  project    Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId     String?
+  task       Task?         @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  question   String
+  answer     String?
+  status     RfiStatus     @default(OPEN)
+  dueDate    DateTime?
+  raisedById String
+  raisedBy   ProjectMember @relation(fields: [raisedById], references: [id], onDelete: Cascade)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([projectId])
+  @@map("rfi")
+}
+
+// Native (no Autodesk) drawing storage, optionally linked to a schedule task.
+model Drawing {
+  id           String        @id @default(cuid())
+  projectId    String
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId       String?
+  task         Task?         @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  title        String
+  discipline   String?
+  fileUrl      String
+  revision     Int           @default(1)
+  isSuperseded Boolean       @default(false)
+  uploadedById String
+  uploadedBy   ProjectMember @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  createdAt    DateTime      @default(now())
+
+  @@index([projectId])
+  @@map("drawing")
+}
+
+// A named snapshot of every task's dates/status at a point in time, for
+// comparing "planned" vs "current" (S-Curve, variance reporting).
+model Baseline {
+  id          String        @id @default(cuid())
+  projectId   String
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  createdById String
+  createdBy   ProjectMember @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now())
+
+  snapshots BaselineTaskSnapshot[]
+
+  @@index([projectId])
+  @@map("baseline")
+}
+
+// Point-in-time copy of a task's schedule data. taskId/taskName are
+// denormalized (not a live FK) so the snapshot survives task deletion.
+model BaselineTaskSnapshot {
+  id         String     @id @default(cuid())
+  baselineId String
+  baseline   Baseline   @relation(fields: [baselineId], references: [id], onDelete: Cascade)
+  taskId     String
+  taskName   String
+  startDate  DateTime
+  endDate    DateTime
+  status     TaskStatus
+
+  @@index([baselineId])
+  @@map("baseline_task_snapshot")
+}
+
+// Append-only audit trail of schedule-relevant changes (data traceability).
+// taskName is denormalized so entries survive task deletion.
+model ActivityLogEntry {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId    String?
+  taskName  String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
+  @@map("activity_log_entry")
 }
 
 model Invitation {

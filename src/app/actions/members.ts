@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import { requireProjectOwner } from "@/lib/permissions";
+import { requireProjectManager } from "@/lib/permissions";
 import { auth } from "@/lib/auth";
 import { generateInviteExpiry } from "@/lib/utils";
 import { ok, fail, projectRoleSchema, type ActionResult } from "./schemas";
@@ -24,7 +24,7 @@ export async function createInvite(input: unknown): Promise<ActionResult<Project
 
   try {
     const user = await requireUser();
-    await requireProjectOwner(user.id, parsed.data.projectId);
+    await requireProjectManager(user.id, parsed.data.projectId);
 
     const invite = await prisma.projectInvite.create({
       data: {
@@ -124,7 +124,7 @@ export async function removeMember(input: unknown): Promise<ActionResult<null>> 
 
   try {
     const user = await requireUser();
-    await requireProjectOwner(user.id, parsed.data.projectId);
+    await requireProjectManager(user.id, parsed.data.projectId);
 
     // onDelete: SetNull on Task.assignedToId automatically unassigns their tasks.
     const { count } = await prisma.projectMember.deleteMany({

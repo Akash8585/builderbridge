@@ -1,4 +1,12 @@
-import type { TaskStatus } from "@prisma/client";
+import type {
+  TaskStatus,
+  ProjectRole,
+  RoadblockType,
+  CommitmentStatus,
+  SirStatus,
+  SubmittalStatus,
+  RfiStatus,
+} from "@prisma/client";
 
 export function formatDate(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
@@ -28,6 +36,57 @@ export const TASK_STATUS_COLORS: Record<TaskStatus, string> = {
   DONE: "bg-success/15 text-success",
   DELAYED: "bg-error/15 text-error",
 };
+
+export const PROJECT_ROLE_LABELS: Record<ProjectRole, string> = {
+  PROJECT_MANAGER: "Project Manager",
+  SCHEDULER: "Scheduler",
+  SUPERINTENDENT: "Superintendent",
+  TRADE: "Trade Partner",
+};
+
+export const ROADBLOCK_TYPE_LABELS: Record<RoadblockType, string> = {
+  CHANGE_ORDER: "Change Order",
+  INSPECTION: "Inspection",
+  LABOR: "Labor",
+  MATERIAL: "Material Availability",
+  WEATHER: "Weather",
+  OTHER: "Other",
+};
+
+export const COMMITMENT_STATUS_LABELS: Record<CommitmentStatus, string> = {
+  COMMITTED: "Committed",
+  COMPLETED: "Completed",
+  NOT_COMPLETED: "Not Completed",
+};
+
+export const SIR_STATUS_LABELS: Record<SirStatus, string> = {
+  PENDING: "Pending Review",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+};
+
+export const SUBMITTAL_STATUS_LABELS: Record<SubmittalStatus, string> = {
+  PENDING: "Pending",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+  REVISE_RESUBMIT: "Revise & Resubmit",
+};
+
+export const RFI_STATUS_LABELS: Record<RfiStatus, string> = {
+  OPEN: "Open",
+  ANSWERED: "Answered",
+  CLOSED: "Closed",
+};
+
+/** Returns the Monday (start of week) for a given date, at midnight UTC-normalized to local date. */
+export function getWeekStart(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 = Sunday, 1 = Monday, ...
+  const diff = day === 0 ? -6 : 1 - day; // shift back to Monday
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 
 export function generateInviteExpiry(days = 7): Date {
   const d = new Date();

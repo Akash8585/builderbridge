@@ -4,7 +4,8 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import { requireProjectOwner } from "@/lib/permissions";
+import { requireProjectManager } from "@/lib/permissions";
+import { logActivity } from "@/lib/activity-log";
 import { ok, fail, type ActionResult } from "./schemas";
 import type { Project } from "@prisma/client";
 
@@ -36,7 +37,7 @@ export async function createProject(input: unknown): Promise<ActionResult<Projec
         startDate: parsed.data.startDate,
         endDate: parsed.data.endDate,
         members: {
-          create: { userId: user.id, role: "GC_OWNER" },
+          create: { userId: user.id, role: "PROJECT_MANAGER" },
         },
       },
     });
@@ -58,11 +59,18 @@ export async function archiveProject(input: unknown): Promise<ActionResult<Proje
 
   try {
     const user = await requireUser();
-    await requireProjectOwner(user.id, parsed.data.projectId);
+    await requireProjectManager(user.id, parsed.data.projectId);
 
     const project = await prisma.project.update({
       where: { id: parsed.data.projectId },
       data: { isArchived: true, archivedAt: new Date() },
+    });
+
+    await logActivity({
+      projectId: project.id,
+      userId: user.id,
+      action: "project_archived",
+      detail: `Archived project "${project.name}"`,
     });
 
     revalidatePath("/projects");
@@ -80,11 +88,18 @@ export async function unarchiveProject(input: unknown): Promise<ActionResult<Pro
 
   try {
     const user = await requireUser();
-    await requireProjectOwner(user.id, parsed.data.projectId);
+    await requireProjectManager(user.id, parsed.data.projectId);
 
     const project = await prisma.project.update({
       where: { id: parsed.data.projectId },
       data: { isArchived: false, archivedAt: null },
+    });
+
+    await logActivity({
+      projectId: project.id,
+      userId: user.id,
+      action: "project_unarchived",
+      detail: `Unarchived project "${project.name}"`,
     });
 
     revalidatePath("/projects");

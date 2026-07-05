@@ -16,6 +16,23 @@ export function fail<T>(error: unknown): ActionResult<T> {
   return { success: false, error: "Something went wrong" };
 }
 
-export const projectRoleSchema = z.enum(["GC_OWNER", "TRADE"]);
+export const projectRoleSchema = z.enum(["PROJECT_MANAGER", "SCHEDULER", "SUPERINTENDENT", "TRADE"]);
 
 export const taskStatusSchema = z.enum(["NOT_STARTED", "IN_PROGRESS", "DONE", "DELAYED"]);
+
+export const roadblockTypeSchema = z.enum([
+  "CHANGE_ORDER",
+  "INSPECTION",
+  "LABOR",
+  "MATERIAL",
+  "WEATHER",
+  "OTHER",
+]);
+
+export const commitmentStatusSchema = z.enum(["COMMITTED", "COMPLETED", "NOT_COMPLETED"]);
+
+export const sirStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED"]);
+
+export const submittalStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED", "REVISE_RESUBMIT"]);
+
+export const rfiStatusSchema = z.enum(["OPEN", "ANSWERED", "CLOSED"]);

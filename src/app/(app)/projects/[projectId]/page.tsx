@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
+import { isProjectManager, canManageSchedule } from "@/lib/permissions";
 import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { TaskTable } from "@/components/TaskTable";
 import { TaskForm } from "@/components/TaskForm";
@@ -26,7 +27,7 @@ export default async function ProjectDetailPage({
     }),
   ]);
 
-  const isOwner = role === "GC_OWNER";
+  const canManage = canManageSchedule(role);
   const memberOptions = members.map((m) => ({
     id: m.id,
     userId: m.userId,
@@ -38,7 +39,9 @@ export default async function ProjectDetailPage({
     <div className="max-w-6xl mx-auto px-6 py-10">
       <div className="flex items-start justify-between mb-1">
         <h1 className="font-display text-2xl">{project.name}</h1>
-        {isOwner && <ArchiveProjectButton projectId={project.id} isArchived={project.isArchived} />}
+        {isProjectManager(role) && (
+          <ArchiveProjectButton projectId={project.id} isArchived={project.isArchived} />
+        )}
       </div>
       <p className="text-sm text-muted mb-6">
         {formatDate(project.startDate)} – {formatDate(project.endDate)}
@@ -47,10 +50,10 @@ export default async function ProjectDetailPage({
       <ProjectSubNav projectId={projectId} active="Tasks" />
 
       <div className="mt-8 space-y-6">
-        {isOwner && <TaskForm projectId={projectId} members={memberOptions} />}
+        {canManage && <TaskForm projectId={projectId} members={memberOptions} />}
 
         <div className="overflow-x-auto">
-          <TaskTable tasks={tasks} members={memberOptions} currentUserId={user.id} isOwner={isOwner} />
+          <TaskTable tasks={tasks} members={memberOptions} currentUserId={user.id} role={role} projectId={projectId} />
         </div>
       </div>
     </div>

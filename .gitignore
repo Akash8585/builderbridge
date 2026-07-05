@@ -48,3 +48,6 @@ DESIGN.md
 # editor/agent tooling
 .cursor/
 
+# Field Tracking photo uploads (local disk storage — dev only, not durable storage)
+/public/uploads/
+

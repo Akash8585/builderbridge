@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
+import { isProjectManager } from "@/lib/permissions";
 import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { InviteLinkGenerator } from "@/components/InviteLinkGenerator";
 import { ProjectMembersTable } from "@/components/ProjectMembersTable";
@@ -19,7 +20,7 @@ export default async function ProjectMembersPage({
     orderBy: { createdAt: "asc" },
   });
 
-  const canManage = role === "GC_OWNER";
+  const canManage = isProjectManager(role);
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-10">

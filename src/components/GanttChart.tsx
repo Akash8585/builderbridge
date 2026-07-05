@@ -22,10 +22,12 @@ export function GanttChart({
   tasks,
   rangeStart,
   rangeEnd,
+  criticalTaskIds,
 }: {
   tasks: GanttTask[];
   rangeStart: Date;
   rangeEnd: Date;
+  criticalTaskIds?: Set<string>;
 }) {
   const totalDays = Math.max(daysBetween(rangeStart, rangeEnd), 1);
 
@@ -47,11 +49,17 @@ export function GanttChart({
         const durationDays = Math.max(daysBetween(task.startDate, task.endDate), 1);
         const leftPct = (offsetDays / totalDays) * 100;
         const widthPct = Math.min((durationDays / totalDays) * 100, 100 - leftPct);
+        const isCritical = criticalTaskIds?.has(task.id) ?? false;
 
         return (
           <div key={task.id} className="flex items-center border-b border-hairline-soft last:border-b-0">
             <div className="w-48 shrink-0 px-3 py-3 text-sm">
-              <div className="font-medium text-ink truncate">{task.name}</div>
+              <div className="font-medium text-ink truncate flex items-center gap-1.5">
+                {isCritical && (
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-error shrink-0" title="On critical path" />
+                )}
+                {task.name}
+              </div>
               <div className="text-xs text-muted truncate">
                 {task.assignedTo?.user.name ?? "Unassigned"}
               </div>
@@ -59,8 +67,10 @@ export function GanttChart({
             <div className="flex-1 relative h-10 px-3">
               <div className="absolute inset-y-0 my-auto h-6" style={{ left: `${leftPct}%`, width: `${widthPct}%` }}>
                 <div
-                  className={`h-full rounded-md ${BAR_COLORS[task.status]} flex items-center px-2 min-w-[2px]`}
-                  title={`${TASK_STATUS_LABELS[task.status]}: ${formatDate(task.startDate)} – ${formatDate(task.endDate)}`}
+                  className={`h-full rounded-md ${BAR_COLORS[task.status]} flex items-center px-2 min-w-[2px] ${
+                    isCritical ? "ring-2 ring-error ring-offset-1" : ""
+                  }`}
+                  title={`${TASK_STATUS_LABELS[task.status]}: ${formatDate(task.startDate)} – ${formatDate(task.endDate)}${isCritical ? " (critical path)" : ""}`}
                 >
                   {task.isRoadblock && <span className="text-xs">⚠</span>}
                 </div>
@@ -69,6 +79,12 @@ export function GanttChart({
           </div>
         );
       })}
+      {criticalTaskIds && criticalTaskIds.size > 0 && (
+        <div className="flex items-center gap-1.5 px-3 py-2 text-xs text-muted bg-surface-soft">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-error" />
+          Critical path — any delay on these tasks pushes out the project end date
+        </div>
+      )}
     </div>
   );
 }

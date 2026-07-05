@@ -26,7 +26,9 @@ async function createUser(email: string, name: string) {
 async function main() {
   console.log("Seeding demo data...");
 
-  const gc = await createUser("jane@buildflow.dev", "Jane GC");
+  const pm = await createUser("jane@buildflow.dev", "Jane GC");
+  const scheduler = await createUser("mike@buildflow.dev", "Mike Scheduler");
+  const superintendent = await createUser("sam@buildflow.dev", "Sam Superintendent");
   const electrician = await createUser("tom@buildflow.dev", "Tom Electric");
   const plumber = await createUser("sara@buildflow.dev", "Sara Plumbing");
 
@@ -36,7 +38,9 @@ async function main() {
       slug: "acme-construction",
       members: {
         create: [
-          { userId: gc.id, role: "owner" },
+          { userId: pm.id, role: "owner" },
+          { userId: scheduler.id, role: "member" },
+          { userId: superintendent.id, role: "member" },
           { userId: electrician.id, role: "member" },
           { userId: plumber.id, role: "member" },
         ],
@@ -56,7 +60,9 @@ async function main() {
       endDate,
       members: {
         create: [
-          { userId: gc.id, role: "GC_OWNER" },
+          { userId: pm.id, role: "PROJECT_MANAGER" },
+          { userId: scheduler.id, role: "SCHEDULER" },
+          { userId: superintendent.id, role: "SUPERINTENDENT" },
           { userId: electrician.id, role: "TRADE" },
           { userId: plumber.id, role: "TRADE" },
         ],
@@ -65,7 +71,7 @@ async function main() {
     include: { members: true },
   });
 
-  const gcMember = project.members.find((m) => m.userId === gc.id)!;
+  const gcMember = project.members.find((m) => m.userId === pm.id)!;
   const electricianMember = project.members.find((m) => m.userId === electrician.id)!;
   const plumberMember = project.members.find((m) => m.userId === plumber.id)!;
 
@@ -126,9 +132,11 @@ async function main() {
 
   console.log("\nSeed complete!\n");
   console.log("Demo accounts (all use password: %s):", DEMO_PASSWORD);
-  console.log("  GC/Owner:      jane@buildflow.dev");
-  console.log("  Trade (elec):  tom@buildflow.dev");
-  console.log("  Trade (plumb): sara@buildflow.dev");
+  console.log("  Project Manager:  jane@buildflow.dev");
+  console.log("  Scheduler:        mike@buildflow.dev");
+  console.log("  Superintendent:   sam@buildflow.dev");
+  console.log("  Trade (elec):     tom@buildflow.dev");
+  console.log("  Trade (plumb):    sara@buildflow.dev");
   console.log(`\nOrganization: ${organization.name}`);
   console.log(`Project: ${project.name}`);
 }

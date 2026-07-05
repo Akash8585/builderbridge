@@ -4,16 +4,33 @@ A simplified, Outbuild-style scheduling & collaboration tool for construction pr
 
 ## Features
 
+### Foundation
 - **Auth**: email/password + Google OAuth sign-in (Better Auth)
 - **Organizations**: sign up, create/join an org; projects belong to an org
-- **Per-project roles**: a user can be `GC_OWNER` on one project and `TRADE` on another
+- **Per-project roles**: a user can hold a different role on each project — `PROJECT_MANAGER` (full access), `SCHEDULER` (edit tasks/dates/dependencies), `SUPERINTENDENT` (edit tasks, own/resolve roadblocks), or `TRADE` (own assigned tasks only)
 - **Link-based invites**: generate a shareable `/invite/[token]` link with a preset role — no email sending in v1
 - **Tasks**: name, assigned trade/person, start/end dates, status (`NOT_STARTED` / `IN_PROGRESS` / `DONE` / `DELAYED`)
-- **View split**: all project members can view tasks; only the `GC_OWNER` or assigned `TRADE` member can edit them
-- **Roadblocks**: any member can flag a task as blocked with a note; `GC_OWNER` or the assigned trade can resolve it
-- **Gantt view**: simple CSS-based timeline colored by status
+- **View split**: all project members can view tasks; only Project Manager/Scheduler/Superintendent or the assigned Trade member can edit them
+- **Gantt view**: CSS-based timeline colored by status, with critical-path highlighting
 - **Dashboard**: total tasks, % complete, open roadblock count
 - **Archiving**: projects are soft-deleted (archived), not hard-deleted
+
+### Planning loop (Phase 1)
+- **Task dependencies + Critical Path Method**: link predecessor/successor tasks (with cycle detection); the Gantt view highlights the critical path
+- **Lookahead**: rolling 2/4/6-week filtered view of upcoming work
+- **Weekly Work Plan**: commit tasks to a week, track completion, auto-calculated Percent Plan Complete (PPC)
+- **Roadblocks**: typed (change order, inspection, labor, material, weather, other) with an owner and due date; any member can flag, Project Manager/Superintendent/assigned Trade can resolve; dedicated Roadblock Log page
+- **Field Tracking**: post progress notes + photos against any task (mobile-friendly web, no native app)
+- **Analytics**: project dashboard adds a PPC trend chart (week over week), Promise Reliability Rate (PRR) per trade/member, and an S-Curve chart comparing planned vs. actual cumulative task completion
+
+### Planning depth & document tracking (Phase 2)
+- **Pull Planning**: a sequencing board for the upcoming weeks — any Trade partner can add their own task (self-assigned), and a Project Manager/Scheduler/Superintendent sequences the order of work
+- **Schedule Impact Requests (SIR)**: any member can submit a field-condition change request; a Project Manager or Superintendent reviews/approves it (approval can push out the linked task's end date)
+- **Submittals**: native tracking log (title, spec section, status, due date), optionally linked to a task, with overdue surfaced on the task detail page
+- **RFIs**: native Q&A log linked to a task; an open RFI past its due date automatically flags the linked task as a roadblock, the same way a manual flag does
+- **Drawings**: upload PDFs/images per project (optionally linked to a task); re-uploading the same title creates a new revision and marks the prior one superseded
+- **Baselines**: snapshot every task's dates/status at a point in time, then compare against the current schedule to see day-by-day variance
+- **Activity Log**: an append-only audit trail of schedule-relevant changes (status changes, roadblocks, dependencies, commitments, SIR reviews, submittal/RFI decisions, drawing uploads, archiving) — who, when, what changed
 
 ## Tech Stack
 
@@ -57,9 +74,11 @@ npx prisma migrate dev --name init
 npm run db:seed
 ```
 
-This creates a demo organization ("Acme Construction Co."), a project ("Riverside Apartments — Phase 1"), and three accounts you can sign in with (password: `password123`):
+This creates a demo organization ("Acme Construction Co."), a project ("Riverside Apartments — Phase 1"), and five accounts you can sign in with (password: `password123`):
 
-- `jane@buildflow.dev` — GC/Owner
+- `jane@buildflow.dev` — Project Manager
+- `mike@buildflow.dev` — Scheduler
+- `sam@buildflow.dev` — Superintendent
 - `tom@buildflow.dev` — Trade (electrical)
 - `sara@buildflow.dev` — Trade (plumbing)
 

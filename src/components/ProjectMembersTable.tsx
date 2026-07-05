@@ -4,14 +4,14 @@ import { useState, useTransition } from "react";
 import { removeMember } from "@/app/actions/members";
 import { Button } from "@/components/ui/Button";
 import { ErrorText } from "@/components/ui/ErrorText";
+import { PROJECT_ROLE_LABELS } from "@/lib/utils";
+import type { ProjectRole } from "@prisma/client";
 
 type MemberRow = {
   id: string;
-  role: "GC_OWNER" | "TRADE";
+  role: ProjectRole;
   user: { id: string; name: string; email: string };
 };
-
-const ROLE_LABELS = { GC_OWNER: "GC / Owner", TRADE: "Trade Partner" } as const;
 
 export function ProjectMembersTable({
   projectId,
@@ -52,7 +52,7 @@ export function ProjectMembersTable({
             <tr key={member.id} className="border-b border-hairline-soft">
               <td className="py-3">{member.user.name}</td>
               <td className="py-3 text-muted">{member.user.email}</td>
-              <td className="py-3">{ROLE_LABELS[member.role]}</td>
+              <td className="py-3">{PROJECT_ROLE_LABELS[member.role]}</td>
               {canManage && (
                 <td className="py-3 text-right">
                   <Button

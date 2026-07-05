@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { updateTaskStatus, deleteTask } from "@/app/actions/tasks";
+import { canManageSchedule, canResolveRoadblocks } from "@/lib/permissions";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RoadblockDialog } from "@/components/RoadblockDialog";
 import { EditTaskForm } from "@/components/EditTaskForm";
 import { Button } from "@/components/ui/Button";
 import { ErrorText } from "@/components/ui/ErrorText";
 import { formatDate, TASK_STATUS_LABELS } from "@/lib/utils";
-import type { TaskStatus, RoadblockStatus } from "@prisma/client";
+import type { TaskStatus, RoadblockStatus, ProjectRole } from "@prisma/client";
 
 export type TaskRow = {
   id: string;
@@ -22,7 +24,7 @@ export type TaskRow = {
   assignedTo: { id: string; userId: string; user: { name: string } } | null;
 };
 
-export type MemberOption = { id: string; userId: string; name: string; role: "GC_OWNER" | "TRADE" };
+export type MemberOption = { id: string; userId: string; name: string; role: ProjectRole };
 
 const STATUS_OPTIONS: TaskStatus[] = ["NOT_STARTED", "IN_PROGRESS", "DONE", "DELAYED"];
 
@@ -30,14 +32,18 @@ export function TaskTable({
   tasks,
   members,
   currentUserId,
-  isOwner,
+  role,
+  projectId,
 }: {
   tasks: TaskRow[];
   members: MemberOption[];
   currentUserId: string;
-  isOwner: boolean;
+  role: ProjectRole;
+  projectId: string;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const canManage = canManageSchedule(role);
+  const canResolve = canResolveRoadblocks(role);
 
   if (tasks.length === 0) {
     return <p className="text-sm text-muted py-8 text-center">No tasks yet.</p>;
@@ -53,16 +59,18 @@ export function TaskTable({
           <th className="py-2 pr-3 font-medium">End</th>
           <th className="py-2 pr-3 font-medium">Status</th>
           <th className="py-2 pr-3 font-medium">Roadblock</th>
-          {isOwner && <th className="py-2 font-medium text-right">Actions</th>}
+          {canManage && <th className="py-2 font-medium text-right">Actions</th>}
         </tr>
       </thead>
       <tbody>
         {tasks.map((task) => {
-          const canEdit = isOwner || task.assignedTo?.userId === currentUserId;
+          const isAssignedTrade = task.assignedTo?.userId === currentUserId;
+          const canEdit = canManage || isAssignedTrade;
+          const canResolveThis = canResolve || isAssignedTrade;
           if (editingId === task.id) {
             return (
               <tr key={task.id} className="border-b border-hairline-soft">
-                <td colSpan={isOwner ? 7 : 6} className="py-3">
+                <td colSpan={canManage ? 7 : 6} className="py-3">
                   <EditTaskForm
                     task={task}
                     members={members}
@@ -76,9 +84,11 @@ export function TaskTable({
             <TaskRow
               key={task.id}
               task={task}
+              projectId={projectId}
               canEdit={canEdit}
-              isOwner={isOwner}
-              colSpan={isOwner ? 7 : 6}
+              canResolve={canResolveThis}
+              canManage={canManage}
+              colSpan={canManage ? 7 : 6}
               onEdit={() => setEditingId(task.id)}
             />
           );
@@ -90,14 +100,18 @@ export function TaskTable({
 
 function TaskRow({
   task,
+  projectId,
   canEdit,
-  isOwner,
+  canResolve,
+  canManage,
   colSpan,
   onEdit,
 }: {
   task: TaskRow;
+  projectId: string;
   canEdit: boolean;
-  isOwner: boolean;
+  canResolve: boolean;
+  canManage: boolean;
   colSpan: number;
   onEdit: () => void;
 }) {
@@ -126,7 +140,11 @@ function TaskRow({
   return (
     <>
       <tr className="border-b border-hairline-soft align-top">
-        <td className="py-3 pr-3 font-medium text-ink">{task.name}</td>
+        <td className="py-3 pr-3 font-medium text-ink">
+          <Link href={`/projects/${projectId}/tasks/${task.id}`} className="hover:underline">
+            {task.name}
+          </Link>
+        </td>
         <td className="py-3 pr-3 text-body">{task.assignedTo?.user.name ?? "Unassigned"}</td>
         <td className="py-3 pr-3 text-muted whitespace-nowrap">{formatDate(task.startDate)}</td>
         <td className="py-3 pr-3 text-muted whitespace-nowrap">{formatDate(task.endDate)}</td>
@@ -154,10 +172,10 @@ function TaskRow({
             isRoadblock={task.isRoadblock}
             roadblockNote={task.roadblockNote}
             roadblockStatus={task.roadblockStatus}
-            canResolve={canEdit}
+            canResolve={canResolve}
           />
         </td>
-        {isOwner && (
+        {canManage && (
           <td className="py-3 text-right whitespace-nowrap">
             <Button variant="text" className="text-xs" onClick={onEdit} disabled={pending}>
               Edit

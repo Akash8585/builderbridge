@@ -4,9 +4,13 @@ import { useState } from "react";
 import { createInvite } from "@/app/actions/members";
 import { Button } from "@/components/ui/Button";
 import { ErrorText } from "@/components/ui/ErrorText";
+import { PROJECT_ROLE_LABELS } from "@/lib/utils";
+import type { ProjectRole } from "@prisma/client";
+
+const INVITABLE_ROLES: ProjectRole[] = ["TRADE", "SUPERINTENDENT", "SCHEDULER", "PROJECT_MANAGER"];
 
 export function InviteLinkGenerator({ projectId }: { projectId: string }) {
-  const [role, setRole] = useState<"GC_OWNER" | "TRADE">("TRADE");
+  const [role, setRole] = useState<ProjectRole>("TRADE");
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,11 +42,14 @@ export function InviteLinkGenerator({ projectId }: { projectId: string }) {
       <div className="flex flex-wrap items-center gap-3">
         <select
           value={role}
-          onChange={(e) => setRole(e.target.value as "GC_OWNER" | "TRADE")}
+          onChange={(e) => setRole(e.target.value as ProjectRole)}
           className="h-10 rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink"
         >
-          <option value="TRADE">Trade Partner</option>
-          <option value="GC_OWNER">GC / Owner</option>
+          {INVITABLE_ROLES.map((r) => (
+            <option key={r} value={r}>
+              {PROJECT_ROLE_LABELS[r]}
+            </option>
+          ))}
         </select>
         <Button type="button" variant="secondary" onClick={handleGenerate} disabled={loading}>
           {loading ? "Generating…" : "Generate invite link"}

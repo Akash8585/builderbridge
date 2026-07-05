@@ -3,8 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentSession } from "@/lib/session";
 import { Card } from "@/components/ui/Card";
 import { AcceptInviteButton } from "@/components/AcceptInviteButton";
-
-const ROLE_LABELS = { GC_OWNER: "GC / Owner", TRADE: "Trade Partner" } as const;
+import { PROJECT_ROLE_LABELS } from "@/lib/utils";
 
 export default async function InvitePage({
   params,
@@ -36,7 +35,7 @@ export default async function InvitePage({
       <InviteShell>
         <h1 className="font-display text-xl mb-2">Invite already used</h1>
         <p className="text-sm text-muted">
-          This invite link has already been used. Ask a project owner for a new one.
+          This invite link has already been used. Ask a Project Manager for a new one.
         </p>
       </InviteShell>
     );
@@ -47,7 +46,7 @@ export default async function InvitePage({
       <InviteShell>
         <h1 className="font-display text-xl mb-2">Invite expired</h1>
         <p className="text-sm text-muted">
-          This invite link has expired. Ask a project owner for a new one.
+          This invite link has expired. Ask a Project Manager for a new one.
         </p>
       </InviteShell>
     );
@@ -61,7 +60,7 @@ export default async function InvitePage({
         <span className="font-semibold">{invite.project.organization.name}</span>
       </p>
       <p className="text-sm text-muted mb-6">
-        Role: <span className="font-medium text-ink">{ROLE_LABELS[invite.role]}</span>
+        Role: <span className="font-medium text-ink">{PROJECT_ROLE_LABELS[invite.role]}</span>
       </p>
 
       {session?.user ? (

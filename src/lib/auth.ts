@@ -5,26 +5,21 @@ import { nextCookies } from "better-auth/next-js";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 
-// #region agent log
-fetch("http://127.0.0.1:7600/ingest/68e6e7cf-5da8-4f72-982e-1527774b51c8", {
-  method: "POST",
-  headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "ed1ad1" },
-  body: JSON.stringify({
-    sessionId: "ed1ad1",
-    location: "auth.ts:init",
-    message: "Better Auth module initialized with baseURL",
-    data: { hypothesisId: "H3", baseURL: env.BETTER_AUTH_URL, time: Date.now() },
-    timestamp: Date.now(),
-  }),
-}).catch(() => {});
-// #endregion
-
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
+  // Every page load calls getSession() — without this, that's a DB round trip
+  // on every single navigation just to confirm who's logged in. Caching the
+  // session in a signed cookie for 5 minutes skips that DB hit almost always.
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60,
+    },
+  },
   emailAndPassword: {
     enabled: true,
   },

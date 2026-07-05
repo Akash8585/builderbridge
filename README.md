@@ -1,4 +1,4 @@
-# BuildFlow — Construction Scheduling & Collaboration (MVP)
+# BuilderBridge — Construction Scheduling & Collaboration (MVP)
 
 A simplified, Outbuild-style scheduling & collaboration tool for construction projects. Built with Next.js (App Router), TypeScript, Tailwind CSS, Prisma + PostgreSQL (Neon), Better Auth, and Zod.
 
@@ -31,6 +31,12 @@ A simplified, Outbuild-style scheduling & collaboration tool for construction pr
 - **Drawings**: upload PDFs/images per project (optionally linked to a task); re-uploading the same title creates a new revision and marks the prior one superseded
 - **Baselines**: snapshot every task's dates/status at a point in time, then compare against the current schedule to see day-by-day variance
 - **Activity Log**: an append-only audit trail of schedule-relevant changes (status changes, roadblocks, dependencies, commitments, SIR reviews, submittal/RFI decisions, drawing uploads, archiving) — who, when, what changed
+
+### Portfolio / executive layer (Phase 3)
+- **Executive Dashboard** (`/dashboard`): cross-project view for the whole organization — total tasks, open roadblocks, and average health score at a glance, plus a per-project table of % complete, PPC, PRR, schedule variance, roadblocks, and health score
+- **Project Timeline** (`/timeline`): every active project's schedule shown together on one shared timeline, color-coded by health score, with a "today" marker
+- **Composite health score**: a weighted blend of PPC (35%), PRR (30%), schedule variance vs. baseline (20%), and open roadblocks (15%) — components with no data yet (e.g. no commitments recorded) are excluded and the rest are renormalized rather than penalizing new projects
+- **Trade/Partner performance** (`/trade-performance`): commitment reliability (PRR) per person, aggregated across every active project they're on — not just one project at a time
 
 ### Outbuild AI (Phase 4, scoped)
 - **Schedule Q&A Assistant**: a chat-style panel per project — ask natural-language questions ("what's blocking the schedule?", "which trades are behind on commitments?") and get answers grounded in that project's own tasks, roadblocks, PPC, submittals, and RFIs. Powered by [OpenRouter](https://openrouter.ai/) (`OPENROUTER_API_KEY` + `OPENROUTER_MODEL` env vars); gracefully shows a "not configured" message if no key is set. Chat history is session-only (not persisted).
@@ -95,11 +101,27 @@ npm run dev
 
 Visit [http://localhost:3000](http://localhost:3000).
 
+## Testing
+
+```bash
+npm test          # run once
+npm run test:watch # watch mode
+```
+
+The suite (Vitest) has two layers:
+
+- **`tests/unit/`** — pure business logic with no I/O: permission rules, Critical Path Method + cycle detection, PPC/PRR/S-Curve math, portfolio health-score math.
+- **`tests/integration/`** — real round trips against the database (tasks, dependencies, roadblocks, weekly commitments, Schedule Impact Requests, Submittals, RFIs incl. the overdue auto-flag behavior, Drawing revision handling, Baselines, Activity Log). These run against your configured `DATABASE_URL`, but every test creates its own isolated organization/project/users with a random suffix and tears them down afterward — your demo seed data is never touched.
+
+Not covered by this suite: Server Actions' outer auth/session wrapper (they need a real Next.js request context) and browser-level UI interaction — those were verified manually throughout development via HTTP smoke tests against a running dev server.
+
 ## Project Structure
 
 ```
 prisma/schema.prisma        Database schema (Better Auth + app models)
 prisma/seed.ts               Demo data seed script
+tests/unit/                  Pure-logic unit tests (Vitest)
+tests/integration/           Real-DB integration tests with isolated fixtures (Vitest)
 src/proxy.ts                 Route protection (redirects unauthenticated users)
 src/app/                     Next.js App Router pages
 src/app/actions/             Server Actions (Zod-validated, role-enforced mutations)

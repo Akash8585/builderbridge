@@ -11,10 +11,13 @@ import { getProjectRole } from "@/lib/permissions";
 export async function getProjectPageContext(projectId: string) {
   const user = await requireUser();
 
-  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  // These two don't depend on each other — run them concurrently instead of
+  // paying for two sequential round trips to the database.
+  const [project, role] = await Promise.all([
+    prisma.project.findUnique({ where: { id: projectId } }),
+    getProjectRole(user.id, projectId),
+  ]);
   if (!project) notFound();
-
-  const role = await getProjectRole(user.id, projectId);
   if (!role) redirect("/projects");
 
   return { user, project, role };

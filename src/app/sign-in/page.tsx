@@ -14,7 +14,7 @@ export default async function SignInPage({
     <div className="min-h-screen flex items-center justify-center bg-surface-soft px-4">
       <Card className="w-full max-w-sm p-8">
         <h1 className="font-display text-2xl mb-1">Welcome back</h1>
-        <p className="text-sm text-muted mb-6">Sign in to your BuildFlow account</p>
+        <p className="text-sm text-muted mb-6">Sign in to BuilderBridge</p>
         <SignInForm redirectTo={redirectTo} />
         <p className="text-sm text-muted text-center mt-6">
           Don&apos;t have an account?{" "}

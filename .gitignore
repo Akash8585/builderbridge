@@ -51,3 +51,6 @@ DESIGN.md
 # Field Tracking photo uploads (local disk storage — dev only, not durable storage)
 /public/uploads/
 
+# Third-party UI design references (copyrighted assets — private reference only)
+/design-refs/
+

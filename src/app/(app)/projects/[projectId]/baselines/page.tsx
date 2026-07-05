@@ -43,7 +43,7 @@ export default async function ProjectBaselinesPage({
   const currentById = new Map(currentTasks.map((t) => [t.id, t]));
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-10">
+    <div className="max-w-6xl mx-auto px-6 py-10">
       <h1 className="font-display text-2xl mb-1">{project.name}</h1>
       <p className="text-sm text-muted mb-6">Baselines</p>
 
@@ -78,51 +78,53 @@ export default async function ProjectBaselinesPage({
               Comparing <span className="font-medium text-ink">{selected.name}</span> (saved{" "}
               {formatDate(selected.createdAt)} by {selected.createdBy?.user.name ?? "—"}) against current schedule
             </div>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase text-muted-soft border-b border-hairline-soft">
-                  <th className="px-4 py-2 font-medium">Task</th>
-                  <th className="px-4 py-2 font-medium">Baseline Dates</th>
-                  <th className="px-4 py-2 font-medium">Current Dates</th>
-                  <th className="px-4 py-2 font-medium">Variance</th>
-                  <th className="px-4 py-2 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selected.snapshots.map((s) => {
-                  const current = currentById.get(s.taskId);
-                  const variance = current ? daysBetween(s.endDate, current.endDate) : null;
-                  return (
-                    <tr key={s.id} className="border-b border-hairline-soft last:border-b-0">
-                      <td className="px-4 py-2">{s.taskName}</td>
-                      <td className="px-4 py-2 text-muted">
-                        {formatDate(s.startDate)} – {formatDate(s.endDate)}
-                      </td>
-                      <td className="px-4 py-2 text-muted">
-                        {current ? `${formatDate(current.startDate)} – ${formatDate(current.endDate)}` : "Task deleted"}
-                      </td>
-                      <td className="px-4 py-2">
-                        {variance === null ? (
-                          "—"
-                        ) : variance === 0 ? (
-                          <span className="text-success">On schedule</span>
-                        ) : variance > 0 ? (
-                          <span className="text-error">+{variance}d slip</span>
-                        ) : (
-                          <span className="text-success">{variance}d ahead</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2 text-muted">
-                        {TASK_STATUS_LABELS[s.status]}
-                        {current && current.status !== s.status && (
-                          <span className="text-muted-soft"> → {TASK_STATUS_LABELS[current.status]}</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs uppercase text-muted-soft border-b border-hairline-soft">
+                    <th className="px-4 py-2 font-medium">Task</th>
+                    <th className="px-4 py-2 font-medium">Baseline Dates</th>
+                    <th className="px-4 py-2 font-medium">Current Dates</th>
+                    <th className="px-4 py-2 font-medium">Variance</th>
+                    <th className="px-4 py-2 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selected.snapshots.map((s) => {
+                    const current = currentById.get(s.taskId);
+                    const variance = current ? daysBetween(s.endDate, current.endDate) : null;
+                    return (
+                      <tr key={s.id} className="border-b border-hairline-soft last:border-b-0">
+                        <td className="px-4 py-2">{s.taskName}</td>
+                        <td className="px-4 py-2 text-muted">
+                          {formatDate(s.startDate)} – {formatDate(s.endDate)}
+                        </td>
+                        <td className="px-4 py-2 text-muted">
+                          {current ? `${formatDate(current.startDate)} – ${formatDate(current.endDate)}` : "Task deleted"}
+                        </td>
+                        <td className="px-4 py-2">
+                          {variance === null ? (
+                            "—"
+                          ) : variance === 0 ? (
+                            <span className="text-success">On schedule</span>
+                          ) : variance > 0 ? (
+                            <span className="text-error">+{variance}d slip</span>
+                          ) : (
+                            <span className="text-success">{variance}d ahead</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-muted">
+                          {TASK_STATUS_LABELS[s.status]}
+                          {current && current.status !== s.status && (
+                            <span className="text-muted-soft"> → {TASK_STATUS_LABELS[current.status]}</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </Card>
         )}
       </div>

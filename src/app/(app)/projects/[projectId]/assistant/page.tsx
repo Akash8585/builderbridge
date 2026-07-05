@@ -13,13 +13,13 @@ export default async function ProjectAssistantPage({
   const { project } = await getProjectPageContext(projectId);
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
+    <div className="max-w-6xl mx-auto px-6 py-10">
       <h1 className="font-display text-2xl mb-1">{project.name}</h1>
       <p className="text-sm text-muted mb-6">Schedule Assistant</p>
 
       <ProjectSubNav projectId={projectId} active="Assistant" />
 
-      <div className="mt-8">
+      <div className="mt-8 max-w-3xl">
         {env.OPENROUTER_API_KEY ? (
           <Card className="p-6">
             <ScheduleAssistantPanel projectId={projectId} />

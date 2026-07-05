@@ -33,7 +33,7 @@ export default async function ProjectSubmittalsPage({
   ]);
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-10">
+    <div className="max-w-6xl mx-auto px-6 py-10">
       <h1 className="font-display text-2xl mb-1">{project.name}</h1>
       <p className="text-sm text-muted mb-6">Submittals Log</p>
 

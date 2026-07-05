@@ -13,7 +13,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BuildFlow — Construction Scheduling",
+  title: "BuilderBridge — Construction Scheduling",
   description: "Simple scheduling & collaboration for construction projects",
 };
 

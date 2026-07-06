@@ -72,6 +72,7 @@ cp .env.example .env
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — create OAuth credentials at the [Google Cloud Console](https://console.cloud.google.com/apis/credentials). Redirect URI for local dev: `http://localhost:3000/api/auth/callback/google`.
 - `OPENROUTER_API_KEY` — optional. Get one at [openrouter.ai/keys](https://openrouter.ai/keys) to enable the Schedule Q&A Assistant. Leave blank to skip — the rest of the app works fine without it.
 - `OPENROUTER_MODEL` — optional, defaults to `openrouter/free` (OpenRouter's auto-router — picks whichever free model is currently available, with automatic failover if one is rate-limited). Set to a specific model ID like `openai/gpt-oss-20b:free` if you'd rather pin one.
+- `S3_ENDPOINT` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_BUCKET` / `S3_REGION` / `S3_PUBLIC_URL` — optional in dev (uploads fall back to local disk), **required in production** for Field Tracking photos and Drawings. Works with Supabase Storage, Cloudflare R2, AWS S3, or MinIO — see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ### 3. Run database migrations
 
@@ -100,6 +101,10 @@ npm run dev
 ```
 
 Visit [http://localhost:3000](http://localhost:3000).
+
+## Deployment
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for the full production guide (Vercel + Neon + Cloudflare R2, env checklist, migrations, and security notes).
 
 ## Testing
 

@@ -8,7 +8,8 @@ export default async function SignUpPage({
   searchParams: Promise<{ callbackURL?: string }>;
 }) {
   const { callbackURL } = await searchParams;
-  const redirectTo = callbackURL || "/";
+  // "/" is the marketing landing page — send new users into the app after sign-up.
+  const redirectTo = callbackURL || "/projects";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-surface-soft px-4">

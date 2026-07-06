@@ -2,12 +2,11 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { requireScheduleEditAccess } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-log";
+import { uploadFile, buildStorageKey } from "@/lib/storage";
 import { ok, fail, type ActionResult } from "./schemas";
 import type { Drawing } from "@prisma/client";
 
@@ -22,10 +21,10 @@ const uploadDrawingSchema = z.object({
 });
 
 /**
- * Upload a drawing (PDF or image), stored on local disk for this MVP (see the
- * same caveat as Field Tracking photos). If a prior drawing with the same
- * title already exists on this project, it's marked superseded and the new
- * upload's revision number increments from it.
+ * Upload a drawing (PDF or image) via lib/storage.ts (S3-compatible storage
+ * when configured, local disk fallback in dev). If a prior drawing with the
+ * same title already exists on this project, it's marked superseded and the
+ * new upload's revision number increments from it.
  */
 export async function uploadDrawing(formData: FormData): Promise<ActionResult<Drawing>> {
   const parsed = uploadDrawingSchema.safeParse({
@@ -62,13 +61,9 @@ export async function uploadDrawing(formData: FormData): Promise<ActionResult<Dr
       orderBy: { revision: "desc" },
     });
 
-    const dir = path.join(process.cwd(), "public", "uploads", "drawings", parsed.data.projectId);
-    await mkdir(dir, { recursive: true });
-    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const filename = `${Date.now()}-${safeName}`;
+    const key = buildStorageKey(`drawings/${parsed.data.projectId}`, file.name);
     const bytes = Buffer.from(await file.arrayBuffer());
-    await writeFile(path.join(dir, filename), bytes);
-    const fileUrl = `/uploads/drawings/${parsed.data.projectId}/${filename}`;
+    const fileUrl = await uploadFile(key, bytes, file.type);
 
     const drawing = await prisma.$transaction(async (tx) => {
       if (priorRevision) {

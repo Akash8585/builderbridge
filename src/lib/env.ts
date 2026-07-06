@@ -12,6 +12,20 @@ const envSchema = z.object({
   // "openrouter/free" auto-selects an available free model with failover,
   // which sidesteps rate limits on any single popular free model.
   OPENROUTER_MODEL: z.string().default("openrouter/free"),
+  // Optional: S3-compatible object storage (Supabase Storage / Cloudflare R2 /
+  // AWS S3 / MinIO) for Field Tracking photos and Drawings. Endpoint, keys,
+  // and bucket must be set together to enable it — otherwise uploads fall
+  // back to local disk (dev only).
+  S3_ENDPOINT: z.string().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  S3_BUCKET: z.string().optional(),
+  // Region: Supabase requires the project's region (e.g. "ap-south-1");
+  // R2 uses "auto" (the default).
+  S3_REGION: z.string().default("auto"),
+  // Public base URL files are served from. For Supabase:
+  // https://<project-ref>.supabase.co/storage/v1/object/public/<bucket>
+  S3_PUBLIC_URL: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

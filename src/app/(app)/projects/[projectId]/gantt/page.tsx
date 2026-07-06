@@ -40,7 +40,9 @@ export default async function ProjectGanttPage({
           tasks={tasks}
           rangeStart={project.startDate}
           rangeEnd={project.endDate}
-          criticalTaskIds={criticalTaskIds}
+          criticalTaskIds={[...criticalTaskIds]}
+          dependencies={dependencies}
+          canEdit={canManageSchedule(role)}
         />
 
         <TaskDependencyManager

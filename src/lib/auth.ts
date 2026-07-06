@@ -20,6 +20,15 @@ export const auth = betterAuth({
       maxAge: 5 * 60,
     },
   },
+  // Rate limiting on /api/auth/* — Better Auth enables this by default only in
+  // production; making it explicit (and always on) protects sign-in/sign-up
+  // from brute force even in staging environments. In-memory storage is fine
+  // for a single instance; swap to database storage if scaled horizontally.
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 60,
+  },
   emailAndPassword: {
     enabled: true,
   },

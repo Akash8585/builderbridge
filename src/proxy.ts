@@ -6,6 +6,9 @@ const PUBLIC_PATHS = ["/sign-in", "/sign-up", "/invite", "/api/auth"];
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // The marketing landing page is public (exact match — "/" prefixes everything).
+  if (pathname === "/") return NextResponse.next();
+
   const isPublic = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
   if (isPublic) return NextResponse.next();
 

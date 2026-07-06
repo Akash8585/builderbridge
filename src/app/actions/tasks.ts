@@ -120,6 +120,59 @@ export async function updateTask(input: unknown): Promise<ActionResult<Task>> {
   }
 }
 
+const updateTaskDatesSchema = z
+  .object({
+    taskId: z.string().min(1, "taskId is required"),
+    startDate: z.coerce.date({ message: "A valid start date is required" }),
+    endDate: z.coerce.date({ message: "A valid end date is required" }),
+  })
+  .refine((data) => data.endDate >= data.startDate, {
+    message: "End date must be on or after start date",
+    path: ["endDate"],
+  });
+
+/**
+ * Reschedule a task's dates only (used by the interactive Gantt drag). Unlike
+ * updateTask this doesn't touch name/assignee, so a drag can never
+ * accidentally unassign a task.
+ */
+export async function updateTaskDates(input: unknown): Promise<ActionResult<Task>> {
+  const parsed = updateTaskDatesSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues.map((i) => i.message).join(", ") };
+  }
+
+  try {
+    const user = await requireUser();
+    const existing = await prisma.task.findUnique({ where: { id: parsed.data.taskId } });
+    if (!existing) throw new Error("Task not found");
+
+    await requireScheduleEditAccess(user.id, existing.projectId);
+
+    const task = await prisma.task.update({
+      where: { id: parsed.data.taskId },
+      data: { startDate: parsed.data.startDate, endDate: parsed.data.endDate },
+    });
+
+    await logActivity({
+      projectId: existing.projectId,
+      taskId: task.id,
+      taskName: task.name,
+      userId: user.id,
+      action: "task_rescheduled",
+      detail: `Rescheduled "${task.name}" to ${task.startDate.toDateString()} – ${task.endDate.toDateString()}`,
+    });
+
+    revalidatePath(`/projects/${existing.projectId}`);
+    revalidatePath(`/projects/${existing.projectId}/gantt`);
+    revalidatePath(`/projects/${existing.projectId}/lookahead`);
+    revalidatePath(`/projects/${existing.projectId}/dashboard`);
+    return ok(task);
+  } catch (error) {
+    return fail(error);
+  }
+}
+
 const updateTaskStatusSchema = z.object({
   taskId: z.string().min(1, "taskId is required"),
   status: taskStatusSchema,

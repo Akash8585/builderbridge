@@ -1,7 +1,28 @@
 import type { NextConfig } from "next";
 
+// Baseline security headers for every route. A strict Content-Security-Policy
+// is intentionally omitted: Next.js relies on inline scripts for hydration, so
+// a meaningful CSP needs per-request nonces — see DEPLOYMENT.md for guidance
+// before adding one in production.
+const securityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  // HSTS is a no-op over plain http (local dev) and enforced by browsers only
+  // after an https response carries it — safe to send unconditionally.
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+];
+
 const nextConfig: NextConfig = {
-  /* config options here */
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: securityHeaders,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 
-const PUBLIC_PATHS = ["/sign-in", "/sign-up", "/invite", "/api/auth"];
+const PUBLIC_PATHS = [
+  "/sign-in",
+  "/sign-up",
+  "/invite",
+  "/api/auth",
+  // PWA assets — must be fetchable without a session (browser/OS requests these).
+  "/manifest.webmanifest",
+  "/sw.js",
+  "/offline.html",
+  "/icons",
+  "/uploads",
+];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

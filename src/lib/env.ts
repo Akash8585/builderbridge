@@ -26,6 +26,13 @@ const envSchema = z.object({
   // Public base URL files are served from. For Supabase:
   // https://<project-ref>.supabase.co/storage/v1/object/public/<bucket>
   S3_PUBLIC_URL: z.string().optional(),
+  // Optional: email notifications via Resend. Unset = emails are skipped
+  // (logged in dev) and the app works normally.
+  RESEND_API_KEY: z.string().optional(),
+  // Resend's free tier can send from onboarding@resend.dev without domain
+  // verification (only to your own account's email). Set a verified-domain
+  // sender for production.
+  EMAIL_FROM: z.string().default("BuilderBridge <onboarding@resend.dev>"),
 });
 
 const parsed = envSchema.safeParse(process.env);

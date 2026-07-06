@@ -24,10 +24,15 @@ export const auth = betterAuth({
   // production; making it explicit (and always on) protects sign-in/sign-up
   // from brute force even in staging environments. In-memory storage is fine
   // for a single instance; swap to database storage if scaled horizontally.
+  // Dev relaxes the strict built-in sign-in rule (3/10s) so E2E suites and
+  // manual account-switching don't trip it; production keeps the default.
   rateLimit: {
     enabled: true,
     window: 60,
     max: 60,
+    ...(process.env.NODE_ENV === "development"
+      ? { customRules: { "/sign-in/email": { window: 10, max: 30 } } }
+      : {}),
   },
   emailAndPassword: {
     enabled: true,

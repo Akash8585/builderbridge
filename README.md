@@ -73,6 +73,7 @@ cp .env.example .env
 - `OPENROUTER_API_KEY` — optional. Get one at [openrouter.ai/keys](https://openrouter.ai/keys) to enable the Schedule Q&A Assistant. Leave blank to skip — the rest of the app works fine without it.
 - `OPENROUTER_MODEL` — optional, defaults to `openrouter/free` (OpenRouter's auto-router — picks whichever free model is currently available, with automatic failover if one is rate-limited). Set to a specific model ID like `openai/gpt-oss-20b:free` if you'd rather pin one.
 - `S3_ENDPOINT` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_BUCKET` / `S3_REGION` / `S3_PUBLIC_URL` — optional in dev (uploads fall back to local disk), **required in production** for Field Tracking photos and Drawings. Works with Supabase Storage, Cloudflare R2, AWS S3, or MinIO — see [DEPLOYMENT.md](./DEPLOYMENT.md).
+- `RESEND_API_KEY` / `EMAIL_FROM` — optional. Enables email notifications (task assignments, roadblock ownership, RFI answers, SIR decisions) via [Resend](https://resend.com). Unset = notifications are skipped; users can also opt out individually in Settings.
 
 ### 3. Run database migrations
 
@@ -109,16 +110,18 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for the full production guide (Vercel + Neo
 ## Testing
 
 ```bash
-npm test          # run once
-npm run test:watch # watch mode
+npm test          # Vitest: unit + integration, run once
+npm run test:watch # Vitest watch mode
+npm run test:e2e   # Playwright browser tests (needs a seeded database)
 ```
 
-The suite (Vitest) has two layers:
+The suite has three layers:
 
-- **`tests/unit/`** — pure business logic with no I/O: permission rules, Critical Path Method + cycle detection, PPC/PRR/S-Curve math, portfolio health-score math.
-- **`tests/integration/`** — real round trips against the database (tasks, dependencies, roadblocks, weekly commitments, Schedule Impact Requests, Submittals, RFIs incl. the overdue auto-flag behavior, Drawing revision handling, Baselines, Activity Log). These run against your configured `DATABASE_URL`, but every test creates its own isolated organization/project/users with a random suffix and tears them down afterward — your demo seed data is never touched.
+- **`tests/unit/`** (Vitest) — pure business logic with no I/O: permission rules, Critical Path Method + cycle detection, PPC/PRR/S-Curve math, portfolio health-score math.
+- **`tests/integration/`** (Vitest) — real round trips against the database (tasks, dependencies, roadblocks, weekly commitments, Schedule Impact Requests, Submittals, RFIs incl. the overdue auto-flag behavior, Drawing revision handling, Baselines, Activity Log). Every test creates its own isolated organization/project/users with a random suffix and tears them down afterward — your demo seed data is never touched.
+- **`tests/e2e/`** (Playwright) — real browser flows against the seeded demo data: sign-in (valid + rejected), public landing page, full task lifecycle (create → status change → roadblock flag/resolve → delete), Weekly Work Plan commit → complete → PPC, and role-gated Gantt (PM can drag, Trade is read-only). Tests create disposable `E2E ...`-prefixed records and clean up after themselves; a global-setup sweeper removes leftovers from aborted runs. Locally it reuses your running dev server.
 
-Not covered by this suite: Server Actions' outer auth/session wrapper (they need a real Next.js request context) and browser-level UI interaction — those were verified manually throughout development via HTTP smoke tests against a running dev server.
+CI (`.github/workflows/ci.yml`): lint + typecheck + unit tests + build run on every push/PR. Integration tests run when a `TEST_DATABASE_URL` repo secret is configured (use a dedicated test database, not production). E2E runs on manual dispatch with the same secret.
 
 ## Project Structure
 

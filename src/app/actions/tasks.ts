@@ -13,8 +13,33 @@ import {
 import { ok, fail, taskStatusSchema, roadblockTypeSchema, type ActionResult } from "./schemas";
 import { wouldCreateCycle } from "@/lib/critical-path";
 import { logActivity } from "@/lib/activity-log";
-import { TASK_STATUS_LABELS } from "@/lib/utils";
+import { notifyUser } from "@/lib/notifications";
+import { TASK_STATUS_LABELS, formatDate } from "@/lib/utils";
 import type { Task, TaskDependency } from "@prisma/client";
+
+/** Emails a project member (by ProjectMember id) that a task/roadblock now involves them. */
+async function notifyMember(params: {
+  memberId: string;
+  actorUserId: string;
+  subject: string;
+  heading: string;
+  bodyLines: string[];
+  path: string;
+}) {
+  const member = await prisma.projectMember.findUnique({
+    where: { id: params.memberId },
+    select: { userId: true },
+  });
+  if (!member) return;
+  await notifyUser({
+    userId: member.userId,
+    actorUserId: params.actorUserId,
+    subject: params.subject,
+    heading: params.heading,
+    bodyLines: params.bodyLines,
+    path: params.path,
+  });
+}
 
 const createTaskSchema = z
   .object({
@@ -60,6 +85,20 @@ export async function createTask(input: unknown): Promise<ActionResult<Task>> {
       action: "task_created",
       detail: `Created task "${task.name}"`,
     });
+
+    if (task.assignedToId) {
+      await notifyMember({
+        memberId: task.assignedToId,
+        actorUserId: user.id,
+        subject: `New task assigned: ${task.name}`,
+        heading: "You've been assigned a task",
+        bodyLines: [
+          `<strong>${task.name}</strong> was assigned to you.`,
+          `Scheduled ${formatDate(task.startDate)} – ${formatDate(task.endDate)}.`,
+        ],
+        path: `/projects/${task.projectId}/tasks/${task.id}`,
+      });
+    }
 
     revalidatePath(`/projects/${parsed.data.projectId}`);
     revalidatePath(`/projects/${parsed.data.projectId}/gantt`);
@@ -111,6 +150,21 @@ export async function updateTask(input: unknown): Promise<ActionResult<Task>> {
       action: "task_updated",
       detail: `Updated dates/assignment for "${task.name}"`,
     });
+
+    // Only notify on a genuinely new assignment, not every edit.
+    if (task.assignedToId && task.assignedToId !== existing.assignedToId) {
+      await notifyMember({
+        memberId: task.assignedToId,
+        actorUserId: user.id,
+        subject: `New task assigned: ${task.name}`,
+        heading: "You've been assigned a task",
+        bodyLines: [
+          `<strong>${task.name}</strong> was assigned to you.`,
+          `Scheduled ${formatDate(task.startDate)} – ${formatDate(task.endDate)}.`,
+        ],
+        path: `/projects/${existing.projectId}/tasks/${task.id}`,
+      });
+    }
 
     revalidatePath(`/projects/${existing.projectId}`);
     revalidatePath(`/projects/${existing.projectId}/gantt`);
@@ -259,6 +313,20 @@ export async function flagRoadblock(input: unknown): Promise<ActionResult<Task>>
       detail: `Flagged a roadblock on "${task.name}": ${parsed.data.roadblockNote}`,
     });
 
+    if (task.roadblockOwnerId) {
+      await notifyMember({
+        memberId: task.roadblockOwnerId,
+        actorUserId: user.id,
+        subject: `Roadblock assigned to you: ${task.name}`,
+        heading: "A roadblock needs your attention",
+        bodyLines: [
+          `A roadblock on <strong>${task.name}</strong> was assigned to you.`,
+          `Note: ${parsed.data.roadblockNote}`,
+        ],
+        path: `/projects/${existing.projectId}/roadblocks`,
+      });
+    }
+
     revalidatePath(`/projects/${existing.projectId}`);
     revalidatePath(`/projects/${existing.projectId}/gantt`);
     revalidatePath(`/projects/${existing.projectId}/dashboard`);
@@ -298,6 +366,20 @@ export async function updateRoadblockDetails(input: unknown): Promise<ActionResu
         roadblockDueDate: parsed.data.roadblockDueDate ?? null,
       },
     });
+
+    if (task.roadblockOwnerId && task.roadblockOwnerId !== existing.roadblockOwnerId) {
+      await notifyMember({
+        memberId: task.roadblockOwnerId,
+        actorUserId: user.id,
+        subject: `Roadblock assigned to you: ${task.name}`,
+        heading: "A roadblock needs your attention",
+        bodyLines: [
+          `The roadblock on <strong>${task.name}</strong> is now owned by you.`,
+          task.roadblockNote ? `Note: ${task.roadblockNote}` : "",
+        ].filter(Boolean),
+        path: `/projects/${existing.projectId}/roadblocks`,
+      });
+    }
 
     revalidatePath(`/projects/${existing.projectId}/roadblocks`);
     return ok(task);

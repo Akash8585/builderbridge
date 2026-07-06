@@ -54,3 +54,7 @@ DESIGN.md
 # Third-party UI design references (copyrighted assets — private reference only)
 /design-refs/
 
+# Playwright artifacts
+/test-results/
+/playwright-report/
+

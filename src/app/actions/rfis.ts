@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { requireProjectMember, requireScheduleEditAccess } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-log";
+import { notifyUser } from "@/lib/notifications";
 import { ok, fail, type ActionResult } from "./schemas";
 import type { RFI } from "@prisma/client";
 
@@ -86,6 +87,21 @@ export async function answerRfi(input: unknown): Promise<ActionResult<RFI>> {
       action: "rfi_answered",
       detail: `Answered RFI: ${existing.question}`,
     });
+
+    const raiser = await prisma.projectMember.findUnique({
+      where: { id: existing.raisedById },
+      select: { userId: true },
+    });
+    if (raiser) {
+      await notifyUser({
+        userId: raiser.userId,
+        actorUserId: user.id,
+        subject: "Your RFI was answered",
+        heading: "Your RFI has an answer",
+        bodyLines: [`Question: "${existing.question}"`, `Answer: ${parsed.data.answer}`],
+        path: `/projects/${existing.projectId}/rfis`,
+      });
+    }
 
     revalidatePath(`/projects/${existing.projectId}/rfis`);
     return ok(rfi);

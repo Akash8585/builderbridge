@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { requireProjectMember, canResolveRoadblocks } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-log";
+import { notifyUser } from "@/lib/notifications";
 import { ok, fail, sirStatusSchema, type ActionResult } from "./schemas";
 import type { ScheduleImpactRequest } from "@prisma/client";
 
@@ -109,6 +110,25 @@ export async function reviewScheduleImpactRequest(input: unknown): Promise<Actio
         parsed.data.reviewNote ? `: ${parsed.data.reviewNote}` : ""
       }`,
     });
+
+    const submitter = await prisma.projectMember.findUnique({
+      where: { id: existing.submittedById },
+      select: { userId: true },
+    });
+    if (submitter) {
+      const outcome = parsed.data.status === "APPROVED" ? "approved" : "rejected";
+      await notifyUser({
+        userId: submitter.userId,
+        actorUserId: user.id,
+        subject: `Your schedule impact request was ${outcome}`,
+        heading: `Schedule Impact Request ${outcome}`,
+        bodyLines: [
+          `Your request — "${existing.description}" — was <strong>${outcome}</strong>.`,
+          parsed.data.reviewNote ? `Reviewer note: ${parsed.data.reviewNote}` : "",
+        ].filter(Boolean),
+        path: `/projects/${existing.projectId}/impacts`,
+      });
+    }
 
     revalidatePath(`/projects/${existing.projectId}/impacts`);
     return ok(sir);

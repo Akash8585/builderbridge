@@ -6,6 +6,9 @@ const PUBLIC_PATHS = [
   "/sign-up",
   "/invite",
   "/api/auth",
+  // Stripe calls this server-to-server with no session cookie.
+  "/api/webhooks/stripe",
+  "/pricing",
   // PWA assets — must be fetchable without a session (browser/OS requests these).
   "/manifest.webmanifest",
   "/sw.js",

@@ -26,6 +26,12 @@ const envSchema = z.object({
   // Public base URL files are served from. For Supabase:
   // https://<project-ref>.supabase.co/storage/v1/object/public/<bucket>
   S3_PUBLIC_URL: z.string().optional(),
+  // Optional: Stripe billing (test mode is fine). All unset = billing UI
+  // shows a "not configured" state and every org stays on the FREE tier.
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_CORE: z.string().optional(),
+  STRIPE_PRICE_PRO: z.string().optional(),
   // Optional: email notifications via Resend. Unset = emails are skipped
   // (logged in dev) and the app works normally.
   RESEND_API_KEY: z.string().optional(),

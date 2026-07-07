@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { requireProjectManager } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-log";
+import { assertCanCreateProject } from "@/lib/billing";
 import { ok, fail, type ActionResult } from "./schemas";
 import type { Project } from "@prisma/client";
 
@@ -29,6 +30,7 @@ export async function createProject(input: unknown): Promise<ActionResult<Projec
 
   try {
     const user = await requireUser();
+    await assertCanCreateProject(parsed.data.organizationId);
 
     const project = await prisma.project.create({
       data: {

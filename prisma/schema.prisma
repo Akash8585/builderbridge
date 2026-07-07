@@ -87,13 +87,23 @@ model Verification {
 // Org membership only gates which org's projects a user can be invited into.
 // Permission roles live on ProjectMember (below), not here.
 
+enum PlanTier {
+  FREE
+  CORE
+  PRO
+}
+
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  logo      String?
-  createdAt DateTime @default(now())
-  metadata  String?
+  id                   String   @id @default(cuid())
+  name                 String
+  slug                 String   @unique
+  logo                 String?
+  createdAt            DateTime @default(now())
+  metadata             String?
+  planTier             PlanTier @default(FREE)
+  stripeCustomerId     String?  @unique
+  stripeSubscriptionId String?
+  subscriptionStatus   String?
 
   members  Member[]
   projects Project[]

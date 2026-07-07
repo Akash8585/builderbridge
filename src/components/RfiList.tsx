@@ -5,13 +5,14 @@ import { createRfi, answerRfi, closeRfi } from "@/app/actions/rfis";
 import { Button } from "@/components/ui/Button";
 import { ErrorText } from "@/components/ui/ErrorText";
 import { RFI_STATUS_LABELS, formatDate } from "@/lib/utils";
-import type { RfiStatus } from "@prisma/client";
+import type { RfiStatus, IntegrationSource } from "@prisma/client";
 
 export type RfiRow = {
   id: string;
   question: string;
   answer: string | null;
   status: RfiStatus;
+  source: IntegrationSource;
   dueDate: Date | null;
   createdAt: Date;
   raisedBy: { user: { name: string } };
@@ -146,6 +147,7 @@ function RfiCard({ rfi, canAnswer }: { rfi: RfiRow; canAnswer: boolean }) {
         <span className={`text-xs font-medium ${STATUS_COLORS[rfi.status]}`}>{RFI_STATUS_LABELS[rfi.status]}</span>
       </div>
       <div className="flex flex-wrap gap-3 text-xs text-muted mb-2">
+        {rfi.source === "PROCORE" && <span className="text-muted-soft">From Procore</span>}
         {rfi.task && <span>Task: {rfi.task.name}</span>}
         {rfi.dueDate && (
           <span className={isOverdue ? "text-error font-medium" : undefined}>

@@ -14,8 +14,11 @@ export function NavBar() {
       <Link href="/dashboard" className="text-sm text-muted hover:text-ink mr-4">
         Portfolio
       </Link>
-      <Link href="/billing" className="text-sm text-muted hover:text-ink">
+      <Link href="/billing" className="text-sm text-muted hover:text-ink mr-4">
         Billing
+      </Link>
+      <Link href="/integrations" className="text-sm text-muted hover:text-ink">
+        Integrations
       </Link>
       <div className="flex-1" />
       <div className="flex items-center gap-4">

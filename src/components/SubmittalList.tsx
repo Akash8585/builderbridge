@@ -5,13 +5,14 @@ import { createSubmittal, updateSubmittalStatus } from "@/app/actions/submittals
 import { Button } from "@/components/ui/Button";
 import { ErrorText } from "@/components/ui/ErrorText";
 import { SUBMITTAL_STATUS_LABELS, formatDate } from "@/lib/utils";
-import type { SubmittalStatus } from "@prisma/client";
+import type { SubmittalStatus, IntegrationSource } from "@prisma/client";
 
 export type SubmittalRow = {
   id: string;
   title: string;
   specSection: string | null;
   status: SubmittalStatus;
+  source: IntegrationSource;
   dueDate: Date | null;
   createdAt: Date;
   submittedBy: { user: { name: string } };
@@ -152,6 +153,7 @@ function SubmittalCard({ submittal, canDecide }: { submittal: SubmittalRow; canD
         </span>
       </div>
       <div className="flex flex-wrap gap-3 text-xs text-muted mb-2">
+        {submittal.source === "PROCORE" && <span className="text-muted-soft">From Procore</span>}
         {submittal.specSection && <span>Spec {submittal.specSection}</span>}
         {submittal.task && <span>Task: {submittal.task.name}</span>}
         {submittal.dueDate && (

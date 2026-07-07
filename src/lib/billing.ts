@@ -66,3 +66,8 @@ export async function assertCanCreateProject(organizationId: string): Promise<vo
     );
   }
 }
+
+/** Procore and Autodesk integrations are Pro-tier features. */
+export function canUseIntegrations(tier: PlanTier): boolean {
+  return tier === "PRO";
+}

@@ -74,6 +74,7 @@ cp .env.example .env
 - `OPENROUTER_MODEL` — optional, defaults to `openrouter/free` (OpenRouter's auto-router — picks whichever free model is currently available, with automatic failover if one is rate-limited). Set to a specific model ID like `openai/gpt-oss-20b:free` if you'd rather pin one.
 - `S3_ENDPOINT` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_BUCKET` / `S3_REGION` / `S3_PUBLIC_URL` — optional in dev (uploads fall back to local disk), **required in production** for Field Tracking photos and Drawings. Works with Supabase Storage, Cloudflare R2, AWS S3, or MinIO — see [DEPLOYMENT.md](./DEPLOYMENT.md).
 - `RESEND_API_KEY` / `EMAIL_FROM` — optional. Enables email notifications (task assignments, roadblock ownership, RFI answers, SIR decisions) via [Resend](https://resend.com). Unset = notifications are skipped; users can also opt out individually in Settings.
+- `PROCORE_CLIENT_ID` / `PROCORE_CLIENT_SECRET` — optional. Enables the Procore integration on the **Pro** plan (RFI/Submittal sync). Get sandbox credentials at [developers.procore.com](https://developers.procore.com). Set the app's Redirect URI to `http://localhost:3000/api/integrations/procore/callback` for local dev.
 
 ### 3. Run database migrations
 

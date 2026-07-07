@@ -110,6 +110,8 @@ model Organization {
 
   invitations Invitation[]
 
+  procoreConnection ProcoreConnection?
+
   @@map("organization")
 }
 
@@ -183,6 +185,11 @@ enum RfiStatus {
   CLOSED
 }
 
+enum IntegrationSource {
+  NATIVE
+  PROCORE
+}
+
 model Project {
   id             String       @id @default(cuid())
   organizationId String
@@ -190,10 +197,11 @@ model Project {
   name           String
   startDate      DateTime
   endDate        DateTime
-  isArchived     Boolean      @default(false)
-  archivedAt     DateTime?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  isArchived        Boolean      @default(false)
+  archivedAt        DateTime?
+  procoreProjectId  String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   members ProjectMember[]
   invites ProjectInvite[]
@@ -366,10 +374,14 @@ model Submittal {
   status        SubmittalStatus @default(PENDING)
   dueDate       DateTime?
   submittedById String
-  submittedBy   ProjectMember   @relation(fields: [submittedById], references: [id], onDelete: Cascade)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  submittedBy   ProjectMember     @relation(fields: [submittedById], references: [id], onDelete: Cascade)
+  source        IntegrationSource @default(NATIVE)
+  externalId    String?
+  lastSyncedAt  DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
+  @@unique([projectId, source, externalId])
   @@index([projectId])
   @@map("submittal")
 }
@@ -385,13 +397,34 @@ model RFI {
   answer     String?
   status     RfiStatus     @default(OPEN)
   dueDate    DateTime?
-  raisedById String
-  raisedBy   ProjectMember @relation(fields: [raisedById], references: [id], onDelete: Cascade)
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  raisedById   String
+  raisedBy     ProjectMember     @relation(fields: [raisedById], references: [id], onDelete: Cascade)
+  source       IntegrationSource @default(NATIVE)
+  externalId   String?
+  lastSyncedAt DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
+  @@unique([projectId, source, externalId])
   @@index([projectId])
   @@map("rfi")
+}
+
+// Org-level Procore OAuth connection. One per organization.
+model ProcoreConnection {
+  id                   String       @id @default(cuid())
+  organizationId       String       @unique
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accessToken          String
+  refreshToken         String
+  accessTokenExpiresAt DateTime
+  procoreCompanyId     String
+  procoreCompanyName   String?
+  connectedByUserId    String
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  @@map("procore_connection")
 }
 
 // Native (no Autodesk) drawing storage, optionally linked to a schedule task.

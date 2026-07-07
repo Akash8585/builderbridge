@@ -32,6 +32,14 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRICE_CORE: z.string().optional(),
   STRIPE_PRICE_PRO: z.string().optional(),
+  // Optional: Procore integration (sandbox credentials from developers.procore.com).
+  // Leave unset to disable — the Integrations page shows a "not configured" notice.
+  PROCORE_CLIENT_ID: z.string().optional(),
+  PROCORE_CLIENT_SECRET: z.string().optional(),
+  // Defaults to {BETTER_AUTH_URL}/api/integrations/procore/callback when unset.
+  PROCORE_REDIRECT_URI: z.string().optional(),
+  // "sandbox" (default) or "production" — controls OAuth + API base URLs.
+  PROCORE_ENV: z.enum(["sandbox", "production"]).default("sandbox"),
   // Optional: email notifications via Resend. Unset = emails are skipped
   // (logged in dev) and the app works normally.
   RESEND_API_KEY: z.string().optional(),

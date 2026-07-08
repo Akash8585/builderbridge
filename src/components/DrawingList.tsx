@@ -5,6 +5,7 @@ import { uploadDrawing } from "@/app/actions/drawings";
 import { Button } from "@/components/ui/Button";
 import { ErrorText } from "@/components/ui/ErrorText";
 import { formatDate } from "@/lib/utils";
+import type { IntegrationSource } from "@prisma/client";
 
 export type DrawingRow = {
   id: string;
@@ -13,6 +14,7 @@ export type DrawingRow = {
   fileUrl: string;
   revision: number;
   isSuperseded: boolean;
+  source: IntegrationSource;
   createdAt: Date;
   uploadedBy: { user: { name: string } };
   task: { id: string; name: string } | null;
@@ -51,6 +53,7 @@ export function DrawingList({
                 </span>
               </div>
               <div className="flex flex-wrap gap-3 text-xs text-muted">
+                {d.source === "AUTODESK" && <span className="text-muted-soft">From ACC</span>}
                 {d.discipline && <span>{d.discipline}</span>}
                 {d.task && <span>Task: {d.task.name}</span>}
                 <span>Uploaded by {d.uploadedBy.user.name}</span>

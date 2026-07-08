@@ -9,6 +9,7 @@ const PUBLIC_PATHS = [
   // Stripe calls this server-to-server with no session cookie.
   "/api/webhooks/stripe",
   "/api/integrations/procore/callback",
+  "/api/integrations/autodesk/callback",
   "/pricing",
   // PWA assets — must be fetchable without a session (browser/OS requests these).
   "/manifest.webmanifest",

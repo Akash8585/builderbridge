@@ -40,6 +40,10 @@ const envSchema = z.object({
   PROCORE_REDIRECT_URI: z.string().optional(),
   // "sandbox" (default) or "production" — controls OAuth + API base URLs.
   PROCORE_ENV: z.enum(["sandbox", "production"]).default("sandbox"),
+  // Optional: Autodesk ACC integration (https://aps.autodesk.com — free tier).
+  AUTODESK_CLIENT_ID: z.string().optional(),
+  AUTODESK_CLIENT_SECRET: z.string().optional(),
+  AUTODESK_REDIRECT_URI: z.string().optional(),
   // Optional: email notifications via Resend. Unset = emails are skipped
   // (logged in dev) and the app works normally.
   RESEND_API_KEY: z.string().optional(),

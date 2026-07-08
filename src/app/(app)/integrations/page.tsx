@@ -13,9 +13,9 @@ export default async function IntegrationsPage({
   searchParams: Promise<{ connected?: string; error?: string }>;
 }) {
   const { user, organizationId } = await requireActiveOrganization();
-  const { connected, error } = await searchParams;
+  const params = await searchParams;
 
-  const [org, membership, connection, projects] = await Promise.all([
+  const [org, membership, procoreConnection, projects] = await Promise.all([
     prisma.organization.findUniqueOrThrow({ where: { id: organizationId } }),
     prisma.member.findUnique({
       where: { organizationId_userId: { organizationId, userId: user.id } },
@@ -31,22 +31,22 @@ export default async function IntegrationsPage({
   const isOwner = membership?.role === "owner";
   const isProPlan = canUseIntegrations(org.planTier);
   const procoreProjects =
-    connection && isOwner && isProPlan ? await fetchProcoreProjectsForOrg(organizationId) : [];
+    procoreConnection && isOwner && isProPlan ? await fetchProcoreProjectsForOrg(organizationId) : [];
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-10">
       <h1 className="font-display text-2xl mb-1">Integrations</h1>
       <p className="text-sm text-muted mb-8">{org.name}</p>
 
-      {connected && (
+      {params.connected && (
         <Card className="p-4 mb-6 border-success/40 bg-success/5">
           <p className="text-sm text-success font-medium">Procore connected successfully.</p>
         </Card>
       )}
 
-      {error && (
+      {params.error && (
         <Card className="p-4 mb-6 border-error/40 bg-error/5">
-          <p className="text-sm text-error font-medium">{decodeURIComponent(error)}</p>
+          <p className="text-sm text-error font-medium">{decodeURIComponent(params.error)}</p>
         </Card>
       )}
 
@@ -55,20 +55,36 @@ export default async function IntegrationsPage({
           isConfigured={isProcoreConfigured()}
           isProPlan={isProPlan}
           isOwner={isOwner}
-          isConnected={!!connection}
-          companyName={connection?.procoreCompanyName ?? null}
+          isConnected={!!procoreConnection}
+          companyName={procoreConnection?.procoreCompanyName ?? null}
           projects={projects}
           procoreProjects={procoreProjects}
         />
 
-        <Card className="p-6">
-          <h2 className="text-sm font-semibold mb-2">Autodesk Construction Cloud</h2>
+        <Card className="p-6 opacity-90">
+          <div className="flex items-start justify-between gap-4 mb-2">
+            <h2 className="text-sm font-semibold">Autodesk Construction Cloud</h2>
+            <span className="shrink-0 rounded-full bg-surface-soft px-2.5 py-0.5 text-xs font-medium text-muted">
+              Coming soon
+            </span>
+          </div>
           <p className="text-sm text-muted">
-            Drawing sync from ACC is coming in the next integration phase (5.3).{" "}
-            <Link href="/pricing" className="underline hover:text-ink">
-              Pro plan
+            Pull PDF drawings from ACC into your project Drawings log — same one-way sync pattern as Procore.
+            Backend support is built; we&apos;re waiting on broader APS developer access before enabling connect in the UI.
+          </p>
+          <p className="text-xs text-muted-soft mt-3">
+            Until then, upload drawings manually on any project&apos;s{" "}
+            <Link href="/projects" className="underline hover:text-ink">
+              Drawings
             </Link>{" "}
-            includes both Procore and Autodesk when available.
+            tab. Included on the{" "}
+            <Link href="/pricing" className="underline hover:text-ink">
+              Pro
+            </Link>{" "}
+            plan when live.
+          </p>
+          <p className="text-xs text-muted-soft mt-2 italic">
+            Blocker: our developer lives outside the US and Autodesk wants a Visa card for a $0 plan. UPI said no. Visa said also no. ACC sync said &ldquo;we&apos;ll call you back.&rdquo;
           </p>
         </Card>
       </div>

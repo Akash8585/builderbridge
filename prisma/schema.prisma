@@ -110,7 +110,8 @@ model Organization {
 
   invitations Invitation[]
 
-  procoreConnection ProcoreConnection?
+  procoreConnection  ProcoreConnection?
+  autodeskConnection AutodeskConnection?
 
   @@map("organization")
 }
@@ -188,6 +189,7 @@ enum RfiStatus {
 enum IntegrationSource {
   NATIVE
   PROCORE
+  AUTODESK
 }
 
 model Project {
@@ -199,8 +201,9 @@ model Project {
   endDate        DateTime
   isArchived        Boolean      @default(false)
   archivedAt        DateTime?
-  procoreProjectId  String?
-  createdAt         DateTime     @default(now())
+  procoreProjectId   String?
+  autodeskProjectId  String?
+  createdAt          DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
   members ProjectMember[]
@@ -427,6 +430,23 @@ model ProcoreConnection {
   @@map("procore_connection")
 }
 
+// Org-level Autodesk ACC OAuth connection. One per organization.
+model AutodeskConnection {
+  id                   String       @id @default(cuid())
+  organizationId       String       @unique
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accessToken          String
+  refreshToken         String
+  accessTokenExpiresAt DateTime
+  autodeskHubId        String
+  autodeskHubName      String?
+  connectedByUserId    String
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  @@map("autodesk_connection")
+}
+
 // Native (no Autodesk) drawing storage, optionally linked to a schedule task.
 model Drawing {
   id           String        @id @default(cuid())
@@ -440,9 +460,13 @@ model Drawing {
   revision     Int           @default(1)
   isSuperseded Boolean       @default(false)
   uploadedById String
-  uploadedBy   ProjectMember @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
-  createdAt    DateTime      @default(now())
+  uploadedBy   ProjectMember     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  source       IntegrationSource @default(NATIVE)
+  externalId   String?
+  lastSyncedAt DateTime?
+  createdAt    DateTime          @default(now())
 
+  @@unique([projectId, source, externalId])
   @@index([projectId])
   @@map("drawing")
 }

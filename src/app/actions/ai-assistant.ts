@@ -1,17 +1,26 @@
 "use server";
 
 import { z } from "zod";
-import { requireUser } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
+import { requireUser, requireActiveOrganization } from "@/lib/session";
 import { requireProjectMember } from "@/lib/permissions";
-import { answerScheduleQuestion, AssistantNotConfiguredError } from "@/lib/ai-assistant";
+import { answerAssistantQuestion, AssistantNotConfiguredError } from "@/lib/ai-assistant";
 import { ok, fail, type ActionResult } from "./schemas";
 
+const historySchema = z.array(
+  z.object({
+    role: z.enum(["user", "assistant"]),
+    content: z.string().max(4000),
+  })
+);
+
 const askSchema = z.object({
-  projectId: z.string().min(1, "projectId is required"),
   question: z.string().min(1, "Please type a question").max(1000, "Keep the question under 1000 characters"),
+  focusProjectId: z.string().optional(),
+  history: historySchema.max(20).optional(),
 });
 
-export async function askScheduleAssistant(input: unknown): Promise<ActionResult<string>> {
+export async function askAssistant(input: unknown): Promise<ActionResult<string>> {
   const parsed = askSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues.map((i) => i.message).join(", ") };
@@ -19,10 +28,22 @@ export async function askScheduleAssistant(input: unknown): Promise<ActionResult
 
   try {
     const user = await requireUser();
-    // Any project member can ask — this is read-only, grounded Q&A.
-    await requireProjectMember(user.id, parsed.data.projectId);
+    const { organizationId } = await requireActiveOrganization();
 
-    const answer = await answerScheduleQuestion(parsed.data.projectId, parsed.data.question);
+    if (parsed.data.focusProjectId) {
+      const project = await prisma.project.findFirst({
+        where: { id: parsed.data.focusProjectId, organizationId },
+      });
+      if (!project) {
+        return { success: false, error: "Project not found in your organization." };
+      }
+      await requireProjectMember(user.id, parsed.data.focusProjectId);
+    }
+
+    const answer = await answerAssistantQuestion(organizationId, parsed.data.question, {
+      focusProjectId: parsed.data.focusProjectId,
+      history: parsed.data.history,
+    });
     return ok(answer);
   } catch (error) {
     if (error instanceof AssistantNotConfiguredError) {

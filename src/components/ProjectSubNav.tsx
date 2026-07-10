@@ -24,7 +24,6 @@ const TAB_GROUPS = [
     tabs: [
       { href: "/baselines", label: "Baselines" },
       { href: "/activity", label: "Activity" },
-      { href: "/assistant", label: "Assistant" },
       { href: "/dashboard", label: "Dashboard" },
     ],
   },

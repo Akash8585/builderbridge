@@ -2,8 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { formatDate, TASK_STATUS_LABELS, ROADBLOCK_TYPE_LABELS } from "@/lib/utils";
 import { computePpcTrend } from "@/lib/analytics";
+import { loadProjectSummary } from "@/lib/project-summary";
+import { stripAssistantMarkdown } from "@/lib/assistant-plain-text";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+
+export type AssistantMessage = { role: "user" | "assistant"; content: string };
 
 export class AssistantNotConfiguredError extends Error {}
 
@@ -72,6 +76,60 @@ OPEN RFIS (${openRfis.length}):
 ${rfiLines || "(none)"}`;
 }
 
+/** Portfolio-wide snapshot for the active organization, with optional deep-dive on one project. */
+async function buildOrgContext(organizationId: string, focusProjectId?: string): Promise<string> {
+  const org = await prisma.organization.findUniqueOrThrow({ where: { id: organizationId } });
+  const projects = await prisma.project.findMany({
+    where: { organizationId, isArchived: false },
+    orderBy: { name: "asc" },
+  });
+
+  const summaries = await Promise.all(
+    projects.map(async (project) => ({ project, summary: await loadProjectSummary(project.id) }))
+  );
+
+  const portfolioLines = summaries
+    .map(({ project, summary }) => {
+      const variance =
+        summary.variance === null
+          ? "variance n/a"
+          : summary.variance <= 0
+            ? summary.variance === 0
+              ? "on track"
+              : `${Math.abs(summary.variance)}d ahead`
+            : `${summary.variance}d behind`;
+      return (
+        `- "${project.name}": ${summary.percentComplete}% complete, PPC ${summary.ppc ?? "n/a"}%, PRR ${summary.prr ?? "n/a"}%, ` +
+        `${summary.openRoadblocks} open roadblocks, health score ${summary.healthScore ?? "n/a"}, ${variance}, ` +
+        `${formatDate(project.startDate)}–${formatDate(project.endDate)}`
+      );
+    })
+    .join("\n");
+
+  const totals = summaries.reduce(
+    (acc, { summary }) => ({
+      openRoadblocks: acc.openRoadblocks + summary.openRoadblocks,
+      healthScores: summary.healthScore !== null ? [...acc.healthScores, summary.healthScore] : acc.healthScores,
+    }),
+    { openRoadblocks: 0, healthScores: [] as number[] }
+  );
+  const avgHealth =
+    totals.healthScores.length > 0
+      ? Math.round(totals.healthScores.reduce((a, b) => a + b, 0) / totals.healthScores.length)
+      : null;
+
+  let focusBlock = "";
+  if (focusProjectId && projects.some((p) => p.id === focusProjectId)) {
+    focusBlock = `\n\nCURRENT PROJECT (user is viewing this project — detailed data):\n${await buildProjectContext(focusProjectId)}`;
+  }
+
+  return `ORGANIZATION: ${org.name}
+PORTFOLIO SUMMARY: ${projects.length} active project(s), ${totals.openRoadblocks} total open roadblocks, avg health score ${avgHealth ?? "n/a"}
+
+PROJECTS:
+${portfolioLines || "(none)"}${focusBlock}`;
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -89,7 +147,21 @@ function extractErrorMessage(rawBody: string): string | null {
   return null;
 }
 
-async function callOpenRouter(context: string, question: string, attempt = 1): Promise<Response> {
+const SYSTEM_PROMPT =
+  "You are BuilderBridge's in-app assistant for construction teams. " +
+  "You have the user's organization portfolio data below; when a current project is highlighted, you also have detailed task, roadblock, submittal, and RFI data for that project. " +
+  "Your main job: help with schedules, roadblocks, commitments, portfolio health, and construction planning. " +
+  "For project questions, use the provided data and cite specific project names, tasks, dates, or people when relevant. " +
+  "For general construction or scheduling questions, answer briefly from your own knowledge. " +
+  "For unrelated off-topic questions (politics, celebrities, trivia, etc.), give a one-sentence answer if you know it, then offer to help with their projects — do not write long disclaimers or lecture the user. " +
+  "Style: plain conversational text only. Never use markdown symbols: no asterisks, no hash signs, no backticks, no bullet dashes. Write normal sentences and short paragraphs. No emojis. Keep answers short unless the user asks for detail.\n\n";
+
+async function callOpenRouter(
+  context: string,
+  question: string,
+  history: AssistantMessage[] = [],
+  attempt = 1
+): Promise<Response> {
   const res = await fetch(OPENROUTER_URL, {
     method: "POST",
     headers: {
@@ -99,18 +171,11 @@ async function callOpenRouter(context: string, question: string, attempt = 1): P
     body: JSON.stringify({
       model: env.OPENROUTER_MODEL,
       messages: [
-        {
-          role: "system",
-          content:
-            "You are a helpful construction scheduling assistant embedded in a project management tool. " +
-            "Answer the user's question ONLY using the project data provided below. Be concise and specific " +
-            "(cite task names, dates, and people where relevant). If the data doesn't contain the answer, say so " +
-            "plainly rather than guessing.\n\n" +
-            context,
-        },
+        { role: "system", content: SYSTEM_PROMPT + context },
+        ...history.map((m) => ({ role: m.role, content: m.content })),
         { role: "user", content: question },
       ],
-      temperature: 0.2,
+      temperature: 0.3,
     }),
   });
 
@@ -118,22 +183,13 @@ async function callOpenRouter(context: string, question: string, attempt = 1): P
   // retry smooths over most transient 429s without the user noticing.
   if (res.status === 429 && attempt < 2) {
     await sleep(1500);
-    return callOpenRouter(context, question, attempt + 1);
+    return callOpenRouter(context, question, history, attempt + 1);
   }
 
   return res;
 }
 
-export async function answerScheduleQuestion(projectId: string, question: string): Promise<string> {
-  if (!env.OPENROUTER_API_KEY) {
-    throw new AssistantNotConfiguredError(
-      "The Schedule Assistant isn't configured yet — an OPENROUTER_API_KEY is needed in the environment."
-    );
-  }
-
-  const context = await buildProjectContext(projectId);
-  const res = await callOpenRouter(context, question);
-
+async function parseAssistantResponse(res: Response): Promise<string> {
   if (!res.ok) {
     const rawBody = await res.text().catch(() => "");
     const detail = extractErrorMessage(rawBody);
@@ -152,5 +208,27 @@ export async function answerScheduleQuestion(projectId: string, question: string
   if (typeof answer !== "string" || !answer.trim()) {
     throw new Error("The assistant returned an empty response — please try again.");
   }
-  return answer.trim();
+  return stripAssistantMarkdown(answer.trim());
+}
+
+export async function answerAssistantQuestion(
+  organizationId: string,
+  question: string,
+  options?: { focusProjectId?: string; history?: AssistantMessage[] }
+): Promise<string> {
+  if (!env.OPENROUTER_API_KEY) {
+    throw new AssistantNotConfiguredError(
+      "The AI Assistant isn't configured yet — an OPENROUTER_API_KEY is needed in the environment."
+    );
+  }
+
+  const context = await buildOrgContext(organizationId, options?.focusProjectId);
+  const res = await callOpenRouter(context, question, options?.history ?? []);
+  return parseAssistantResponse(res);
+}
+
+/** @deprecated Use answerAssistantQuestion — kept for any legacy callers. */
+export async function answerScheduleQuestion(projectId: string, question: string): Promise<string> {
+  const project = await prisma.project.findUniqueOrThrow({ where: { id: projectId } });
+  return answerAssistantQuestion(project.organizationId, question, { focusProjectId: projectId });
 }

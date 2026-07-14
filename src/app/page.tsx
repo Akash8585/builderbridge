@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { getCurrentSession } from "@/lib/session";
+import { LandingHero } from "@/components/LandingHero";
+import { LandingMegaNav } from "@/components/LandingMegaNav";
 
 export default async function LandingPage() {
   const session = await getCurrentSession();
@@ -7,136 +9,13 @@ export default async function LandingPage() {
 
   return (
     <div className="bg-canvas text-ink">
-      <TopNav isSignedIn={isSignedIn} />
-      <Hero isSignedIn={isSignedIn} />
+      <LandingMegaNav isSignedIn={isSignedIn} />
+      <LandingHero isSignedIn={isSignedIn} />
       <RolesBand />
       <FeatureBands />
       <ValueBand />
       <CtaBand isSignedIn={isSignedIn} />
       <Footer />
-    </div>
-  );
-}
-
-/* ---------- Top navigation (top-nav: 64px, white canvas) ---------- */
-
-function TopNav({ isSignedIn }: { isSignedIn: boolean }) {
-  return (
-    <header className="h-16 border-b border-hairline-soft bg-canvas sticky top-0 z-20">
-      <div className="max-w-6xl mx-auto h-full px-6 flex items-center">
-        <span className="font-display text-lg">BuilderBridge</span>
-        <nav className="hidden md:flex items-center gap-6 ml-10 text-sm font-medium text-muted">
-          <a href="#features" className="hover:text-ink transition-colors">Features</a>
-          <a href="#roles" className="hover:text-ink transition-colors">Who it&apos;s for</a>
-          <a href="#why" className="hover:text-ink transition-colors">Why BuilderBridge</a>
-        </nav>
-        <div className="flex-1" />
-        <div className="flex items-center gap-3">
-          {isSignedIn ? (
-            <Link
-              href="/projects"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-on-primary hover:bg-primary-active transition-colors"
-            >
-              Open app
-            </Link>
-          ) : (
-            <>
-              <Link href="/sign-in" className="text-sm font-semibold text-ink hover:underline">
-                Sign in
-              </Link>
-              <Link
-                href="/sign-up"
-                className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-on-primary hover:bg-primary-active transition-colors"
-              >
-                Get started
-              </Link>
-            </>
-          )}
-        </div>
-      </div>
-    </header>
-  );
-}
-
-/* ---------- Hero (hero-band: 7/5 split, display-xl left, mockup card right) ---------- */
-
-function Hero({ isSignedIn }: { isSignedIn: boolean }) {
-  return (
-    <section className="max-w-6xl mx-auto px-6 py-24">
-      <div className="grid lg:grid-cols-12 gap-12 items-center">
-        <div className="lg:col-span-7">
-          <p className="inline-flex items-center rounded-pill bg-surface-card px-3 py-1 text-[13px] font-medium mb-6">
-            Construction scheduling &amp; planning
-          </p>
-          <h1 className="font-display text-5xl sm:text-6xl leading-[1.05] tracking-[-0.03em] mb-6">
-            The bridge between your schedule and the field.
-          </h1>
-          <p className="text-lg text-body leading-relaxed mb-8 max-w-xl">
-            One connected platform for the master schedule, lookaheads, weekly commitments, and
-            roadblocks — so office and field teams finally plan the same project.
-          </p>
-          <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href={isSignedIn ? "/projects" : "/sign-up"}
-              className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-6 text-sm font-semibold text-on-primary hover:bg-primary-active transition-colors"
-            >
-              {isSignedIn ? "Open your projects" : "Get started free"}
-            </Link>
-            <a
-              href="#features"
-              className="inline-flex h-11 items-center justify-center rounded-md border border-hairline bg-canvas px-6 text-sm font-semibold text-ink hover:bg-surface-soft transition-colors"
-            >
-              See how it works
-            </a>
-          </div>
-        </div>
-        <div className="lg:col-span-5">
-          <HeroScheduleMockup />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/** CSS-built schedule fragment (hero-app-mockup-card): real product chrome, not an illustration. */
-function HeroScheduleMockup() {
-  const rows: { name: string; offset: number; width: number; color: string; critical?: boolean }[] = [
-    { name: "Site prep", offset: 0, width: 22, color: "bg-success" },
-    { name: "Foundation", offset: 18, width: 30, color: "bg-error", critical: true },
-    { name: "Framing", offset: 44, width: 28, color: "bg-error", critical: true },
-    { name: "Rough electrical", offset: 52, width: 24, color: "bg-brand-accent" },
-    { name: "Drywall", offset: 70, width: 22, color: "bg-surface-strong" },
-  ];
-  return (
-    <div className="rounded-xl border border-hairline bg-canvas shadow-[0_4px_12px_rgba(0,0,0,0.08)] overflow-hidden">
-      <div className="flex items-center gap-1.5 px-4 py-3 border-b border-hairline-soft">
-        <span className="h-2.5 w-2.5 rounded-full bg-surface-strong" />
-        <span className="h-2.5 w-2.5 rounded-full bg-surface-strong" />
-        <span className="h-2.5 w-2.5 rounded-full bg-surface-strong" />
-        <span className="ml-3 text-xs text-muted-soft">Riverside Apartments — Master Schedule</span>
-      </div>
-      <div className="p-4">
-        {rows.map((row, i) => (
-          <div key={row.name} className="flex items-center gap-3 py-1.5">
-            <span className="w-6 text-right text-[10px] font-mono text-muted-soft">{i + 1}</span>
-            <span className="w-28 truncate text-xs font-medium text-ink">{row.name}</span>
-            <div className="relative flex-1 h-5">
-              <div className="absolute inset-y-0 left-[62%] w-px bg-error/40" aria-hidden />
-              <div
-                className={`absolute inset-y-0 my-auto h-3.5 rounded-md ${row.color} ${
-                  row.critical ? "ring-1 ring-error/50" : ""
-                }`}
-                style={{ left: `${row.offset}%`, width: `${row.width}%` }}
-              />
-            </div>
-          </div>
-        ))}
-        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-hairline-soft text-[10px] text-muted">
-          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-error" /> Critical path</span>
-          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-success" /> Done</span>
-          <span className="flex items-center gap-1"><span className="h-3 w-px bg-error/40" /> Today</span>
-        </div>
-      </div>
     </div>
   );
 }

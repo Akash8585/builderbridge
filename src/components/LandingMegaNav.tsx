@@ -190,13 +190,13 @@ function MegaMenuPanel({
   panelId,
   layout,
   onClose,
-  floating,
+  glass,
 }: {
   columns: MegaColumn[];
   panelId: string;
   layout: "features" | "solutions";
   onClose: () => void;
-  floating?: boolean;
+  glass?: boolean;
 }) {
   const gridClass =
     layout === "solutions"
@@ -206,13 +206,21 @@ function MegaMenuPanel({
   return (
     <div
       id={panelId}
-      className={`hidden lg:block bg-canvas ${floating ? "" : "border-t border-hairline-soft shadow-[0_12px_40px_rgba(0,0,0,0.06)]"}`}
+      className={`hidden lg:block ${
+        glass
+          ? "overflow-hidden rounded-[20px] border border-white/10 bg-black/38 text-white shadow-[0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-xl"
+          : "bg-canvas border-t border-hairline-soft shadow-[0_12px_40px_rgba(0,0,0,0.06)]"
+      }`}
     >
-      <div className={`mx-auto px-5 py-6 ${floating ? "max-w-none" : "max-w-6xl px-6 py-8"}`}>
+      <div className={`mx-auto px-5 py-6 ${glass ? "max-w-none" : "max-w-6xl px-6 py-8"}`}>
         <div className={gridClass}>
           {columns.map((col) => (
             <div key={col.title}>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-soft pb-3 mb-5 border-b border-hairline">
+              <p
+                className={`text-[11px] font-semibold uppercase tracking-wider pb-3 mb-5 border-b ${
+                  glass ? "border-white/15 text-white/60" : "border-hairline text-muted-soft"
+                }`}
+              >
                 {col.title}
               </p>
               <ul className="space-y-4">
@@ -220,17 +228,27 @@ function MegaMenuPanel({
                   <li key={item.title}>
                     <a
                       href={item.href}
-                      className="group flex gap-3 rounded-lg p-2 -mx-2 hover:bg-surface-soft transition-colors"
+                      className={`group flex gap-3 rounded-lg p-2 -mx-2 transition-colors ${
+                        glass ? "hover:bg-white/10" : "hover:bg-surface-soft"
+                      }`}
                       onClick={onClose}
                     >
-                      <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-hairline-soft bg-surface-soft text-muted group-hover:text-ink group-hover:border-hairline transition-colors">
+                      <span
+                        className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors ${
+                          glass
+                            ? "border-white/12 bg-white/8 text-white/70 group-hover:border-white/25 group-hover:text-white"
+                            : "border-hairline-soft bg-surface-soft text-muted group-hover:text-ink group-hover:border-hairline"
+                        }`}
+                      >
                         {item.icon}
                       </span>
                       <span>
-                        <span className="block text-sm font-semibold text-ink group-hover:underline">
+                        <span className={`block text-sm font-semibold group-hover:underline ${glass ? "text-white" : "text-ink"}`}>
                           {item.title}
                         </span>
-                        <span className="block text-xs text-muted leading-snug mt-0.5">{item.description}</span>
+                        <span className={`block text-xs leading-snug mt-0.5 ${glass ? "text-white/68" : "text-muted"}`}>
+                          {item.description}
+                        </span>
                       </span>
                     </a>
                   </li>
@@ -247,15 +265,13 @@ function MegaMenuPanel({
 export function LandingMegaNav({ isSignedIn }: { isSignedIn: boolean }) {
   const [activeMenu, setActiveMenu] = useState<MegaMenuId | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const featuresPanelId = useId();
   const solutionsPanelId = useId();
   const navRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** Scroll styling only after mount — keeps SSR and first client paint identical */
-  const isFloating = mounted && scrolled;
+  const isFloating = scrolled;
   const showAnnouncement = !scrolled;
 
   const clearCloseTimer = useCallback(() => {
@@ -279,13 +295,17 @@ export function LandingMegaNav({ isSignedIn }: { isSignedIn: boolean }) {
   );
 
   useEffect(() => {
-    setMounted(true);
+    const initialFrame = window.requestAnimationFrame(() => {
+      setScrolled(window.scrollY > 24);
+    });
     function onScroll() {
       setScrolled(window.scrollY > 24);
     }
     window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.cancelAnimationFrame(initialFrame);
+      window.removeEventListener("scroll", onScroll);
+    };
   }, []);
 
   useEffect(() => {
@@ -307,26 +327,28 @@ export function LandingMegaNav({ isSignedIn }: { isSignedIn: boolean }) {
     };
   }, [clearCloseTimer]);
 
+  const onHeroTop = !isFloating;
+  const useDarkGlass = isFloating;
+
   const navLinkClass =
-    "px-3 py-2 text-sm font-medium text-muted hover:text-ink transition-colors rounded-md";
+    useDarkGlass || onHeroTop
+      ? "px-3 py-2 text-sm font-medium text-white/76 hover:text-white transition-colors rounded-md"
+      : "px-3 py-2 text-sm font-medium text-muted hover:text-ink transition-colors rounded-md";
 
   const navTriggerClass = (active: boolean) =>
-    `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-      active ? "text-ink bg-surface-soft" : "text-muted hover:text-ink"
-    }`;
+    useDarkGlass || onHeroTop
+      ? `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+          active ? "text-white bg-white/14" : "text-white/76 hover:text-white"
+        }`
+      : `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+          active ? "text-ink bg-surface-soft" : "text-muted hover:text-ink"
+        }`;
 
   const announcementMotion =
     "transition-[height,transform] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]";
 
   return (
     <>
-      <div
-        className={`shrink-0 ${announcementMotion} ${
-          showAnnouncement ? "h-[100px]" : "h-16"
-        }`}
-        aria-hidden
-      />
-
       <header className={`fixed top-0 left-0 right-0 z-50 ${isFloating ? "pt-3" : ""}`}>
         <div
           className={`overflow-hidden ${announcementMotion} ${
@@ -348,14 +370,19 @@ export function LandingMegaNav({ isSignedIn }: { isSignedIn: boolean }) {
           className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-6"
         >
           <div
-            className={`w-full transition-all duration-300 ease-out ${
+            className={`w-full overflow-hidden transition-all duration-300 ease-out ${
               isFloating
-                ? "rounded-2xl border border-hairline bg-canvas shadow-[0_4px_16px_rgba(0,0,0,0.06)]"
-                : "border-b border-hairline-soft bg-canvas"
+                ? "rounded-[20px] border border-white/10 bg-black/38 shadow-[0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-xl"
+                : "bg-transparent"
             }`}
           >
             <div className="flex h-16 items-center px-5 sm:px-6">
-              <Link href="/" className="font-display shrink-0 text-lg tracking-[-0.02em]">
+              <Link
+                href="/"
+                className={`font-display shrink-0 text-lg tracking-[-0.02em] ${
+                  useDarkGlass || onHeroTop ? "text-white" : "text-ink"
+                }`}
+              >
                 BuilderBridge
               </Link>
 
@@ -366,7 +393,7 @@ export function LandingMegaNav({ isSignedIn }: { isSignedIn: boolean }) {
                   aria-expanded={activeMenu === "features"}
                   aria-controls={featuresPanelId}
                   onMouseEnter={() => openMenu("features")}
-                  onClick={() => setActiveMenu((m) => (m === "features" ? null : "features"))}
+                  onClick={() => openMenu("features")}
                 >
                   Features
                   <span className="ml-1 text-[10px] opacity-60" aria-hidden>
@@ -380,7 +407,7 @@ export function LandingMegaNav({ isSignedIn }: { isSignedIn: boolean }) {
                   aria-expanded={activeMenu === "solutions"}
                   aria-controls={solutionsPanelId}
                   onMouseEnter={() => openMenu("solutions")}
-                  onClick={() => setActiveMenu((m) => (m === "solutions" ? null : "solutions"))}
+                  onClick={() => openMenu("solutions")}
                 >
                   Solutions
                   <span className="ml-1 text-[10px] opacity-60" aria-hidden>
@@ -400,7 +427,7 @@ export function LandingMegaNav({ isSignedIn }: { isSignedIn: boolean }) {
 
               <button
                 type="button"
-                className="mr-3 p-2 text-muted hover:text-ink lg:hidden"
+                className={`mr-3 p-2 lg:hidden ${useDarkGlass || onHeroTop ? "text-white/80 hover:text-white" : "text-muted hover:text-ink"}`}
                 aria-expanded={mobileOpen}
                 aria-label="Open menu"
                 onClick={() => setMobileOpen((v) => !v)}
@@ -414,18 +441,31 @@ export function LandingMegaNav({ isSignedIn }: { isSignedIn: boolean }) {
                 {isSignedIn ? (
                   <Link
                     href="/projects"
-                    className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-on-primary hover:bg-primary-active transition-colors"
+                    className={`inline-flex h-10 items-center justify-center rounded-md px-5 text-sm font-semibold transition-colors ${
+                      useDarkGlass || onHeroTop
+                        ? "bg-white text-ink hover:bg-white/90"
+                        : "bg-primary text-on-primary hover:bg-primary-active"
+                    }`}
                   >
                     Open app
                   </Link>
                 ) : (
                   <>
-                    <Link href="/sign-in" className="hidden text-sm font-semibold text-ink hover:underline sm:inline">
+                    <Link
+                      href="/sign-in"
+                      className={`hidden text-sm font-semibold sm:inline ${
+                        useDarkGlass || onHeroTop ? "text-white/85 hover:text-white hover:underline" : "text-ink hover:underline"
+                      }`}
+                    >
                       Sign in
                     </Link>
                     <Link
                       href="/sign-up"
-                      className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-on-primary hover:bg-primary-active transition-colors"
+                      className={`inline-flex h-10 items-center justify-center rounded-md px-5 text-sm font-semibold transition-colors ${
+                        useDarkGlass || onHeroTop
+                          ? "bg-white text-ink hover:bg-white/90"
+                          : "bg-primary text-on-primary hover:bg-primary-active"
+                      }`}
                     >
                       Get started
                     </Link>
@@ -440,6 +480,7 @@ export function LandingMegaNav({ isSignedIn }: { isSignedIn: boolean }) {
                   columns={FEATURE_COLUMNS}
                   panelId={featuresPanelId}
                   layout="features"
+                  glass
                   onClose={() => setActiveMenu(null)}
                 />
               </div>
@@ -451,13 +492,20 @@ export function LandingMegaNav({ isSignedIn }: { isSignedIn: boolean }) {
                   columns={SOLUTION_COLUMNS}
                   panelId={solutionsPanelId}
                   layout="solutions"
+                  glass
                   onClose={() => setActiveMenu(null)}
                 />
               </div>
             )}
 
             {mobileOpen && (
-              <div className="max-h-[70vh] overflow-y-auto border-t border-hairline-soft px-4 py-4 lg:hidden sm:px-6">
+              <div
+                className={`max-h-[70vh] overflow-y-auto border-t px-4 py-4 lg:hidden sm:px-6 ${
+                  useDarkGlass || onHeroTop
+                    ? "border-white/15 bg-canvas shadow-[0_12px_40px_rgba(0,0,0,0.25)]"
+                    : "border-hairline-soft bg-canvas"
+                }`}
+              >
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-soft mb-2">Features</p>
           {FEATURE_COLUMNS.map((col) => (
             <div key={col.title} className="mb-5">
@@ -512,14 +560,14 @@ export function LandingMegaNav({ isSignedIn }: { isSignedIn: boolean }) {
 
           {isFloating && activeMenu === "features" && (
             <div
-              className="hidden w-full overflow-hidden rounded-2xl border border-hairline bg-canvas shadow-[0_8px_30px_rgba(0,0,0,0.08)] lg:block"
+              className="hidden w-full lg:block"
               onMouseEnter={clearCloseTimer}
             >
               <MegaMenuPanel
                 columns={FEATURE_COLUMNS}
                 panelId={featuresPanelId}
                 layout="features"
-                floating
+                glass
                 onClose={() => setActiveMenu(null)}
               />
             </div>
@@ -527,14 +575,14 @@ export function LandingMegaNav({ isSignedIn }: { isSignedIn: boolean }) {
 
           {isFloating && activeMenu === "solutions" && (
             <div
-              className="hidden w-full overflow-hidden rounded-2xl border border-hairline bg-canvas shadow-[0_8px_30px_rgba(0,0,0,0.08)] lg:block"
+              className="hidden w-full lg:block"
               onMouseEnter={clearCloseTimer}
             >
               <MegaMenuPanel
                 columns={SOLUTION_COLUMNS}
                 panelId={solutionsPanelId}
                 layout="solutions"
-                floating
+                glass
                 onClose={() => setActiveMenu(null)}
               />
             </div>

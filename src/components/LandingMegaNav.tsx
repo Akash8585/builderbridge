@@ -367,16 +367,22 @@ export function LandingMegaNav({ isSignedIn }: { isSignedIn: boolean }) {
         <div
           ref={navRef}
           onMouseLeave={scheduleClose}
-          className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-6"
+          className={`mx-auto flex w-full flex-col px-6 transition-[max-width,gap,padding] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+            isFloating ? "max-w-6xl gap-2" : "max-w-[1400px] gap-3 sm:px-10 lg:px-12"
+          }`}
         >
           <div
-            className={`w-full overflow-hidden transition-all duration-300 ease-out ${
+            className={`w-full overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
               isFloating
                 ? "rounded-[20px] border border-white/10 bg-black/38 shadow-[0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur-xl"
                 : "bg-transparent"
             }`}
           >
-            <div className="flex h-16 items-center px-5 sm:px-6">
+            <div
+              className={`flex items-center transition-[height,padding] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+                isFloating ? "h-16 px-5 sm:px-6" : "h-20 px-0"
+              }`}
+            >
               <Link
                 href="/"
                 className={`font-display shrink-0 text-lg tracking-[-0.02em] ${
@@ -453,8 +459,8 @@ export function LandingMegaNav({ isSignedIn }: { isSignedIn: boolean }) {
                   <>
                     <Link
                       href="/sign-in"
-                      className={`hidden text-sm font-semibold sm:inline ${
-                        useDarkGlass || onHeroTop ? "text-white/85 hover:text-white hover:underline" : "text-ink hover:underline"
+                      className={`hidden rounded-md px-3 py-2 text-sm font-semibold transition-colors sm:inline ${
+                        useDarkGlass || onHeroTop ? "text-white/85 hover:bg-white/12 hover:text-white" : "text-ink hover:bg-surface-soft"
                       }`}
                     >
                       Sign in

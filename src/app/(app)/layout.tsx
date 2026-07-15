@@ -3,9 +3,9 @@ import { GlobalAssistant } from "@/components/GlobalAssistant";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-canvas">
+    <div className="app-shell">
       <NavBar />
-      <main>{children}</main>
+      <main className="app-main">{children}</main>
       <GlobalAssistant />
     </div>
   );

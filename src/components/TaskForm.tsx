@@ -42,13 +42,14 @@ export function TaskForm({ projectId, members }: { projectId: string; members: M
   if (!open) {
     return (
       <Button variant="secondary" onClick={() => setOpen(true)}>
-        + Add Task
+        <span className="text-lg leading-none" aria-hidden>+</span>
+        Add task
       </Button>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 bg-surface-soft p-4 rounded-lg">
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 rounded-md border border-hairline bg-surface-soft p-3">
       <div className="flex-1 min-w-[160px]">
         <Input
           value={name}

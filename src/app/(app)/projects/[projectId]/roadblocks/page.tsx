@@ -5,6 +5,7 @@ import { canManageSchedule } from "@/lib/permissions";
 import { syncOverdueRfiFlags } from "@/app/actions/rfis";
 import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { RoadblockLogTable } from "@/components/RoadblockLogTable";
+import { ProjectPageHeader } from "@/components/PageHeader";
 import type { RoadblockStatus } from "@prisma/client";
 
 export default async function ProjectRoadblocksPage({
@@ -55,20 +56,24 @@ export default async function ProjectRoadblocksPage({
   const memberOptions = members.map((m) => ({ id: m.id, name: m.user.name }));
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl mb-1">{project.name}</h1>
-      <p className="text-sm text-muted mb-6">Roadblocks</p>
+    <div className="app-page">
+      <ProjectPageHeader
+        projectId={projectId}
+        projectName={project.name}
+        title="Roadblocks & Constraints"
+        description="Surface constraints early, assign ownership, and keep unresolved risk visible."
+      />
 
       <ProjectSubNav projectId={projectId} active="Roadblocks" />
 
-      <div className="mt-8 space-y-4">
-        <div className="inline-flex items-center gap-1 rounded-pill bg-surface-soft p-1.5">
+      <div className="mt-6 space-y-4">
+        <div className="inline-flex items-center gap-1 rounded-md border border-hairline bg-canvas p-1">
           {(["OPEN", "RESOLVED", "ALL"] as const).map((s) => (
             <Link
               key={s}
               href={`/projects/${projectId}/roadblocks?status=${s}`}
               className={`px-3.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                statusFilter === s ? "bg-canvas text-ink shadow-sm" : "text-muted hover:text-ink"
+                statusFilter === s ? "bg-ink text-white" : "text-muted hover:bg-surface-soft hover:text-ink"
               }`}
             >
               {s === "OPEN" ? "Open" : s === "RESOLVED" ? "Resolved" : "All"}

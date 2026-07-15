@@ -8,16 +8,17 @@ const TABS = [
 
 export function OrgSubNav({ active }: { active: string }) {
   return (
-    <div className="w-full overflow-x-auto rounded-pill bg-surface-soft">
-      <div className="flex w-max min-w-full items-center gap-1 p-1.5">
+    <nav aria-label="Portfolio views" className="w-full overflow-x-auto border-b border-hairline">
+      <div className="flex w-max min-w-full items-center gap-6">
         {TABS.map((tab) => {
           const isActive = tab.label === active;
           return (
             <Link
               key={tab.label}
               href={tab.href}
-              className={`shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                isActive ? "bg-canvas text-ink shadow-sm" : "text-muted hover:text-ink"
+              aria-current={isActive ? "page" : undefined}
+              className={`relative shrink-0 whitespace-nowrap border-b-2 px-0.5 pb-3 pt-1 text-sm font-medium transition-colors ${
+                isActive ? "border-ink text-ink" : "border-transparent text-muted hover:border-hairline hover:text-ink"
               }`}
             >
               {tab.label}
@@ -25,6 +26,6 @@ export function OrgSubNav({ active }: { active: string }) {
           );
         })}
       </div>
-    </div>
+    </nav>
   );
 }

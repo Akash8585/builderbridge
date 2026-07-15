@@ -1,14 +1,18 @@
 import { requireActiveOrganization } from "@/lib/session";
 import { ProjectForm } from "@/components/ProjectForm";
 import { Card } from "@/components/ui/Card";
+import { AppPageHeader } from "@/components/PageHeader";
 
 export default async function NewProjectPage() {
   const { organizationId } = await requireActiveOrganization();
 
   return (
-    <div className="max-w-lg mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl mb-1">New project</h1>
-      <p className="text-sm text-muted mb-6">You&apos;ll become the Project Manager of this project.</p>
+    <div className="app-page app-page-narrow">
+      <AppPageHeader
+        eyebrow="Project setup"
+        title="New project"
+        description="Define the delivery window and create a workspace. You will be assigned as Project Manager."
+      />
       <Card className="p-6">
         <ProjectForm organizationId={organizationId} />
       </Card>

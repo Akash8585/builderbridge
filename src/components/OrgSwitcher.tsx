@@ -35,17 +35,30 @@ export function OrgSwitcher() {
   }
 
   return (
-    <select
-      value={activeOrganization?.id ?? ""}
-      onChange={handleChange}
-      className="h-9 rounded-md border border-hairline bg-canvas px-2.5 text-sm text-ink focus:outline-none focus:border-ink"
-    >
-      {organizations.map((org) => (
-        <option key={org.id} value={org.id}>
-          {org.name}
-        </option>
-      ))}
-      <option value={CREATE_NEW_VALUE}>+ New organization…</option>
-    </select>
+    <label className="relative block min-w-0">
+      <span className="sr-only">Active organization</span>
+      <select
+        value={activeOrganization?.id ?? ""}
+        onChange={handleChange}
+        className="h-9 max-w-[150px] appearance-none truncate rounded-md border border-hairline bg-surface-soft pl-3 pr-8 text-sm font-medium text-ink transition-colors hover:border-muted-soft focus:border-ink focus:outline-none sm:max-w-[210px]"
+      >
+        {organizations.map((org) => (
+          <option key={org.id} value={org.id}>
+            {org.name}
+          </option>
+        ))}
+        <option value={CREATE_NEW_VALUE}>+ New organization...</option>
+      </select>
+      <svg
+        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden
+      >
+        <path d="m7 10 5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </label>
   );
 }

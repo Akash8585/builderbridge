@@ -3,6 +3,7 @@ import { requireActiveOrganization } from "@/lib/session";
 import { OrgSubNav } from "@/components/OrgSubNav";
 import { Card } from "@/components/ui/Card";
 import { PROJECT_ROLE_LABELS } from "@/lib/utils";
+import { AppPageHeader } from "@/components/PageHeader";
 
 export default async function TradePerformancePage() {
   const { organizationId } = await requireActiveOrganization();
@@ -55,9 +56,12 @@ export default async function TradePerformancePage() {
     .sort((a, b) => b.total - a.total);
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl mb-1">Trade Performance</h1>
-      <p className="text-sm text-muted mb-6">Commitment reliability per person, across all active projects</p>
+    <div className="app-page">
+      <AppPageHeader
+        eyebrow="Portfolio control"
+        title="Trade Performance"
+        description="Review commitment reliability by person and trade across every active project."
+      />
 
       <OrgSubNav active="Trade Performance" />
 
@@ -84,7 +88,7 @@ export default async function TradePerformancePage() {
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.userId} className="border-b border-hairline-soft last:border-b-0">
+                  <tr key={row.userId} className="app-table-row border-b border-hairline-soft last:border-b-0">
                     <td className="px-4 py-3 font-medium text-ink">{row.name}</td>
                     <td className="px-4 py-3 text-muted">{row.roleLabel}</td>
                     <td className="px-4 py-3 text-right text-muted">{row.projectCount}</td>

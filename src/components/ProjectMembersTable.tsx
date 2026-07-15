@@ -37,8 +37,8 @@ export function ProjectMembersTable({
   }
 
   return (
-    <div>
-      <table className="w-full text-sm">
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[620px] text-sm">
         <thead>
           <tr className="border-b border-hairline text-left text-muted">
             <th className="py-2 font-medium">Name</th>
@@ -49,7 +49,7 @@ export function ProjectMembersTable({
         </thead>
         <tbody>
           {members.map((member) => (
-            <tr key={member.id} className="border-b border-hairline-soft">
+            <tr key={member.id} className="app-table-row border-b border-hairline-soft last:border-b-0">
               <td className="py-3">{member.user.name}</td>
               <td className="py-3 text-muted">{member.user.email}</td>
               <td className="py-3">{PROJECT_ROLE_LABELS[member.role]}</td>

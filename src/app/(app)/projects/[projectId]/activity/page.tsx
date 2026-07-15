@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
 import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { Card } from "@/components/ui/Card";
+import { ProjectPageHeader } from "@/components/PageHeader";
 
 function formatDateTime(date: Date): string {
   return new Date(date).toLocaleString("en-US", {
@@ -30,13 +31,17 @@ export default async function ProjectActivityPage({
   });
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl mb-1">{project.name}</h1>
-      <p className="text-sm text-muted mb-6">Activity Log</p>
+    <div className="app-page">
+      <ProjectPageHeader
+        projectId={projectId}
+        projectName={project.name}
+        title="Activity Log"
+        description="A chronological record of project changes, decisions, and schedule updates."
+      />
 
       <ProjectSubNav projectId={projectId} active="Activity" />
 
-      <div className="mt-8">
+      <div className="mt-6">
         <Card className="p-6">
           {entries.length === 0 ? (
             <p className="text-sm text-muted text-center py-6">No activity recorded yet.</p>

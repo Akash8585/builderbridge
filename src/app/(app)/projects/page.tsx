@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireActiveOrganization } from "@/lib/session";
 import { Card } from "@/components/ui/Card";
+import { AppPageHeader } from "@/components/PageHeader";
 import { formatDate, percentComplete } from "@/lib/utils";
 
 export default async function ProjectsPage({
@@ -20,35 +21,35 @@ export default async function ProjectsPage({
   });
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-10">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="font-display text-2xl mb-1">Projects</h1>
-          <p className="text-sm text-muted">
-            {showArchived ? "Archived projects" : "Active projects in your organization"}
-          </p>
-        </div>
-        <Link
-          href="/projects/new"
-          className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-on-primary hover:bg-primary-active transition-colors"
-        >
-          + New Project
-        </Link>
-      </div>
+    <div className="app-page">
+      <AppPageHeader
+        eyebrow="Project directory"
+        title="Projects"
+        description={showArchived ? "Review projects that are no longer active." : "Open a project workspace or start a new schedule."}
+        actions={
+          <Link
+            href="/projects/new"
+            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-on-primary transition-colors hover:bg-primary-active"
+          >
+            <span className="text-lg leading-none" aria-hidden>+</span>
+            <span className="ml-1.5">New project</span>
+          </Link>
+        }
+      />
 
-      <div className="inline-flex items-center gap-1 rounded-pill bg-surface-soft p-1.5 mb-6">
+      <div className="mb-6 inline-flex items-center gap-1 rounded-md border border-hairline bg-canvas p-1">
         <Link
           href="/projects"
-          className={`px-3.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
-            !showArchived ? "bg-canvas text-ink shadow-sm" : "text-muted hover:text-ink"
+          className={`rounded-sm px-3.5 py-1.5 text-sm font-medium transition-colors ${
+            !showArchived ? "bg-ink text-white" : "text-muted hover:bg-surface-soft hover:text-ink"
           }`}
         >
           Active
         </Link>
         <Link
           href="/projects?archived=true"
-          className={`px-3.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
-            showArchived ? "bg-canvas text-ink shadow-sm" : "text-muted hover:text-ink"
+          className={`rounded-sm px-3.5 py-1.5 text-sm font-medium transition-colors ${
+            showArchived ? "bg-ink text-white" : "text-muted hover:bg-surface-soft hover:text-ink"
           }`}
         >
           Archived
@@ -75,20 +76,32 @@ export default async function ProjectsPage({
           )}
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {projects.map((project) => {
             const total = project.tasks.length;
             const done = project.tasks.filter((t) => t.status === "DONE").length;
+            const completion = percentComplete(total, done);
             return (
-              <Link key={project.id} href={`/projects/${project.id}`}>
-                <Card className="p-5 hover:border-ink transition-colors h-full">
-                  <h2 className="font-semibold text-ink mb-1">{project.name}</h2>
-                  <p className="text-sm text-muted mb-3">
+              <Link key={project.id} href={`/projects/${project.id}`} className="group">
+                <Card className="flex h-full min-h-44 flex-col p-5 transition-all group-hover:-translate-y-0.5 group-hover:border-muted-soft group-hover:shadow-[0_8px_24px_rgba(17,17,17,0.08)]">
+                  <div className="mb-5 flex items-start justify-between gap-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-md bg-ink text-sm font-bold text-white">
+                      {project.name.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="text-xs font-medium text-muted transition-colors group-hover:text-ink">Open</span>
+                  </div>
+                  <h2 className="mb-1 font-semibold text-ink">{project.name}</h2>
+                  <p className="mb-5 text-xs text-muted">
                     {formatDate(project.startDate)} – {formatDate(project.endDate)}
                   </p>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted">{total} tasks</span>
-                    <span className="font-medium text-ink">{percentComplete(total, done)}% complete</span>
+                  <div className="mt-auto">
+                    <div className="mb-2 flex items-center justify-between text-xs">
+                      <span className="text-muted">{total} tasks</span>
+                      <span className="font-semibold text-ink">{completion}%</span>
+                    </div>
+                    <div className="app-progress">
+                      <span style={{ width: `${completion}%` }} />
+                    </div>
                   </div>
                 </Card>
               </Link>

@@ -3,6 +3,7 @@ import { getProjectPageContext } from "@/lib/project-context";
 import { canManageSchedule } from "@/lib/permissions";
 import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { DrawingList } from "@/components/DrawingList";
+import { ProjectPageHeader } from "@/components/PageHeader";
 
 export default async function ProjectDrawingsPage({
   params,
@@ -25,13 +26,17 @@ export default async function ProjectDrawingsPage({
   ]);
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl mb-1">{project.name}</h1>
-      <p className="text-sm text-muted mb-6">Drawings</p>
+    <div className="app-page">
+      <ProjectPageHeader
+        projectId={projectId}
+        projectName={project.name}
+        title="Drawings"
+        description="Keep current revisions linked to the scheduled work they affect."
+      />
 
       <ProjectSubNav projectId={projectId} active="Drawings" />
 
-      <div className="mt-8">
+      <div className="mt-6">
         <DrawingList projectId={projectId} drawings={drawings} tasks={tasks} canUpload={canManageSchedule(role)} />
       </div>
     </div>

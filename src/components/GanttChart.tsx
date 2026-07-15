@@ -157,7 +157,7 @@ export function GanttChart({
   return (
     <div>
       <div
-        className="border border-hairline rounded-lg overflow-hidden select-none"
+        className="app-table-wrap select-none overflow-x-auto"
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerUp}

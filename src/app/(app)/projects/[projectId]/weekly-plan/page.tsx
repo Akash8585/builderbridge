@@ -5,6 +5,7 @@ import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { WeeklyPlanBoard } from "@/components/WeeklyPlanBoard";
 import { Card } from "@/components/ui/Card";
 import { formatDate, getWeekStart, percentComplete } from "@/lib/utils";
+import { ProjectPageHeader } from "@/components/PageHeader";
 
 export default async function ProjectWeeklyPlanPage({
   params,
@@ -55,14 +56,18 @@ export default async function ProjectWeeklyPlanPage({
   const ppc = percentComplete(totalCommitments, completedCommitments);
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl mb-1">{project.name}</h1>
-      <p className="text-sm text-muted mb-6">Weekly Work Plan</p>
+    <div className="app-page">
+      <ProjectPageHeader
+        projectId={projectId}
+        projectName={project.name}
+        title="Weekly Work Plan"
+        description="Make field commitments visible and track Percent Plan Complete week over week."
+      />
 
       <ProjectSubNav projectId={projectId} active="Weekly Plan" />
 
-      <div className="mt-8 space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="mt-6 space-y-6">
+        <div className="app-toolbar flex-row items-center">
           <div className="flex items-center gap-3">
             <Link
               href={`/projects/${projectId}/weekly-plan?week=${toParam(prevWeek)}`}

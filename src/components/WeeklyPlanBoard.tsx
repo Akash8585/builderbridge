@@ -31,22 +31,27 @@ export function WeeklyPlanBoard({
   return (
     <div className="space-y-4">
       {commitments.length === 0 ? (
-        <p className="text-sm text-muted py-4 text-center">No commitments for this week yet.</p>
+        <div className="rounded-md border border-dashed border-hairline px-6 py-10 text-center">
+          <p className="text-sm font-semibold text-ink">No commitments for this week</p>
+          <p className="mt-1 text-xs text-muted">Commit field-ready tasks below to build the weekly plan.</p>
+        </div>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-hairline text-left text-muted">
-              <th className="py-2 pr-3 font-medium">Task</th>
-              <th className="py-2 pr-3 font-medium">Committed by</th>
-              <th className="py-2 font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {commitments.map((c) => (
-              <CommitmentRowView key={c.id} commitment={c} />
-            ))}
-          </tbody>
-        </table>
+        <div className="app-table-wrap overflow-x-auto">
+          <table className="w-full min-w-[680px] text-sm">
+            <thead>
+              <tr className="border-b border-hairline bg-surface-soft text-left text-[10px] uppercase tracking-[0.08em] text-muted-soft">
+                <th className="px-4 py-2.5 font-medium">Task</th>
+                <th className="px-4 py-2.5 font-medium">Committed by</th>
+                <th className="px-4 py-2.5 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {commitments.map((c) => (
+                <CommitmentRowView key={c.id} commitment={c} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {committableTasks.length > 0 && <CommitForm weekStartDate={weekStartDate} tasks={committableTasks} />}
@@ -84,10 +89,10 @@ function CommitmentRowView({ commitment }: { commitment: CommitmentRow }) {
   }
 
   return (
-    <tr className="border-b border-hairline-soft align-top">
-      <td className="py-3 pr-3 font-medium text-ink">{commitment.task.name}</td>
-      <td className="py-3 pr-3 text-muted">{commitment.committedBy.user.name}</td>
-      <td className="py-3">
+    <tr className="app-table-row border-b border-hairline-soft align-top last:border-b-0">
+      <td className="px-4 py-3 font-medium text-ink">{commitment.task.name}</td>
+      <td className="px-4 py-3 text-muted">{commitment.committedBy.user.name}</td>
+      <td className="px-4 py-3">
         <select
           value={status}
           disabled={pending}
@@ -138,8 +143,9 @@ function CommitForm({ weekStartDate, tasks }: { weekStartDate: string; tasks: Co
   }
 
   return (
-    <div className="border border-hairline rounded-lg p-4 bg-surface-soft">
-      <h3 className="text-sm font-semibold mb-3">Commit a task to this week</h3>
+    <div className="rounded-md border border-hairline bg-surface-soft p-4">
+      <p className="app-kicker mb-1">Weekly commitment</p>
+      <h3 className="mb-3 text-sm font-semibold">Add work to this week</h3>
       <div className="flex flex-wrap items-center gap-3">
         <select
           value={taskId}

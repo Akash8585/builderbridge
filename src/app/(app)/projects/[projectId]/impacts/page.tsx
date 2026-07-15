@@ -5,6 +5,7 @@ import { canResolveRoadblocks } from "@/lib/permissions";
 import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { ScheduleImpactList } from "@/components/ScheduleImpactList";
 import type { SirStatus } from "@prisma/client";
+import { ProjectPageHeader } from "@/components/PageHeader";
 
 export default async function ProjectImpactsPage({
   params,
@@ -34,20 +35,24 @@ export default async function ProjectImpactsPage({
   ]);
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl mb-1">{project.name}</h1>
-      <p className="text-sm text-muted mb-6">Schedule Impact Requests</p>
+    <div className="app-page">
+      <ProjectPageHeader
+        projectId={projectId}
+        projectName={project.name}
+        title="Schedule Impact Requests"
+        description="Review requested schedule changes and preserve a clear approval trail."
+      />
 
       <ProjectSubNav projectId={projectId} active="Impacts" />
 
-      <div className="mt-8 space-y-4">
-        <div className="inline-flex items-center gap-1 rounded-pill bg-surface-soft p-1.5">
+      <div className="mt-6 space-y-4">
+        <div className="inline-flex items-center gap-1 rounded-md border border-hairline bg-canvas p-1">
           {(["PENDING", "APPROVED", "REJECTED", "ALL"] as const).map((s) => (
             <Link
               key={s}
               href={`/projects/${projectId}/impacts?status=${s}`}
               className={`px-3.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                statusFilter === s ? "bg-canvas text-ink shadow-sm" : "text-muted hover:text-ink"
+                statusFilter === s ? "bg-ink text-white" : "text-muted hover:bg-surface-soft hover:text-ink"
               }`}
             >
               {s === "PENDING" ? "Pending" : s === "APPROVED" ? "Approved" : s === "REJECTED" ? "Rejected" : "All"}

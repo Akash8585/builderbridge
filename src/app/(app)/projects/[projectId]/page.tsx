@@ -6,6 +6,7 @@ import { TaskTable } from "@/components/TaskTable";
 import { TaskForm } from "@/components/TaskForm";
 import { ArchiveProjectButton } from "@/components/ArchiveProjectButton";
 import { formatDate } from "@/lib/utils";
+import { ProjectPageHeader } from "@/components/PageHeader";
 
 export default async function ProjectDetailPage({
   params,
@@ -36,21 +37,31 @@ export default async function ProjectDetailPage({
   }));
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
-      <div className="flex items-start justify-between mb-1">
-        <h1 className="font-display text-2xl">{project.name}</h1>
-        {isProjectManager(role) && (
-          <ArchiveProjectButton projectId={project.id} isArchived={project.isArchived} />
-        )}
-      </div>
-      <p className="text-sm text-muted mb-6">
-        {formatDate(project.startDate)} – {formatDate(project.endDate)}
-      </p>
+    <div className="app-page">
+      <ProjectPageHeader
+        projectId={projectId}
+        projectName={project.name}
+        title="Master Schedule"
+        description={`${formatDate(project.startDate)} - ${formatDate(project.endDate)} · Manage activities, ownership, dates, and live field status.`}
+        actions={
+          isProjectManager(role) ? (
+            <ArchiveProjectButton projectId={project.id} isArchived={project.isArchived} />
+          ) : undefined
+        }
+      />
 
       <ProjectSubNav projectId={projectId} active="Tasks" />
 
-      <div className="mt-8 space-y-6">
-        {canManage && <TaskForm projectId={projectId} members={memberOptions} />}
+      <div className="mt-6 space-y-4">
+        {canManage && (
+          <div className="app-toolbar">
+            <div>
+              <p className="text-sm font-semibold text-ink">Schedule activities</p>
+              <p className="text-xs text-muted">{tasks.length} tasks in the current master schedule</p>
+            </div>
+            <TaskForm projectId={projectId} members={memberOptions} />
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <TaskTable tasks={tasks} members={memberOptions} currentUserId={user.id} role={role} projectId={projectId} />

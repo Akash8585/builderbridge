@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireActiveOrganization } from "@/lib/session";
 import { OrgSubNav } from "@/components/OrgSubNav";
 import { Card } from "@/components/ui/Card";
+import { AppPageHeader } from "@/components/PageHeader";
 import { loadProjectSummary, healthColor } from "@/lib/project-summary";
 
 export default async function ExecutiveDashboardPage() {
@@ -31,9 +32,12 @@ export default async function ExecutiveDashboardPage() {
       : null;
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl mb-1">Executive Dashboard</h1>
-      <p className="text-sm text-muted mb-6">Portfolio-wide view across all active projects</p>
+    <div className="app-page">
+      <AppPageHeader
+        eyebrow="Portfolio control"
+        title="Executive Dashboard"
+        description="Portfolio-wide schedule health, execution risk, and delivery performance across active projects."
+      />
 
       <OrgSubNav active="Executive Dashboard" />
 
@@ -45,23 +49,27 @@ export default async function ExecutiveDashboardPage() {
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <Card className="p-6">
-                <p className="text-sm text-muted mb-2">Active Projects</p>
-                <p className="font-display text-4xl">{projects.length}</p>
+              <Card className="relative overflow-hidden p-5">
+                <span className="absolute inset-x-0 top-0 h-0.5 bg-ink" />
+                <p className="app-kicker mb-3">Active projects</p>
+                <p className="font-display text-3xl">{projects.length}</p>
               </Card>
-              <Card className="p-6">
-                <p className="text-sm text-muted mb-2">Total Tasks</p>
-                <p className="font-display text-4xl">{orgTotals.totalTasks}</p>
+              <Card className="relative overflow-hidden p-5">
+                <span className="absolute inset-x-0 top-0 h-0.5 bg-brand-accent" />
+                <p className="app-kicker mb-3">Total tasks</p>
+                <p className="font-display text-3xl">{orgTotals.totalTasks}</p>
               </Card>
-              <Card className="p-6">
-                <p className="text-sm text-muted mb-2">Open Roadblocks</p>
-                <p className={`font-display text-4xl ${orgTotals.openRoadblocks > 0 ? "text-error" : ""}`}>
+              <Card className="relative overflow-hidden p-5">
+                <span className={`absolute inset-x-0 top-0 h-0.5 ${orgTotals.openRoadblocks > 0 ? "bg-error" : "bg-success"}`} />
+                <p className="app-kicker mb-3">Open roadblocks</p>
+                <p className={`font-display text-3xl ${orgTotals.openRoadblocks > 0 ? "text-error" : ""}`}>
                   {orgTotals.openRoadblocks}
                 </p>
               </Card>
-              <Card className="p-6">
-                <p className="text-sm text-muted mb-2">Avg. Health Score</p>
-                <p className={`font-display text-4xl ${healthColor(avgHealthScore)}`}>{avgHealthScore ?? "—"}</p>
+              <Card className="relative overflow-hidden p-5">
+                <span className="absolute inset-x-0 top-0 h-0.5 bg-success" />
+                <p className="app-kicker mb-3">Average health</p>
+                <p className={`font-display text-3xl ${healthColor(avgHealthScore)}`}>{avgHealthScore ?? "—"}</p>
               </Card>
             </div>
 
@@ -81,7 +89,7 @@ export default async function ExecutiveDashboardPage() {
                   </thead>
                   <tbody>
                     {summaries.map(({ project, summary }) => (
-                      <tr key={project.id} className="border-b border-hairline-soft last:border-b-0">
+                      <tr key={project.id} className="app-table-row border-b border-hairline-soft last:border-b-0">
                         <td className="px-4 py-3">
                           <Link href={`/projects/${project.id}/dashboard`} className="font-medium text-ink hover:underline">
                             {project.name}

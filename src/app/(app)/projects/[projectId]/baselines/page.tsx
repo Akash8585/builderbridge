@@ -6,6 +6,7 @@ import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { BaselineCreateForm } from "@/components/BaselineCreateForm";
 import { Card } from "@/components/ui/Card";
 import { formatDate, daysBetween, TASK_STATUS_LABELS } from "@/lib/utils";
+import { ProjectPageHeader } from "@/components/PageHeader";
 
 export default async function ProjectBaselinesPage({
   params,
@@ -43,13 +44,17 @@ export default async function ProjectBaselinesPage({
   const currentById = new Map(currentTasks.map((t) => [t.id, t]));
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl mb-1">{project.name}</h1>
-      <p className="text-sm text-muted mb-6">Baselines</p>
+    <div className="app-page">
+      <ProjectPageHeader
+        projectId={projectId}
+        projectName={project.name}
+        title="Schedule Baselines"
+        description="Save approved schedule states and compare current dates against the plan of record."
+      />
 
       <ProjectSubNav projectId={projectId} active="Baselines" />
 
-      <div className="mt-8 space-y-6">
+      <div className="mt-6 space-y-6">
         {canManageSchedule(role) && <BaselineCreateForm projectId={projectId} />}
 
         {baselines.length === 0 ? (

@@ -38,13 +38,14 @@ export default async function TaskDetailPage({
   const hasRelatedItems = submittals.length > 0 || rfis.length > 0 || drawings.length > 0 || sirs.length > 0;
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
-      <Link href={`/projects/${projectId}`} className="text-sm text-muted hover:text-ink">
+    <div className="app-page app-page-narrow">
+      <Link href={`/projects/${projectId}`} className="inline-flex items-center gap-2 text-sm font-medium text-muted hover:text-ink">
         ← Back to {project.name}
       </Link>
 
-      <div className="mt-4 mb-6">
-        <h1 className="font-display text-2xl mb-2">{task.name}</h1>
+      <div className="mb-6 mt-5 border-b border-hairline pb-6">
+        <p className="app-kicker mb-2">Schedule activity</p>
+        <h1 className="app-page-title mb-3">{task.name}</h1>
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
           <span>{task.assignedTo?.user.name ?? "Unassigned"}</span>
           <span>·</span>
@@ -56,7 +57,7 @@ export default async function TaskDetailPage({
           {task.isRoadblock && task.roadblockStatus && <RoadblockBadge status={task.roadblockStatus} />}
         </div>
         {task.isRoadblock && task.roadblockNote && (
-          <p className="text-sm text-body mt-3 bg-surface-card rounded-md px-3 py-2">{task.roadblockNote}</p>
+          <p className="mt-4 rounded-md border border-error/20 bg-error/5 px-3 py-2 text-sm text-body">{task.roadblockNote}</p>
         )}
       </div>
 

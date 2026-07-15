@@ -6,6 +6,7 @@ import { isProcoreConfigured } from "@/lib/procore";
 import { fetchProcoreProjectsForOrg } from "@/app/actions/procore";
 import { ProcoreIntegrationPanel } from "@/components/ProcoreIntegrationPanel";
 import { Card } from "@/components/ui/Card";
+import { AppPageHeader } from "@/components/PageHeader";
 
 export default async function IntegrationsPage({
   searchParams,
@@ -34,9 +35,12 @@ export default async function IntegrationsPage({
     procoreConnection && isOwner && isProPlan ? await fetchProcoreProjectsForOrg(organizationId) : [];
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl mb-1">Integrations</h1>
-      <p className="text-sm text-muted mb-8">{org.name}</p>
+    <div className="app-page app-page-narrow">
+      <AppPageHeader
+        eyebrow="Organization"
+        title="Integrations"
+        description={`Connect ${org.name} to the systems your project teams already use.`}
+      />
 
       {params.connected && (
         <Card className="p-4 mb-6 border-success/40 bg-success/5">
@@ -82,9 +86,6 @@ export default async function IntegrationsPage({
               Pro
             </Link>{" "}
             plan when live.
-          </p>
-          <p className="text-xs text-muted-soft mt-2 italic">
-            Blocker: our developer lives outside the US and Autodesk wants a Visa card for a $0 plan. UPI said no. Visa said also no. ACC sync said &ldquo;we&apos;ll call you back.&rdquo;
           </p>
         </Card>
       </div>

@@ -5,6 +5,7 @@ import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { InviteLinkGenerator } from "@/components/InviteLinkGenerator";
 import { ProjectMembersTable } from "@/components/ProjectMembersTable";
 import { Card } from "@/components/ui/Card";
+import { ProjectPageHeader } from "@/components/PageHeader";
 
 export default async function ProjectMembersPage({
   params,
@@ -23,13 +24,17 @@ export default async function ProjectMembersPage({
   const canManage = isProjectManager(role);
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl mb-1">{project.name}</h1>
-      <p className="text-sm text-muted mb-6">Members</p>
+    <div className="app-page">
+      <ProjectPageHeader
+        projectId={projectId}
+        projectName={project.name}
+        title="Project Team"
+        description="Manage project access, responsibilities, and field collaboration roles."
+      />
 
       <ProjectSubNav projectId={projectId} active="Members" />
 
-      <div className="mt-8 space-y-6">
+      <div className="mt-6 space-y-6">
         {canManage && <InviteLinkGenerator projectId={projectId} />}
 
         <Card className="p-6">

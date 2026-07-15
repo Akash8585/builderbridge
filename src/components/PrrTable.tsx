@@ -20,7 +20,7 @@ export function PrrTable({ prrByMember }: { prrByMember: PrrRow[] }) {
       </thead>
       <tbody>
         {prrByMember.map((row) => (
-          <tr key={row.memberId} className="border-b border-hairline-soft last:border-b-0">
+          <tr key={row.memberId} className="app-table-row border-b border-hairline-soft last:border-b-0">
             <td className="py-2">{row.name}</td>
             <td className="py-2 text-right text-muted">
               {row.completed}/{row.total}

@@ -78,7 +78,7 @@ export function GlobalAssistant() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-ink text-canvas shadow-lg transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2"
+        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-lg border border-white/10 bg-ink text-canvas shadow-[0_12px_30px_rgba(17,17,17,0.24)] transition-transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 sm:bottom-6 sm:right-6"
         aria-label="Open AI assistant"
         title="AI Assistant"
       >
@@ -103,19 +103,19 @@ export function GlobalAssistant() {
           <aside
             role="dialog"
             aria-label="AI Assistant"
-            className="relative flex h-full w-full max-w-md flex-col border-l border-hairline bg-canvas shadow-xl"
+            className="relative flex h-full w-full max-w-lg flex-col border-l border-hairline bg-app-bg shadow-[-16px_0_40px_rgba(17,17,17,0.14)]"
           >
-            <header className="flex shrink-0 items-center justify-between border-b border-hairline px-5 py-4">
+            <header className="flex shrink-0 items-center justify-between border-b border-white/10 bg-ink px-5 py-4 text-white">
               <div>
                 <h2 className="font-display text-lg">AI Assistant</h2>
-                <p className="text-xs text-muted">
+                <p className="text-xs text-white/60">
                   {focusProjectId ? "Portfolio + current project context" : "Portfolio-wide context"}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={close}
-                className="rounded-md p-2 text-muted hover:bg-surface-soft hover:text-ink"
+                className="rounded-md p-2 text-white/60 hover:bg-white/10 hover:text-white"
                 aria-label="Close"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -137,7 +137,7 @@ export function GlobalAssistant() {
                           key={s}
                           type="button"
                           onClick={() => ask(s)}
-                          className="rounded-pill border border-hairline px-3 py-1.5 text-xs text-muted transition-colors hover:border-ink hover:text-ink"
+                          className="rounded-md border border-hairline bg-canvas px-3 py-2 text-left text-xs text-muted transition-colors hover:border-muted-soft hover:text-ink"
                         >
                           {s}
                         </button>
@@ -149,7 +149,7 @@ export function GlobalAssistant() {
                     <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                       <div
                         className={`max-w-[85%] whitespace-pre-wrap rounded-lg px-4 py-2.5 text-sm ${
-                          m.role === "user" ? "bg-ink text-canvas" : "bg-surface-soft text-body"
+                          m.role === "user" ? "bg-ink text-canvas" : "border border-hairline bg-canvas text-body"
                         }`}
                       >
                         {m.content}
@@ -160,13 +160,13 @@ export function GlobalAssistant() {
                 {loading && <div className="text-sm text-muted-soft">Thinking…</div>}
               </div>
 
-              <form onSubmit={handleSubmit} className="mt-4 flex shrink-0 items-center gap-2 border-t border-hairline-soft pt-4">
+              <form onSubmit={handleSubmit} className="mt-4 flex shrink-0 items-center gap-2 border-t border-hairline pt-4">
                 <input
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
                   placeholder="Ask anything about your work…"
                   maxLength={1000}
-                  className="h-10 flex-1 rounded-md border border-hairline bg-canvas px-3 text-sm focus:border-ink focus:outline-none"
+                  className="h-10 flex-1 rounded-md border border-hairline bg-canvas px-3 text-sm shadow-sm focus:border-ink focus:outline-none"
                 />
                 <Button type="submit" disabled={loading || !question.trim()}>
                   Ask

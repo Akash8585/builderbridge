@@ -50,15 +50,16 @@ export function PullPlanningBoard({
       <AddPullPlanTaskForm projectId={projectId} onAdded={() => router.refresh()} />
 
       {tasks.length === 0 ? (
-        <p className="text-sm text-muted text-center py-6">
-          No tasks on the board yet. Trade partners can add their own tasks above.
-        </p>
+        <div className="rounded-md border border-dashed border-hairline bg-canvas px-6 py-10 text-center">
+          <p className="text-sm font-semibold text-ink">The pull plan is ready for its first task</p>
+          <p className="mt-1 text-xs text-muted">Trade partners can add their own work using the form above.</p>
+        </div>
       ) : (
         <ol className="space-y-2">
           {tasks.map((task, index) => (
             <li
               key={task.id}
-              className="flex items-center gap-3 border border-hairline rounded-lg px-4 py-3 bg-canvas"
+              className="group flex items-center gap-3 rounded-md border border-hairline bg-canvas px-4 py-3 shadow-[0_1px_2px_rgba(17,17,17,0.03)] transition-colors hover:border-muted-soft"
             >
               <span className="text-xs font-mono text-muted-soft w-6">{index + 1}</span>
               <div className="flex-1 min-w-0">
@@ -123,8 +124,9 @@ function AddPullPlanTaskForm({ projectId, onAdded }: { projectId: string; onAdde
   }
 
   return (
-    <form onSubmit={handleSubmit} className="border border-hairline rounded-lg p-4 bg-surface-soft">
-      <h3 className="text-sm font-semibold mb-1">Add your task to the board</h3>
+    <form onSubmit={handleSubmit} className="rounded-md border border-hairline bg-surface-soft p-4">
+      <p className="app-kicker mb-1">Team input</p>
+      <h3 className="mb-1 text-sm font-semibold">Add your task to the board</h3>
       <p className="text-xs text-muted-soft mb-3">
         Any team member can add a task here — it&apos;ll be assigned to you. The session lead sequences the work below.
       </p>

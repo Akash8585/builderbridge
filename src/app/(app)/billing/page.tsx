@@ -4,6 +4,7 @@ import { requireActiveOrganization } from "@/lib/session";
 import { isBillingConfigured, PLAN_LIMITS } from "@/lib/billing";
 import { BillingActions } from "@/components/BillingActions";
 import { Card } from "@/components/ui/Card";
+import { AppPageHeader } from "@/components/PageHeader";
 
 export default async function BillingPage({
   searchParams,
@@ -24,9 +25,8 @@ export default async function BillingPage({
   const limits = PLAN_LIMITS[org.planTier];
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl mb-1">Billing</h1>
-      <p className="text-sm text-muted mb-8">{org.name}</p>
+    <div className="app-page app-page-narrow">
+      <AppPageHeader eyebrow="Organization" title="Billing" description={`${org.name} plan and project usage.`} />
 
       {upgraded && (
         <Card className="p-4 mb-6 border-success/40 bg-success/5">

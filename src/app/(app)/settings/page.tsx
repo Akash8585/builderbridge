@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/session";
 import { isEmailConfigured } from "@/lib/email";
 import { NotificationToggle } from "@/components/NotificationToggle";
 import { Card } from "@/components/ui/Card";
+import { AppPageHeader } from "@/components/PageHeader";
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -12,11 +13,12 @@ export default async function SettingsPage() {
   });
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl mb-1">Settings</h1>
-      <p className="text-sm text-muted mb-8">
-        {dbUser.name} · {dbUser.email}
-      </p>
+    <div className="app-page app-page-narrow">
+      <AppPageHeader
+        eyebrow="Account"
+        title="Settings"
+        description={`${dbUser.name} · ${dbUser.email}`}
+      />
 
       <Card className="p-6">
         <h2 className="text-sm font-semibold mb-4">Notifications</h2>

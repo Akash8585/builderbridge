@@ -8,6 +8,7 @@ import { SCurveChart } from "@/components/SCurveChart";
 import { Card } from "@/components/ui/Card";
 import { percentComplete } from "@/lib/utils";
 import { computePpcTrend, computePrrByMember, computeSCurve } from "@/lib/analytics";
+import { ProjectPageHeader } from "@/components/PageHeader";
 
 export default async function ProjectDashboardPage({
   params,
@@ -45,13 +46,17 @@ export default async function ProjectDashboardPage({
   const sCurve = computeSCurve(allTasks, project.startDate, sCurveRangeEnd);
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl mb-1">{project.name}</h1>
-      <p className="text-sm text-muted mb-6">Dashboard</p>
+    <div className="app-page">
+      <ProjectPageHeader
+        projectId={projectId}
+        projectName={project.name}
+        title="Project Dashboard"
+        description="Monitor schedule progress, commitment reliability, and current delivery risk."
+      />
 
       <ProjectSubNav projectId={projectId} active="Dashboard" />
 
-      <div className="mt-8 space-y-6">
+      <div className="mt-6 space-y-6">
         <DashboardStats
           totalTasks={totalTasks}
           percentComplete={percentComplete(totalTasks, doneTasks)}

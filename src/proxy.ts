@@ -11,6 +11,8 @@ const PUBLIC_PATHS = [
   "/api/integrations/procore/callback",
   "/api/integrations/autodesk/callback",
   "/pricing",
+  "/features",
+  "/solutions",
   // PWA assets — must be fetchable without a session (browser/OS requests these).
   "/manifest.webmanifest",
   "/sw.js",

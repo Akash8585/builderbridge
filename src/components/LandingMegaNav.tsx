@@ -23,25 +23,25 @@ const FEATURE_COLUMNS: MegaColumn[] = [
       {
         title: "Master Schedule",
         description: "Build and update your contract schedule with Gantt, dependencies, and critical path.",
-        href: "#features",
+        href: "/features/master-schedule",
         icon: <IconGantt />,
       },
       {
         title: "Schedule Impact Request",
         description: "Request changes when field conditions push work outside the plan.",
-        href: "#features",
+        href: "/features/schedule-impact-requests",
         icon: <IconImpact />,
       },
       {
         title: "Submittals",
         description: "Track submittal status and due dates linked to schedule activities.",
-        href: "#features",
+        href: "/features/submittals",
         icon: <IconSubmittal />,
       },
       {
         title: "RFIs",
         description: "Turn RFIs into trackable roadblocks before they delay the job.",
-        href: "#features",
+        href: "/features/rfis",
         icon: <IconRfi />,
       },
     ],
@@ -52,25 +52,25 @@ const FEATURE_COLUMNS: MegaColumn[] = [
       {
         title: "Lookahead",
         description: "Plan ahead with a rolling window synced to the master schedule.",
-        href: "#features",
+        href: "/features/lookahead",
         icon: <IconLookahead />,
       },
       {
         title: "Field Tracking",
         description: "Field teams log progress notes and photos without leaving the jobsite.",
-        href: "#features",
+        href: "/features/field-tracking",
         icon: <IconField />,
       },
       {
         title: "Weekly Work Plan",
         description: "Set weekly commitments and track Percent Plan Complete automatically.",
-        href: "#features",
+        href: "/features/weekly-work-plan",
         icon: <IconWeekly />,
       },
       {
         title: "Roadblocks & Constraints",
         description: "Flag issues early so teams resolve them before work slips.",
-        href: "#features",
+        href: "/features/roadblocks-constraints",
         icon: <IconRoadblock />,
       },
     ],
@@ -81,19 +81,19 @@ const FEATURE_COLUMNS: MegaColumn[] = [
       {
         title: "Projects Timeline",
         description: "See every active project's schedule on one shared timeline.",
-        href: "#features",
+        href: "/features/projects-timeline",
         icon: <IconTimeline />,
       },
       {
         title: "Executive Dashboard",
         description: "Know where each project stands — health, variance, and open risk.",
-        href: "#features",
+        href: "/features/executive-dashboard",
         icon: <IconDashboard />,
       },
       {
         title: "Analytics",
         description: "PPC trends, PRR, S-curves, and baselines that drive better performance.",
-        href: "#features",
+        href: "/features/analytics",
         icon: <IconAnalytics />,
       },
     ],
@@ -104,13 +104,13 @@ const FEATURE_COLUMNS: MegaColumn[] = [
       {
         title: "AI Assistant",
         description: "Instant schedule answers grounded in your live project data.",
-        href: "#why",
+        href: "/features/ai-assistant",
         icon: <IconAi />,
       },
       {
         title: "Portfolio Q&A",
         description: "Ask across all projects — roadblocks, commitments, and portfolio health.",
-        href: "#why",
+        href: "/features/portfolio-qa",
         icon: <IconPortfolioAi />,
       },
     ],
@@ -124,25 +124,25 @@ const SOLUTION_COLUMNS: MegaColumn[] = [
       {
         title: "Project Managers",
         description: "Built for PMs to plan faster, track risks, and stay aligned.",
-        href: "#roles",
+        href: "/solutions/project-managers",
         icon: <IconPm />,
       },
       {
         title: "Schedulers",
         description: "Less hassle, better scheduling, and more time back in your day.",
-        href: "#roles",
+        href: "/solutions/schedulers",
         icon: <IconScheduler />,
       },
       {
         title: "Superintendents",
         description: "You run the site. BuilderBridge gives you the tools to do it right.",
-        href: "#roles",
+        href: "/solutions/superintendents",
         icon: <IconSuperintendent />,
       },
       {
         title: "Trade Partners",
         description: "Enable trades to self-update and contribute to planning.",
-        href: "#roles",
+        href: "/solutions/trade-partners",
         icon: <IconTrade />,
       },
     ],
@@ -153,13 +153,13 @@ const SOLUTION_COLUMNS: MegaColumn[] = [
       {
         title: "Mid-Market",
         description: "Roll out fast. Keep teams aligned with one schedule, one lookahead, one weekly plan.",
-        href: "#roles",
+        href: "/solutions/mid-market",
         icon: <IconMidMarket />,
       },
       {
         title: "Enterprise",
         description: "Standardize scheduling across the portfolio with analytics, controls, and real-time risk visibility.",
-        href: "#features",
+        href: "/solutions/enterprise",
         icon: <IconEnterprise />,
       },
     ],
@@ -170,13 +170,13 @@ const SOLUTION_COLUMNS: MegaColumn[] = [
       {
         title: "Autodesk",
         description: "Sync drawings from ACC into your BuilderBridge schedule and document log.",
-        href: "/pricing",
+        href: "/solutions/autodesk",
         icon: <IconAutodesk />,
       },
       {
         title: "Procore",
         description: "Sync RFIs and submittals to the schedule. See risk early and keep teams aligned.",
-        href: "/pricing",
+        href: "/solutions/procore",
         icon: <IconProcore />,
       },
     ],
@@ -226,7 +226,7 @@ function MegaMenuPanel({
               <ul className="space-y-4">
                 {col.items.map((item) => (
                   <li key={item.title}>
-                    <a
+                    <Link
                       href={item.href}
                       className={`group flex gap-3 rounded-lg p-2 -mx-2 transition-colors ${
                         glass ? "hover:bg-white/10" : "hover:bg-surface-soft"
@@ -250,7 +250,7 @@ function MegaMenuPanel({
                           {item.description}
                         </span>
                       </span>
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -421,9 +421,9 @@ export function LandingMegaNav({ isSignedIn }: { isSignedIn: boolean }) {
                   </span>
                 </button>
 
-                <a href="#why" className={navLinkClass}>
+                <Link href="/#why" className={navLinkClass}>
                   Why BuilderBridge
-                </a>
+                </Link>
                 <Link href="/pricing" className={navLinkClass}>
                   Pricing
                 </Link>
@@ -519,13 +519,13 @@ export function LandingMegaNav({ isSignedIn }: { isSignedIn: boolean }) {
               <ul className="space-y-1">
                 {col.items.map((item) => (
                   <li key={item.title}>
-                    <a
+                    <Link
                       href={item.href}
                       className="block py-1.5 text-sm font-medium text-ink"
                       onClick={() => setMobileOpen(false)}
                     >
                       {item.title}
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -553,9 +553,9 @@ export function LandingMegaNav({ isSignedIn }: { isSignedIn: boolean }) {
             </div>
           ))}
           <div className="flex flex-col gap-2 pt-2 border-t border-hairline-soft">
-            <a href="#why" className="py-2 text-sm font-medium text-muted" onClick={() => setMobileOpen(false)}>
+            <Link href="/#why" className="py-2 text-sm font-medium text-muted" onClick={() => setMobileOpen(false)}>
               Why BuilderBridge
-            </a>
+            </Link>
             <Link href="/pricing" className="py-2 text-sm font-medium text-muted" onClick={() => setMobileOpen(false)}>
               Pricing
             </Link>

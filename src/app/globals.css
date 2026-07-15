@@ -248,3 +248,24 @@ textarea:focus-visible {
   font-weight: 600;
   letter-spacing: -0.02em;
 }
+
+@keyframes landing-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.landing-panel-enter {
+  animation: landing-panel-in 220ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-panel-enter {
+    animation: none;
+  }
+}

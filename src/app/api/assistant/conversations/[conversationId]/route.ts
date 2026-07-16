@@ -5,6 +5,7 @@ import {
   loadAssistantProposalStates,
 } from "@/lib/assistant-actions";
 import { requireAssistantConversation } from "@/lib/assistant-conversations";
+import { deleteStoredFile } from "@/lib/storage";
 import { requireActiveOrganization, requireUser } from "@/lib/session";
 
 export async function GET(
@@ -52,6 +53,16 @@ export async function DELETE(
   const user = await requireUser();
   const { organizationId } = await requireActiveOrganization();
   await requireAssistantConversation(conversationId, user.id, organizationId);
+  const pendingAttachments = await prisma.assistantAttachment.findMany({
+    where: { conversationId, messageId: null },
+    select: { storageKey: true },
+  });
+  await prisma.assistantAttachment.deleteMany({
+    where: { conversationId, messageId: null },
+  });
   await prisma.assistantConversation.delete({ where: { id: conversationId } });
+  await Promise.allSettled(
+    pendingAttachments.map((attachment) => deleteStoredFile(attachment.storageKey))
+  );
   return new Response(null, { status: 204 });
 }

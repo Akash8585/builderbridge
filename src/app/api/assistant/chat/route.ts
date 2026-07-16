@@ -11,6 +11,12 @@ import type { UIMessage } from "ai";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { ASSISTANT_TOOL_SYSTEM_PROMPT, buildAssistantContext } from "@/lib/ai-assistant";
+import {
+  assistantFileParts,
+  buildAttachmentAcknowledgement,
+  isAllowedAssistantAttachmentType,
+  MAX_ASSISTANT_ATTACHMENTS,
+} from "@/lib/assistant-attachments";
 import { makeConversationTitle, requireAssistantConversation } from "@/lib/assistant-conversations";
 import {
   isMissingRoadblockProposalConfirmation,
@@ -30,6 +36,7 @@ import { env } from "@/lib/env";
 import { createAssistantTools } from "@/lib/assistant-tools";
 import { getOpenRouterModel } from "@/lib/openrouter";
 import { prisma } from "@/lib/prisma";
+import { isProjectDocumentQuestion } from "@/lib/project-document-search";
 import { requireActiveOrganization, requireUser } from "@/lib/session";
 
 const requestSchema = z.object({
@@ -74,6 +81,54 @@ function deterministicOutputText(output: unknown): string {
   return "";
 }
 
+function createPersistedTextResponse({
+  text,
+  originalMessages,
+  assistantMessageId,
+  conversationId,
+  model,
+}: {
+  text: string;
+  originalMessages: UIMessage[];
+  assistantMessageId: string;
+  conversationId: string;
+  model: string;
+}) {
+  const textId = randomUUID();
+  const stream = createUIMessageStream({
+    originalMessages,
+    execute: async ({ writer }) => {
+      writer.write({ type: "start", messageId: assistantMessageId });
+      writer.write({ type: "text-start", id: textId });
+      writer.write({ type: "text-delta", id: textId, delta: text });
+      writer.write({ type: "text-end", id: textId });
+      writer.write({ type: "finish", finishReason: "stop" });
+    },
+    onEnd: async ({ responseMessage, isAborted }) => {
+      if (isAborted) return;
+      await prisma.$transaction([
+        prisma.assistantMessage.upsert({
+          where: { id: assistantMessageId },
+          update: { content: text, parts: serializeParts(responseMessage.parts) },
+          create: {
+            id: assistantMessageId,
+            conversationId,
+            role: "ASSISTANT",
+            content: text,
+            parts: serializeParts(responseMessage.parts),
+            model,
+          },
+        }),
+        prisma.assistantConversation.update({
+          where: { id: conversationId },
+          data: { updatedAt: new Date() },
+        }),
+      ]);
+    },
+  });
+  return createUIMessageStreamResponse({ stream });
+}
+
 export async function POST(request: Request) {
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -96,20 +151,65 @@ export async function POST(request: Request) {
   const conversation = await requireAssistantConversation(parsed.data.conversationId, user.id, organizationId);
   const existingMessage = await prisma.assistantMessage.findUnique({ where: { id: latestMessage.id } });
 
+  const fileParts = assistantFileParts(latestMessage);
+  if (fileParts.length > MAX_ASSISTANT_ATTACHMENTS) {
+    return Response.json({ error: "Attach no more than four files per message." }, { status: 400 });
+  }
+  if (fileParts.length > 0 && !conversation.projectId) {
+    return Response.json({ error: "Attachments require a project conversation." }, { status: 400 });
+  }
+  const fileUrls = fileParts.map((part) => part.url);
+  if (new Set(fileUrls).size !== fileUrls.length) {
+    return Response.json({ error: "The same attachment was included more than once." }, { status: 400 });
+  }
+  const attachments = fileUrls.length
+    ? await prisma.assistantAttachment.findMany({
+        where: {
+          conversationId: conversation.id,
+          uploadedById: user.id,
+          fileUrl: { in: fileUrls },
+          OR: [{ messageId: null }, { messageId: latestMessage.id }],
+        },
+      })
+    : [];
+  const attachmentByUrl = new Map(attachments.map((attachment) => [attachment.fileUrl, attachment]));
+  const invalidAttachment = fileParts.some((part) => {
+    const attachment = attachmentByUrl.get(part.url);
+    return (
+      !attachment ||
+      attachment.projectId !== conversation.projectId ||
+      attachment.fileName !== part.filename ||
+      attachment.mediaType !== part.mediaType ||
+      !isAllowedAssistantAttachmentType(part.mediaType)
+    );
+  });
+  if (invalidAttachment) {
+    return Response.json({ error: "One or more attachments are invalid." }, { status: 400 });
+  }
+
   if (existingMessage && existingMessage.conversationId !== conversation.id) {
     return Response.json({ error: "Message already belongs to another conversation." }, { status: 409 });
   }
 
   if (!existingMessage) {
+    const attachmentSummary = attachments.length
+      ? `\n\nAttached project files (stored securely): ${attachments
+          .map((attachment) => `${attachment.fileName} [${attachment.extractionStatus}]`)
+          .join(", ")}.`
+      : "";
     await prisma.$transaction([
       prisma.assistantMessage.create({
         data: {
           id: latestMessage.id,
           conversationId: conversation.id,
           role: "USER",
-          content: question,
+          content: question + attachmentSummary,
           parts: serializeParts(latestMessage.parts),
         },
+      }),
+      prisma.assistantAttachment.updateMany({
+        where: { id: { in: attachments.map((attachment) => attachment.id) }, messageId: null },
+        data: { messageId: latestMessage.id },
       }),
       prisma.assistantConversation.update({
         where: { id: conversation.id },
@@ -121,6 +221,22 @@ export async function POST(request: Request) {
     ]);
   }
 
+  const assistantMessageId = randomUUID();
+  const attachmentAcknowledgement = buildAttachmentAcknowledgement(
+    question,
+    attachments.map((attachment) => attachment.fileName),
+    conversation.project?.name ?? "this project"
+  );
+  if (attachmentAcknowledgement) {
+    return createPersistedTextResponse({
+      text: attachmentAcknowledgement,
+      originalMessages: validated.data,
+      assistantMessageId,
+      conversationId: conversation.id,
+      model: "local-attachment-handler",
+    });
+  }
+
   const recentMessages = await prisma.assistantMessage.findMany({
     where: { conversationId: conversation.id },
     orderBy: { createdAt: "desc" },
@@ -128,7 +244,6 @@ export async function POST(request: Request) {
   });
   recentMessages.reverse();
 
-  const assistantMessageId = randomUUID();
   const tools = createAssistantTools({
     organizationId,
     userId: user.id,
@@ -175,6 +290,14 @@ export async function POST(request: Request) {
     !forceSubmittalProposal &&
     (isScheduleActionRequest(question) ||
       (!pendingProposal && isMissingScheduleProposalConfirmation(question, previousAssistantText)));
+  const forceDocumentSearch =
+    !forceRoadblockProposal &&
+    !forceRfiProposal &&
+    !forceSubmittalProposal &&
+    !forceTaskProposal &&
+    !forceScheduleProposal &&
+    Boolean(conversation.projectId) &&
+    isProjectDocumentQuestion(question);
   const forcedTool = forceRoadblockProposal
     ? "proposeRoadblockChange"
     : forceRfiProposal
@@ -185,7 +308,9 @@ export async function POST(request: Request) {
           ? "proposeScheduleChange"
           : forceTaskProposal
             ? "proposeTaskChange"
-            : null;
+            : forceDocumentSearch
+              ? "searchProjectDocuments"
+              : null;
 
   const deterministicWhatIf = forceScheduleProposal
     ? parseDeterministicScheduleWhatIf(question)
@@ -264,7 +389,10 @@ export async function POST(request: Request) {
   const context = await buildAssistantContext(organizationId, conversation.projectId ?? undefined);
   const result = streamText({
     model: getOpenRouterModel(),
-    system: ASSISTANT_TOOL_SYSTEM_PROMPT + context,
+    system:
+      ASSISTANT_TOOL_SYSTEM_PROMPT +
+      "Attached project files are already uploaded, saved securely, and linked to the conversation. Never claim BuilderBridge cannot save or attach them. Use searchProjectDocuments before describing file contents, and ground the answer only in returned extracted snippets. If extraction is unavailable or no snippet matches, say that clearly.\n\n" +
+      context,
     messages: recentMessages.map((message) => ({
       role: message.role === "USER" ? ("user" as const) : ("assistant" as const),
       content: message.content,

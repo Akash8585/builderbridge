@@ -15,6 +15,12 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // unpdf dynamically loads its bundled serverless PDF.js runtime.
+  serverExternalPackages: ["unpdf"],
+  experimental: {
+    // Assistant uploads allow 20 MB files; multipart framing needs a small buffer.
+    proxyClientMaxBodySize: "21mb",
+  },
   async headers() {
     return [
       {

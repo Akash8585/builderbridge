@@ -10,6 +10,7 @@ import type { AssistantActionProposalView } from "@/lib/assistant-types";
 type SourceLink = { label: string; href: string };
 
 const TOOL_LABELS: Record<string, string> = {
+  searchProjectDocuments: "Project documents searched",
   searchProjectTasks: "Project tasks searched",
   getProjectMembers: "Project members checked",
   proposeRoadblockChange: "Roadblock request checked",

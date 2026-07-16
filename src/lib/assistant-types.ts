@@ -24,6 +24,16 @@ export type AssistantConversationDetail = {
   messages: UIMessage[];
 };
 
+export type AssistantAttachmentView = {
+  id: string;
+  fileName: string;
+  mediaType: string;
+  sizeBytes: number;
+  url: string;
+  extractionStatus?: "PENDING" | "PROCESSING" | "READY" | "FAILED" | "UNSUPPORTED";
+  extractionError?: string | null;
+};
+
 export type AssistantActionChange = {
   field: string;
   label: string;

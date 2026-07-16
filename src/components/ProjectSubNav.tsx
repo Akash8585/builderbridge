@@ -20,6 +20,7 @@ const TAB_GROUPS = [
       { href: "/submittals", label: "Submittals" },
       { href: "/rfis", label: "RFIs" },
       { href: "/drawings", label: "Drawings" },
+      { href: "/files", label: "Files" },
     ],
   },
   {

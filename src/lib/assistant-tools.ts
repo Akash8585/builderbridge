@@ -10,6 +10,7 @@ import {
 } from "@/lib/assistant-actions";
 import { MS_PER_DAY } from "@/lib/schedule-impact";
 import { formatDate, ROADBLOCK_TYPE_LABELS, TASK_STATUS_LABELS } from "@/lib/utils";
+import { searchProjectDocuments } from "@/lib/project-document-search";
 
 type AssistantToolContext = {
   organizationId: string;
@@ -75,6 +76,43 @@ async function resolveProject(context: AssistantToolContext, requestedProjectId?
 
 export function createAssistantTools(context: AssistantToolContext) {
   return {
+    searchProjectDocuments: tool({
+      description:
+        "Search extracted text from secure project PDF files. Use this before answering what an uploaded file, report, specification, drawing PDF, or project document says. Cite only the returned source files and do not infer text that is absent from the snippets.",
+      inputSchema: z.object({
+        ...projectInput,
+        query: z.string().trim().min(1).max(500).describe("The user's document question or search phrase."),
+      }),
+      execute: async ({ projectId, query }) => {
+        const project = await resolveProject(context, projectId);
+        const matches = await searchProjectDocuments(project.id, query);
+        const uniqueSources = [
+          ...new Map(
+            matches.map((match) => [
+              `${match.documentId}:${match.pageNumber}`,
+              { label: `${match.fileName} - Page ${match.pageNumber}`, href: match.href },
+            ])
+          ).values(),
+        ];
+        return {
+          kind: "document-search",
+          title: `${project.name} document search`,
+          query,
+          matches: matches.map((match) => ({
+            fileName: match.fileName,
+            snippet: match.snippet,
+            pageCount: match.pageCount,
+            pageNumber: match.pageNumber,
+          })),
+          message:
+            matches.length > 0
+              ? "Answer only from these extracted snippets and cite the supporting file and page number."
+              : "No searchable project document text matched this question.",
+          sources: uniqueSources,
+        };
+      },
+    }),
+
     searchProjectTasks: tool({
       description:
         "Find BuilderBridge tasks by natural-language name and return close suggestions when there is no direct match. Task IDs are internal and must never be mentioned to the user.",

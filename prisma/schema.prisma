@@ -29,6 +29,7 @@ model User {
   taskUpdates            TaskUpdate[]
   activityLogEntries     ActivityLogEntry[]
   assistantConversations AssistantConversation[]
+  assistantAttachments   AssistantAttachment[]
 
   members     Member[]
   invitations Invitation[]
@@ -219,6 +220,7 @@ model Project {
   baselines              Baseline[]
   activityLogEntries     ActivityLogEntry[]
   assistantConversations AssistantConversation[]
+  assistantAttachments   AssistantAttachment[]
 
   @@map("project")
 }
@@ -280,19 +282,33 @@ enum AssistantActionStatus {
   EXPIRED
 }
 
+enum ProjectFileSource {
+  AI_UPLOAD
+  DIRECT_UPLOAD
+}
+
+enum DocumentProcessingStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+  UNSUPPORTED
+}
+
 model AssistantConversation {
-  id             String             @id @default(cuid())
-  organizationId String
-  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  projectId      String?
-  project        Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdById    String
-  createdBy      User               @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  title          String             @default("New conversation")
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  messages       AssistantMessage[]
+  id              String                    @id @default(cuid())
+  organizationId  String
+  organization    Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projectId       String?
+  project         Project?                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdById     String
+  createdBy       User                      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  title           String                    @default("New conversation")
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  messages        AssistantMessage[]
   actionProposals AssistantActionProposal[]
+  attachments     AssistantAttachment[]
 
   @@index([organizationId, createdById, updatedAt])
   @@index([projectId])
@@ -308,9 +324,56 @@ model AssistantMessage {
   parts          Json?
   model          String?
   createdAt      DateTime              @default(now())
+  attachments    AssistantAttachment[]
 
   @@index([conversationId, createdAt])
   @@map("assistant_message")
+}
+
+model AssistantAttachment {
+  id               String                   @id @default(cuid())
+  conversationId   String?
+  conversation     AssistantConversation?   @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  messageId        String?
+  message          AssistantMessage?        @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  projectId        String
+  project          Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedById     String
+  uploadedBy       User                     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  fileName         String
+  mediaType        String
+  sizeBytes        Int
+  storageKey       String                   @unique
+  fileUrl          String
+  source           ProjectFileSource        @default(AI_UPLOAD)
+  extractionStatus DocumentProcessingStatus @default(PENDING)
+  extractedText    String?                  @db.Text
+  extractionError  String?
+  pageCount        Int?
+  processedAt      DateTime?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  chunks           DocumentChunk[]
+
+  @@index([conversationId, createdAt])
+  @@index([messageId])
+  @@index([projectId])
+  @@index([projectId, extractionStatus])
+  @@map("assistant_attachment")
+}
+
+model DocumentChunk {
+  id         String              @id @default(cuid())
+  documentId String
+  document   AssistantAttachment @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  pageNumber Int
+  chunkIndex Int
+  text       String              @db.Text
+  createdAt  DateTime            @default(now())
+
+  @@unique([documentId, pageNumber, chunkIndex])
+  @@index([documentId, pageNumber])
+  @@map("document_chunk")
 }
 
 model AssistantActionProposal {

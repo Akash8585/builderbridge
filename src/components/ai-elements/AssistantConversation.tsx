@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import type { UIMessage } from "ai";
-import { Bot, Sparkles } from "lucide-react";
-import { isToolUIPart } from "ai";
+import { Bot, ExternalLink, FileText, Image as ImageIcon, Sparkles } from "lucide-react";
+import { isFileUIPart, isToolUIPart } from "ai";
+import type { FileUIPart } from "ai";
 import { AssistantToolResult } from "@/components/ai-elements/AssistantToolResult";
 
 export function getUIMessageText(message: UIMessage): string {
@@ -20,6 +21,39 @@ type AssistantConversationProps = {
   suggestions: string[];
   onSuggestion: (suggestion: string) => void;
 };
+
+function AttachmentPreview({ part, userMessage }: { part: FileUIPart; userMessage: boolean }) {
+  const isImage = part.mediaType.startsWith("image/");
+  return (
+    <a
+      href={part.url}
+      target="_blank"
+      rel="noreferrer"
+      className={`group block overflow-hidden rounded-md border transition-colors ${
+        userMessage
+          ? "border-white/15 bg-white/8 hover:bg-white/12"
+          : "border-hairline bg-surface-soft hover:border-muted-soft"
+      }`}
+    >
+      {isImage && (
+        // Authenticated project files must load directly in the browser so its session cookie is included.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={part.url} alt="" className="max-h-44 w-full object-cover" />
+      )}
+      <span className="flex min-w-0 items-center gap-2 px-3 py-2">
+        {isImage ? (
+          <ImageIcon size={15} className="shrink-0 opacity-70" aria-hidden />
+        ) : (
+          <FileText size={15} className="shrink-0 opacity-70" aria-hidden />
+        )}
+        <span className="min-w-0 flex-1 truncate text-xs font-medium">
+          {part.filename ?? "Project attachment"}
+        </span>
+        <ExternalLink size={13} className="shrink-0 opacity-55 group-hover:opacity-100" aria-hidden />
+      </span>
+    </a>
+  );
+}
 
 export function AssistantConversation({
   messages,
@@ -62,8 +96,9 @@ export function AssistantConversation({
           {messages.map((message) => {
             const text = getUIMessageText(message);
             const toolParts = message.parts.filter(isToolUIPart);
+            const fileParts = message.parts.filter(isFileUIPart);
             const hasToolError = toolParts.some((part) => part.state === "output-error");
-            if (!text && toolParts.length === 0) return null;
+            if (!text && toolParts.length === 0 && fileParts.length === 0) return null;
             const isUser = message.role === "user";
             return (
               <div key={message.id} className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
@@ -80,6 +115,17 @@ export function AssistantConversation({
                       : "max-w-[calc(100%-40px)] space-y-3 whitespace-pre-wrap pt-0.5 text-sm leading-6 text-body"
                   }
                 >
+                  {fileParts.length > 0 && (
+                    <div className="grid gap-2">
+                      {fileParts.map((part) => (
+                        <AttachmentPreview
+                          key={`${part.url}:${part.filename ?? "file"}`}
+                          part={part}
+                          userMessage={isUser}
+                        />
+                      ))}
+                    </div>
+                  )}
                   {toolParts.map((part) => (
                     <AssistantToolResult key={part.toolCallId} part={part} />
                   ))}

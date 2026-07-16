@@ -20,10 +20,16 @@ import {
 import { AssistantConversation } from "@/components/ai-elements/AssistantConversation";
 import { AssistantPromptInput } from "@/components/ai-elements/AssistantPromptInput";
 import type {
+  AssistantAttachmentView,
   AssistantBootstrap,
   AssistantConversationDetail,
   AssistantConversationSummary,
 } from "@/lib/assistant-types";
+import {
+  isAllowedAssistantAttachmentType,
+  MAX_ASSISTANT_ATTACHMENT_BYTES,
+  MAX_ASSISTANT_ATTACHMENTS,
+} from "@/lib/assistant-attachments";
 
 const PORTFOLIO_SUGGESTIONS = [
   "Which projects need attention today?",
@@ -64,6 +70,7 @@ type ChatWorkspaceProps = {
   projectScoped: boolean;
   pendingPrompt: string | null;
   onPromptConsumed: () => void;
+  draftPrompt: string | null;
   onSent: (prompt: string) => void;
   onUpdated: () => void;
   onRecovered: (detail: AssistantConversationDetail) => void;
@@ -74,11 +81,15 @@ function ChatWorkspace({
   projectScoped,
   pendingPrompt,
   onPromptConsumed,
+  draftPrompt,
   onSent,
   onUpdated,
   onRecovered,
 }: ChatWorkspaceProps) {
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(draftPrompt ?? "");
+  const [attachments, setAttachments] = useState<AssistantAttachmentView[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const pendingSentRef = useRef(false);
   const transport = useMemo(
     () =>
@@ -96,12 +107,75 @@ function ChatWorkspace({
   });
   const busy = status === "submitted" || status === "streaming";
 
+  const uploadAttachments = useCallback(
+    async (files: FileList) => {
+      const availableSlots = MAX_ASSISTANT_ATTACHMENTS - attachments.length;
+      if (availableSlots <= 0) return;
+      const selected = Array.from(files).slice(0, availableSlots);
+      const invalid = selected.find(
+        (file) =>
+          file.size > MAX_ASSISTANT_ATTACHMENT_BYTES ||
+          !isAllowedAssistantAttachmentType(file.type)
+      );
+      if (invalid) {
+        setAttachmentError(
+          invalid.size > MAX_ASSISTANT_ATTACHMENT_BYTES
+            ? `${invalid.name} is larger than 20 MB.`
+            : `${invalid.name} is not a supported PDF or image.`
+        );
+        return;
+      }
+
+      setUploading(true);
+      setAttachmentError(
+        files.length > availableSlots ? "You can attach up to four files per message." : null
+      );
+      const results = await Promise.allSettled(
+        selected.map(async (file) => {
+          const formData = new FormData();
+          formData.set("conversationId", detail.conversation.id);
+          formData.set("file", file);
+          return fetchJson<AssistantAttachmentView>("/api/assistant/attachments", {
+            method: "POST",
+            body: formData,
+          });
+        })
+      );
+      const uploaded = results.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
+      const failed = results.find((result) => result.status === "rejected");
+      setAttachments((current) => [...current, ...uploaded].slice(0, MAX_ASSISTANT_ATTACHMENTS));
+      if (failed?.status === "rejected") {
+        setAttachmentError(
+          failed.reason instanceof Error ? failed.reason.message : "An attachment could not be uploaded."
+        );
+      }
+      setUploading(false);
+    },
+    [attachments.length, detail.conversation.id]
+  );
+
+  const removeAttachment = useCallback(async (attachmentId: string) => {
+    setAttachments((current) => current.filter((attachment) => attachment.id !== attachmentId));
+    setAttachmentError(null);
+    await fetch(`/api/assistant/attachments/${attachmentId}`, { method: "DELETE" }).catch(
+      () => undefined
+    );
+  }, []);
+
   const send = useCallback(
     (prompt: string) => {
       const trimmed = prompt.trim();
       if (!trimmed || busy) return;
+      const files = attachments.map((attachment) => ({
+        type: "file" as const,
+        filename: attachment.fileName,
+        mediaType: attachment.mediaType,
+        url: attachment.url,
+      }));
       onSent(trimmed);
       setInput("");
+      setAttachments([]);
+      setAttachmentError(null);
       const expectedMessageCount = messages.length + 2;
       const adoptPersistedResponse = async () => {
         for (let attempt = 0; attempt < 30; attempt += 1) {
@@ -124,9 +198,9 @@ function ChatWorkspace({
         }
       };
       void adoptPersistedResponse();
-      void sendMessage({ text: trimmed });
+      void sendMessage({ text: trimmed, files });
     },
-    [busy, detail.conversation.id, messages.length, onRecovered, onSent, sendMessage, stop]
+    [attachments, busy, detail.conversation.id, messages.length, onRecovered, onSent, sendMessage, stop]
   );
 
   useEffect(() => {
@@ -152,7 +226,13 @@ function ChatWorkspace({
       <AssistantPromptInput
         value={input}
         busy={busy}
+        projectScoped={projectScoped}
+        attachments={attachments}
+        uploading={uploading}
+        attachmentError={attachmentError}
         onChange={setInput}
+        onFilesSelected={(files) => void uploadAttachments(files)}
+        onRemoveAttachment={(attachmentId) => void removeAttachment(attachmentId)}
         onSubmit={() => send(input)}
         onStop={() => void stop()}
       />
@@ -168,6 +248,8 @@ export function GlobalAssistant() {
   const [scopeId, setScopeId] = useState<string | null>(null);
   const [active, setActive] = useState<AssistantConversationDetail | null>(null);
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
+  const [draftPrompt, setDraftPrompt] = useState<string | null>(null);
+  const [draftVersion, setDraftVersion] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [railOpen, setRailOpen] = useState(false);
@@ -228,6 +310,84 @@ export function GlobalAssistant() {
     };
   }, [open]);
 
+  useEffect(() => {
+    const openConversation = async (event: Event) => {
+      const conversationId = (event as CustomEvent<{ conversationId?: string }>).detail?.conversationId;
+      if (!conversationId) return;
+      setOpen(true);
+      setLoading(true);
+      setError(null);
+      try {
+        const [nextBootstrap, detail] = await Promise.all([
+          fetchJson<AssistantBootstrap>("/api/assistant/conversations"),
+          fetchJson<AssistantConversationDetail>(`/api/assistant/conversations/${conversationId}`),
+        ]);
+        setBootstrap(nextBootstrap);
+        setScopeId(detail.conversation.projectId);
+        setActive(detail);
+        setRailOpen(false);
+      } catch (openError) {
+        setError(openError instanceof Error ? openError.message : "Could not open this conversation.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    window.addEventListener("builderbridge:open-assistant-conversation", openConversation);
+    return () => window.removeEventListener("builderbridge:open-assistant-conversation", openConversation);
+  }, []);
+
+  useEffect(() => {
+    const askAboutFile = async (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId?: string; fileName?: string }>).detail;
+      if (!detail?.projectId || !detail.fileName) return;
+      setOpen(true);
+      setLoading(true);
+      setError(null);
+      try {
+        const nextBootstrap = await fetchJson<AssistantBootstrap>("/api/assistant/conversations");
+        if (!nextBootstrap.projects.some((project) => project.id === detail.projectId)) {
+          throw new Error("This project is unavailable or you no longer have access.");
+        }
+        setBootstrap(nextBootstrap);
+        setScopeId(detail.projectId);
+        const latest = nextBootstrap.conversations.find(
+          (conversation) => conversation.projectId === detail.projectId
+        );
+        if (latest) {
+          setActive(
+            await fetchJson<AssistantConversationDetail>(
+              `/api/assistant/conversations/${latest.id}`
+            )
+          );
+        } else {
+          const conversation = await fetchJson<AssistantConversationSummary>(
+            "/api/assistant/conversations",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ projectId: detail.projectId }),
+            }
+          );
+          setBootstrap((current) =>
+            current
+              ? { ...current, conversations: [conversation, ...current.conversations] }
+              : current
+          );
+          setActive({ conversation, messages: [] });
+        }
+        setDraftPrompt(`What does "${detail.fileName}" say?`);
+        setDraftVersion((version) => version + 1);
+        setRailOpen(false);
+      } catch (openError) {
+        setError(openError instanceof Error ? openError.message : "Could not open BuilderBridge AI.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    window.addEventListener("builderbridge:ask-project-file", askAboutFile);
+    return () => window.removeEventListener("builderbridge:ask-project-file", askAboutFile);
+  }, []);
+
   const openWorkspace = useCallback(() => {
     setOpen(true);
     void loadWorkspace();
@@ -247,6 +407,7 @@ export function GlobalAssistant() {
       setScopeId(projectId);
       setRailOpen(false);
       setPendingPrompt(null);
+      setDraftPrompt(null);
       const latest = bootstrap?.conversations.find((conversation) => conversation.projectId === projectId);
       if (latest) void loadConversation(latest.id);
       else setActive(null);
@@ -258,6 +419,7 @@ export function GlobalAssistant() {
     async (prompt?: string) => {
       setLoading(true);
       setError(null);
+      setActive(null);
       try {
         const conversation = await fetchJson<AssistantConversationSummary>("/api/assistant/conversations", {
           method: "POST",
@@ -502,11 +664,12 @@ export function GlobalAssistant() {
                 <div className="flex flex-1 items-center justify-center text-sm text-muted">Loading conversations...</div>
               ) : active ? (
                 <ChatWorkspace
-                  key={`${active.conversation.id}:${active.conversation.messageCount}`}
+                  key={`${active.conversation.id}:${active.conversation.messageCount}:${draftVersion}`}
                   detail={active}
                   projectScoped={scopeId !== null}
                   pendingPrompt={pendingPrompt}
                   onPromptConsumed={() => setPendingPrompt(null)}
+                  draftPrompt={draftPrompt}
                   onSent={handleSent}
                   onUpdated={refreshSummaries}
                   onRecovered={setActive}

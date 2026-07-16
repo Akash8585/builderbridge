@@ -266,6 +266,20 @@ enum AssistantMessageRole {
   ASSISTANT
 }
 
+enum AssistantActionKind {
+  ROADBLOCK_CHANGE
+  TASK_CHANGE
+  SCHEDULE_CHANGE
+  PROJECT_CONTROL_CHANGE
+}
+
+enum AssistantActionStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+
 model AssistantConversation {
   id             String             @id @default(cuid())
   organizationId String
@@ -278,6 +292,7 @@ model AssistantConversation {
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   messages       AssistantMessage[]
+  actionProposals AssistantActionProposal[]
 
   @@index([organizationId, createdById, updatedAt])
   @@index([projectId])
@@ -290,11 +305,36 @@ model AssistantMessage {
   conversation   AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   role           AssistantMessageRole
   content        String                @db.Text
+  parts          Json?
   model          String?
   createdAt      DateTime              @default(now())
 
   @@index([conversationId, createdAt])
   @@map("assistant_message")
+}
+
+model AssistantActionProposal {
+  id             String                @id @default(cuid())
+  conversationId String
+  conversation   AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  projectId      String
+  taskId         String?
+  createdById    String
+  kind           AssistantActionKind
+  status         AssistantActionStatus @default(PENDING)
+  payload        Json
+  snapshot       Json
+  result         Json?
+  expiresAt      DateTime
+  confirmedAt    DateTime?
+  cancelledAt    DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([conversationId, createdAt])
+  @@index([createdById, status])
+  @@index([projectId, taskId])
+  @@map("assistant_action_proposal")
 }
 
 model Task {
@@ -307,6 +347,7 @@ model Task {
   startDate         DateTime
   endDate           DateTime
   status            TaskStatus       @default(NOT_STARTED)
+  progress          Int              @default(0)
   isRoadblock       Boolean          @default(false)
   roadblockNote     String?
   roadblockStatus   RoadblockStatus?

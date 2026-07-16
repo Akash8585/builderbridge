@@ -1,29 +1,33 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { env } from "@/lib/env";
 
 /**
- * File storage for user uploads (Field Tracking photos, Drawings).
- *
- * Two backends behind one function:
- * - S3-compatible object storage (Cloudflare R2, AWS S3, MinIO) when the
- *   S3_* env vars are configured — durable, works on serverless hosts.
- * - Local disk under public/uploads/ otherwise — dev convenience only.
- *   Local files do NOT survive a serverless redeploy; DEPLOYMENT.md requires
- *   configuring S3 storage for production.
+ * Private file storage for field photos, drawings, and assistant documents.
+ * Production uses a private S3-compatible bucket (Supabase Storage); local
+ * development falls back to public/uploads, but new URLs are still served
+ * through the authenticated /api/files route.
  */
 
-const s3Configured = !!(env.S3_ENDPOINT && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY && env.S3_BUCKET);
+const s3Configured = !!(
+  env.S3_ENDPOINT &&
+  env.S3_ACCESS_KEY_ID &&
+  env.S3_SECRET_ACCESS_KEY &&
+  env.S3_BUCKET
+);
 
 let s3Client: S3Client | null = null;
 function getS3Client(): S3Client {
   if (!s3Client) {
     s3Client = new S3Client({
-      region: env.S3_REGION, // Supabase: project region; R2: "auto"
+      region: env.S3_REGION,
       endpoint: env.S3_ENDPOINT,
-      // Path-style addressing (bucket in the URL path, not the subdomain) —
-      // required by Supabase Storage and MinIO, and fine for R2.
       forcePathStyle: true,
       credentials: {
         accessKeyId: env.S3_ACCESS_KEY_ID!,
@@ -38,34 +42,199 @@ export function isDurableStorageConfigured(): boolean {
   return s3Configured;
 }
 
-/**
- * Stores a file and returns the public URL it will be served from.
- * `key` is a POSIX-style relative path, e.g. "tasks/<id>/<filename>".
- */
-export async function uploadFile(key: string, bytes: Buffer, contentType: string): Promise<string> {
+export function normalizeStorageKey(value: string): string {
+  const key = value.replace(/\\/g, "/").replace(/^\/+/, "");
+  const parts = key.split("/");
+  if (
+    !key ||
+    parts.some(
+      (part) =>
+        !part ||
+        part === "." ||
+        part === ".." ||
+        part.includes("\0") ||
+        part.includes(":")
+    )
+  ) {
+    throw new Error("Invalid storage key");
+  }
+  return parts.join("/");
+}
+
+export function storageFileUrl(key: string): string {
+  const normalized = normalizeStorageKey(key);
+  return `/api/files/${normalized.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+/** Converts legacy public/local upload URLs to the authenticated file route. */
+export function privateStoredFileUrl(storedUrl: string): string {
+  if (storedUrl.startsWith("/api/files/")) return storedUrl;
+  if (storedUrl.startsWith("/uploads/")) {
+    return storageFileUrl(storedUrl.slice("/uploads/".length));
+  }
+
+  const bases = [
+    env.S3_PUBLIC_URL,
+    env.S3_ENDPOINT && env.S3_BUCKET
+      ? `${env.S3_ENDPOINT.replace(/\/$/, "")}/${env.S3_BUCKET}`
+      : undefined,
+  ].filter((base): base is string => Boolean(base));
+  for (const base of bases) {
+    const normalizedBase = base.replace(/\/$/, "");
+    if (storedUrl.startsWith(`${normalizedBase}/`)) {
+      return storageFileUrl(decodeURIComponent(storedUrl.slice(normalizedBase.length + 1)));
+    }
+  }
+  return storedUrl;
+}
+
+export async function uploadFile(
+  key: string,
+  bytes: Buffer,
+  contentType: string
+): Promise<string> {
+  const normalized = normalizeStorageKey(key);
   if (s3Configured) {
     await getS3Client().send(
       new PutObjectCommand({
         Bucket: env.S3_BUCKET!,
-        Key: key,
+        Key: normalized,
         Body: bytes,
         ContentType: contentType,
+        CacheControl: "private, no-store",
       })
     );
-    const base = (env.S3_PUBLIC_URL ?? `${env.S3_ENDPOINT}/${env.S3_BUCKET}`).replace(/\/$/, "");
-    return `${base}/${key}`;
+    return storageFileUrl(normalized);
   }
 
-  // Local-disk fallback (dev): write under public/uploads so Next serves it.
-  const relativeParts = key.split("/");
+  const relativeParts = normalized.split("/");
   const dir = path.join(process.cwd(), "public", "uploads", ...relativeParts.slice(0, -1));
   await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, relativeParts[relativeParts.length - 1]), bytes);
-  return `/uploads/${key}`;
+  await writeFile(path.join(dir, relativeParts.at(-1)!), bytes);
+  return storageFileUrl(normalized);
+}
+
+export type StoredFile = {
+  bytes: Uint8Array;
+  contentType: string;
+  contentLength: number;
+  contentRange: string | null;
+  totalLength: number;
+};
+
+export class InvalidStorageRangeError extends Error {
+  constructor(public readonly totalLength?: number) {
+    super("Invalid byte range");
+  }
+}
+
+function localRange(rangeHeader: string | null, totalLength: number) {
+  if (!rangeHeader) return { start: 0, end: totalLength - 1, partial: false };
+  const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
+  if (!match || (!match[1] && !match[2]) || totalLength === 0) {
+    throw new InvalidStorageRangeError(totalLength);
+  }
+
+  let start: number;
+  let end: number;
+  if (!match[1]) {
+    const suffixLength = Number(match[2]);
+    if (!Number.isSafeInteger(suffixLength) || suffixLength <= 0) {
+      throw new InvalidStorageRangeError(totalLength);
+    }
+    start = Math.max(0, totalLength - suffixLength);
+    end = totalLength - 1;
+  } else {
+    start = Number(match[1]);
+    end = match[2] ? Number(match[2]) : totalLength - 1;
+  }
+  if (
+    !Number.isSafeInteger(start) ||
+    !Number.isSafeInteger(end) ||
+    start < 0 ||
+    start >= totalLength ||
+    end < start
+  ) {
+    throw new InvalidStorageRangeError(totalLength);
+  }
+  return { start, end: Math.min(end, totalLength - 1), partial: true };
+}
+
+function validatedS3Range(rangeHeader: string | null): string | undefined {
+  if (!rangeHeader) return undefined;
+  if (!/^bytes=(\d*)-(\d*)$/.test(rangeHeader.trim())) {
+    throw new InvalidStorageRangeError();
+  }
+  return rangeHeader.trim();
+}
+
+export async function readStoredFile(
+  key: string,
+  rangeHeader: string | null = null
+): Promise<StoredFile> {
+  const normalized = normalizeStorageKey(key);
+  if (s3Configured) {
+    const response = await getS3Client().send(
+      new GetObjectCommand({
+        Bucket: env.S3_BUCKET!,
+        Key: normalized,
+        Range: validatedS3Range(rangeHeader),
+      })
+    );
+    if (!response.Body) throw new Error("Stored file is empty");
+    const bytes = await response.Body.transformToByteArray();
+    const contentRange = response.ContentRange ?? null;
+    const totalLength = contentRange
+      ? Number(contentRange.split("/").at(-1))
+      : response.ContentLength ?? bytes.byteLength;
+    return {
+      bytes,
+      contentType: response.ContentType ?? "application/octet-stream",
+      contentLength: response.ContentLength ?? bytes.byteLength,
+      contentRange,
+      totalLength,
+    };
+  }
+
+  const filePath = path.join(process.cwd(), "public", "uploads", ...normalized.split("/"));
+  const fileStat = await stat(filePath);
+  const range = localRange(rangeHeader, fileStat.size);
+  const file = await readFile(filePath);
+  const bytes = file.subarray(range.start, range.end + 1);
+  return {
+    bytes,
+    contentType: contentTypeForKey(normalized),
+    contentLength: bytes.byteLength,
+    contentRange: range.partial ? `bytes ${range.start}-${range.end}/${fileStat.size}` : null,
+    totalLength: fileStat.size,
+  };
+}
+
+export async function deleteStoredFile(key: string): Promise<void> {
+  const normalized = normalizeStorageKey(key);
+  if (s3Configured) {
+    await getS3Client().send(
+      new DeleteObjectCommand({ Bucket: env.S3_BUCKET!, Key: normalized })
+    );
+    return;
+  }
+  const filePath = path.join(process.cwd(), "public", "uploads", ...normalized.split("/"));
+  await rm(filePath, { force: true });
+}
+
+function contentTypeForKey(key: string): string {
+  const extension = path.extname(key).toLowerCase();
+  return {
+    ".pdf": "application/pdf",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+  }[extension] ?? "application/octet-stream";
 }
 
 /** Builds a collision-resistant storage key from a user-provided filename. */
 export function buildStorageKey(prefix: string, originalFilename: string): string {
   const safeName = originalFilename.replace(/[^a-zA-Z0-9.-]/g, "_");
-  return `${prefix}/${Date.now()}-${safeName}`;
+  return normalizeStorageKey(`${prefix}/${Date.now()}-${safeName}`);
 }

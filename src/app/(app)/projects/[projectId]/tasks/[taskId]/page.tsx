@@ -7,6 +7,7 @@ import { RoadblockBadge } from "@/components/RoadblockBadge";
 import { TaskUpdateFeed } from "@/components/TaskUpdateFeed";
 import { Card } from "@/components/ui/Card";
 import { formatDate, SUBMITTAL_STATUS_LABELS, RFI_STATUS_LABELS } from "@/lib/utils";
+import { privateStoredFileUrl } from "@/lib/storage";
 
 export default async function TaskDetailPage({
   params,
@@ -28,6 +29,10 @@ export default async function TaskDetailPage({
   });
 
   if (!task || task.projectId !== projectId) notFound();
+  const securedUpdates = task.updates.map((update) => ({
+    ...update,
+    photoUrl: update.photoUrl ? privateStoredFileUrl(update.photoUrl) : null,
+  }));
 
   const [submittals, rfis, drawings, sirs] = await Promise.all([
     prisma.submittal.findMany({ where: { taskId }, orderBy: { createdAt: "desc" } }),
@@ -54,6 +59,8 @@ export default async function TaskDetailPage({
           </span>
           <span>·</span>
           <StatusBadge status={task.status} />
+          <span>·</span>
+          <span>{task.progress}% complete</span>
           {task.isRoadblock && task.roadblockStatus && <RoadblockBadge status={task.roadblockStatus} />}
         </div>
         {task.isRoadblock && task.roadblockNote && (
@@ -143,7 +150,7 @@ export default async function TaskDetailPage({
 
       <Card className="p-6">
         <h2 className="text-sm font-semibold mb-4">Field Tracking</h2>
-        <TaskUpdateFeed taskId={task.id} updates={task.updates} />
+        <TaskUpdateFeed taskId={task.id} updates={securedUpdates} />
       </Card>
     </div>
   );

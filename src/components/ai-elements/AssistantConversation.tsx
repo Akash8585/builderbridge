@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import type { UIMessage } from "ai";
 import { Bot, Sparkles } from "lucide-react";
+import { isToolUIPart } from "ai";
+import { AssistantToolResult } from "@/components/ai-elements/AssistantToolResult";
 
 export function getUIMessageText(message: UIMessage): string {
   return message.parts
@@ -59,7 +61,9 @@ export function AssistantConversation({
         <div className="mx-auto max-w-2xl space-y-7">
           {messages.map((message) => {
             const text = getUIMessageText(message);
-            if (!text) return null;
+            const toolParts = message.parts.filter(isToolUIPart);
+            const hasToolError = toolParts.some((part) => part.state === "output-error");
+            if (!text && toolParts.length === 0) return null;
             const isUser = message.role === "user";
             return (
               <div key={message.id} className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
@@ -73,10 +77,13 @@ export function AssistantConversation({
                   className={
                     isUser
                       ? "max-w-[82%] whitespace-pre-wrap rounded-lg bg-ink px-4 py-3 text-sm leading-6 text-white"
-                      : "max-w-[calc(100%-40px)] whitespace-pre-wrap pt-0.5 text-sm leading-6 text-body"
+                      : "max-w-[calc(100%-40px)] space-y-3 whitespace-pre-wrap pt-0.5 text-sm leading-6 text-body"
                   }
                 >
-                  {text}
+                  {toolParts.map((part) => (
+                    <AssistantToolResult key={part.toolCallId} part={part} />
+                  ))}
+                  {text && !hasToolError && <div>{text}</div>}
                 </div>
               </div>
             );

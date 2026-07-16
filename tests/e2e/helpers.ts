@@ -15,7 +15,10 @@ export async function signIn(page: Page, email: string, password = DEMO_PASSWORD
 
 /** Opens the seeded demo project's Tasks tab. */
 export async function openDemoProject(page: Page) {
-  await page.goto("/projects");
+  if (new URL(page.url()).pathname !== "/projects") {
+    await page.goto("/projects");
+  }
+  await expect(page.getByRole("link", { name: /Riverside Apartments/ }).first()).toBeVisible();
   await page.getByRole("link", { name: /Riverside Apartments/ }).first().click();
   await expect(page.getByRole("heading", { name: /Riverside Apartments/ })).toBeVisible();
 }

@@ -15,7 +15,7 @@ test.describe("Task lifecycle", () => {
     await openDemoProject(page);
 
     // Create
-    await page.getByRole("button", { name: "+ Add Task" }).click();
+    await page.getByRole("button", { name: "Add task" }).click();
     await page.getByPlaceholder("Task name").fill(taskName);
     const dateInputs = page.locator('input[type="date"]');
     await dateInputs.nth(0).fill("2026-08-03");
@@ -34,11 +34,11 @@ test.describe("Task lifecycle", () => {
     await (await taskRow(page)).getByRole("button", { name: "Flag roadblock" }).click();
     await page.getByPlaceholder("What's blocking this task?").fill("E2E test roadblock");
     await page.getByRole("button", { name: "Flag", exact: true }).click();
-    await expect((await taskRow(page)).getByText("⚠ Roadblock")).toBeVisible();
+    await expect((await taskRow(page)).getByText("Roadblock", { exact: true })).toBeVisible();
 
     // Resolve it
     await (await taskRow(page)).getByRole("button", { name: "Resolve" }).click();
-    await expect((await taskRow(page)).getByText("✓ Resolved")).toBeVisible();
+    await expect((await taskRow(page)).getByText("Resolved", { exact: true })).toBeVisible();
 
     // Delete (cleanup is part of the assertion)
     await (await taskRow(page)).getByRole("button", { name: `Delete ${taskName}` }).click();

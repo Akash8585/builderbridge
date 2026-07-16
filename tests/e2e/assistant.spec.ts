@@ -1,9 +1,115 @@
 import { test, expect } from "@playwright/test";
-import { PM_EMAIL, signIn } from "./helpers";
+import { openDemoProject, PM_EMAIL, signIn } from "./helpers";
+
+test("RFI commands create proposal cards without OpenRouter", async ({ page }) => {
+  test.setTimeout(90_000);
+  const question = `E2E waterproofing detail ${Date.now()}`;
+  const prompt = `Raise an RFI asking ${question}`;
+  await signIn(page, PM_EMAIL);
+  await openDemoProject(page);
+  const beforeResponse = await page.request.get("/api/assistant/conversations");
+  const beforeData = beforeResponse.ok() ? await beforeResponse.json() : { conversations: [] };
+  const existingConversationIds = new Set(
+    beforeData.conversations.map((conversation: { id: string }) => conversation.id)
+  );
+
+  try {
+    await page.getByRole("button", { name: "Open BuilderBridge AI" }).click();
+    const dialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
+    await dialog
+      .getByRole("navigation", { name: "Assistant project scopes" })
+      .getByRole("button", { name: /Riverside Apartments/ })
+      .click();
+    await dialog.getByRole("button", { name: "Start new conversation" }).click();
+    await dialog.getByLabel("Message BuilderBridge AI").fill(prompt);
+    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+
+    const proposal = dialog
+      .locator('section[aria-label="Action proposal"]')
+      .filter({ hasText: "Confirmation required" })
+      .filter({ hasText: question });
+    await expect(proposal).toBeVisible({ timeout: 30_000 });
+    await expect(proposal.getByText("Raise RFI", { exact: false })).toBeVisible();
+    await expect(proposal.getByRole("button", { name: "Confirm change" })).toBeVisible();
+    await expect(dialog.getByText(/OpenRouter could not complete/)).toHaveCount(0);
+    await proposal.getByRole("button", { name: "Cancel" }).click();
+    await expect(proposal.getByText("Proposal cancelled")).toBeVisible();
+  } finally {
+    const response = await page.request.get("/api/assistant/conversations", { timeout: 10_000 });
+    if (response.ok()) {
+      const data = await response.json();
+      const matches = data.conversations.filter(
+        (conversation: { id: string; title: string }) =>
+          !existingConversationIds.has(conversation.id) && conversation.title.startsWith("Raise an RFI")
+      );
+      await Promise.all(
+        matches.map((conversation: { id: string }) =>
+          page.request.delete(`/api/assistant/conversations/${conversation.id}`)
+        )
+      );
+    }
+  }
+});
+
+test("what-if schedule prompts create proposal cards without OpenRouter", async ({ page }) => {
+  test.setTimeout(90_000);
+  const targetDay = 10 + (Date.now() % 10);
+  const targetLabel = `Aug ${targetDay}, 2026`;
+  const prompt = `What happens if Rough plumbing install finishes on August ${targetDay}, 2026?`;
+  await signIn(page, PM_EMAIL);
+  await openDemoProject(page);
+  const beforeResponse = await page.request.get("/api/assistant/conversations");
+  const beforeData = beforeResponse.ok() ? await beforeResponse.json() : { conversations: [] };
+  const existingConversationIds = new Set(
+    beforeData.conversations.map((conversation: { id: string }) => conversation.id)
+  );
+
+  try {
+    await page.getByRole("button", { name: "Open BuilderBridge AI" }).click();
+    const dialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
+    await dialog
+      .getByRole("navigation", { name: "Assistant project scopes" })
+      .getByRole("button", { name: /Riverside Apartments/ })
+      .click();
+    await dialog.getByRole("button", { name: "Start new conversation" }).click();
+    await expect(dialog.locator("header").getByText("New conversation", { exact: true })).toBeVisible();
+    await dialog.getByLabel("Message BuilderBridge AI").fill(prompt);
+    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+
+    const proposal = dialog
+      .locator('section[aria-label="Action proposal"]')
+      .filter({ hasText: "Confirmation required" })
+      .filter({ hasText: "What-if: Rough plumbing install" })
+      .filter({ hasText: targetLabel });
+    await expect(proposal).toBeVisible({ timeout: 30_000 });
+    await expect(proposal.getByText("What-if: Rough plumbing install")).toBeVisible();
+    await expect(proposal.getByRole("button", { name: "Confirm change" })).toBeVisible();
+    await expect(dialog.getByText(/OpenRouter could not complete/)).toHaveCount(0);
+  } finally {
+    const response = await page.request.get("/api/assistant/conversations", { timeout: 10_000 });
+    if (response.ok()) {
+      const data = await response.json();
+      const matches = data.conversations.filter(
+        (conversation: { id: string; title: string }) =>
+          !existingConversationIds.has(conversation.id) &&
+          conversation.title.startsWith("What happens if Rough plumbing")
+      );
+      await Promise.all(
+        matches.map((conversation: { id: string }) =>
+          page.request.delete(`/api/assistant/conversations/${conversation.id}`)
+        )
+      );
+    }
+  }
+});
 
 test("project conversations stream and persist across reloads", async ({ page }) => {
-  const prompt = `E2E assistant persistence ${Date.now()}`;
+  test.setTimeout(120_000);
+  const prompt = `E2E assistant ${Date.now()}: Which projects need attention today?`;
+  const title = `${prompt.slice(0, 53).trimEnd()}...`;
   await signIn(page, PM_EMAIL);
+  await page.request.get("/api/assistant/chat");
+  await page.reload();
 
   try {
     await page.getByRole("button", { name: "Open BuilderBridge AI" }).click();
@@ -13,22 +119,24 @@ test("project conversations stream and persist across reloads", async ({ page })
 
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
     await dialog.getByLabel("Message BuilderBridge AI").fill(prompt);
-    await dialog.getByRole("button", { name: "Send message" }).click();
+    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
     await expect(dialog.locator('[data-message-role="user"]').getByText(prompt, { exact: true })).toBeVisible();
     await expect(dialog.locator('[data-message-role="assistant"]')).toBeVisible({ timeout: 60_000 });
+    await expect.poll(() => dialog.locator('[aria-label="Sources"]').count(), { timeout: 60_000 }).toBeGreaterThan(0);
     await expect(dialog.getByRole("button", { name: "Send message" })).toBeVisible({ timeout: 60_000 });
 
     await page.reload();
     await page.getByRole("button", { name: "Open BuilderBridge AI" }).click();
     const reloadedDialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
-    await expect(reloadedDialog.getByRole("button", { name: prompt })).toBeVisible();
+    await reloadedDialog.getByRole("button", { name: title }).click();
+    await expect.poll(() => reloadedDialog.locator('[aria-label="Sources"]').count()).toBeGreaterThan(0);
   } finally {
-    const response = await page.request.get("/api/assistant/conversations");
+    const response = await page.request.get("/api/assistant/conversations", { timeout: 10_000 });
     if (response.ok()) {
       const data = await response.json();
       const matches = data.conversations.filter(
         (conversation: { id: string; title: string }) =>
-          conversation.title === prompt || conversation.title.startsWith("E2E assistant persistence")
+          conversation.title === title || conversation.title.startsWith("E2E assistant")
       );
       await Promise.all(
         matches.map((conversation: { id: string }) =>

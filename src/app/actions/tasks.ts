@@ -74,6 +74,7 @@ export async function createTask(input: unknown): Promise<ActionResult<Task>> {
         startDate: parsed.data.startDate,
         endDate: parsed.data.endDate,
         status: parsed.data.status,
+        progress: parsed.data.status === "DONE" ? 100 : 0,
       },
     });
 
@@ -244,7 +245,11 @@ export async function updateTaskStatus(input: unknown): Promise<ActionResult<Tas
 
     const task = await prisma.task.update({
       where: { id: parsed.data.taskId },
-      data: { status: parsed.data.status },
+      data: {
+        status: parsed.data.status,
+        ...(parsed.data.status === "DONE" ? { progress: 100 } : {}),
+        ...(parsed.data.status === "NOT_STARTED" ? { progress: 0 } : {}),
+      },
     });
 
     await logActivity({

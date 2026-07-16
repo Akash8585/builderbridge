@@ -23,8 +23,8 @@ const envSchema = z.object({
   // Region: Supabase requires the project's region (e.g. "ap-south-1");
   // R2 uses "auto" (the default).
   S3_REGION: z.string().default("auto"),
-  // Public base URL files are served from. For Supabase:
-  // https://<project-ref>.supabase.co/storage/v1/object/public/<bucket>
+  // Deprecated compatibility setting. New uploads are served through the
+  // authenticated /api/files route and do not require a public bucket URL.
   S3_PUBLIC_URL: z.string().optional(),
   // Optional: Stripe billing (test mode is fine). All unset = billing UI
   // shows a "not configured" state and every org stays on the FREE tier.

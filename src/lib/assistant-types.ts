@@ -1,4 +1,5 @@
 import type { UIMessage } from "ai";
+import type { AssistantActionStatus } from "@prisma/client";
 
 export type AssistantProject = {
   id: string;
@@ -21,4 +22,35 @@ export type AssistantBootstrap = {
 export type AssistantConversationDetail = {
   conversation: AssistantConversationSummary;
   messages: UIMessage[];
+};
+
+export type AssistantActionChange = {
+  field: string;
+  label: string;
+  before: string;
+  after: string;
+};
+
+export type AssistantActionProposalView = {
+  id: string;
+  projectId: string;
+  status: AssistantActionStatus;
+  actionLabel: string;
+  title: string;
+  projectName: string;
+  taskName: string;
+  changes: AssistantActionChange[];
+  warnings?: string[];
+  href: string;
+  hrefLabel: string;
+  expiresAt: string;
+  confirmedAt: string | null;
+  cancelledAt: string | null;
+  result: unknown;
+};
+
+export type AssistantActionToolOutput = {
+  kind: "action-proposal";
+  proposal: AssistantActionProposalView;
+  sources: Array<{ label: string; href: string }>;
 };

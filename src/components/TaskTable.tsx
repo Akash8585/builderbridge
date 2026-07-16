@@ -17,6 +17,7 @@ export type TaskRow = {
   startDate: Date;
   endDate: Date;
   status: TaskStatus;
+  progress: number;
   isRoadblock: boolean;
   roadblockNote: string | null;
   roadblockStatus: RoadblockStatus | null;
@@ -56,7 +57,7 @@ export function TaskTable({
   const [editingId, setEditingId] = useState<string | null>(null);
   const canManage = canManageSchedule(role);
   const canResolve = canResolveRoadblocks(role);
-  const colSpan = canManage ? 9 : 8;
+  const colSpan = canManage ? 10 : 9;
 
   if (tasks.length === 0) {
     return (
@@ -78,6 +79,7 @@ export function TaskTable({
             <th className="py-2.5 px-3 font-medium whitespace-nowrap">Start</th>
             <th className="py-2.5 px-3 font-medium whitespace-nowrap">End</th>
             <th className="py-2.5 px-3 font-medium whitespace-nowrap text-right">Duration</th>
+            <th className="py-2.5 px-3 font-medium">Progress</th>
             <th className="py-2.5 px-3 font-medium">Status</th>
             <th className="py-2.5 px-3 font-medium">Roadblock</th>
             {canManage && <th className="py-2.5 pl-3 pr-4 font-medium text-right">Actions</th>}
@@ -192,6 +194,17 @@ function TaskRowView({
         <td className="py-2.5 px-3 text-muted whitespace-nowrap">{formatDate(task.startDate)}</td>
         <td className="py-2.5 px-3 text-muted whitespace-nowrap">{formatDate(task.endDate)}</td>
         <td className="py-2.5 px-3 text-muted whitespace-nowrap text-right font-mono text-xs">{duration} d</td>
+        <td className="py-2.5 px-3">
+          <div className="flex w-24 items-center gap-2" aria-label={`${task.progress}% complete`}>
+            <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-strong">
+              <span
+                className="block h-full rounded-full bg-success"
+                style={{ width: `${task.progress}%` }}
+              />
+            </span>
+            <span className="w-8 text-right font-mono text-[11px] text-muted">{task.progress}%</span>
+          </div>
+        </td>
         <td className="py-2.5 px-3">
           {canEdit ? (
             <span className="inline-flex items-center gap-1.5">

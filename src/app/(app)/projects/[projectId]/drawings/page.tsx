@@ -4,6 +4,7 @@ import { canManageSchedule } from "@/lib/permissions";
 import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { DrawingList } from "@/components/DrawingList";
 import { ProjectPageHeader } from "@/components/PageHeader";
+import { privateStoredFileUrl } from "@/lib/storage";
 
 export default async function ProjectDrawingsPage({
   params,
@@ -24,6 +25,10 @@ export default async function ProjectDrawingsPage({
     }),
     prisma.task.findMany({ where: { projectId }, select: { id: true, name: true } }),
   ]);
+  const securedDrawings = drawings.map((drawing) => ({
+    ...drawing,
+    fileUrl: privateStoredFileUrl(drawing.fileUrl),
+  }));
 
   return (
     <div className="app-page">
@@ -37,7 +42,7 @@ export default async function ProjectDrawingsPage({
       <ProjectSubNav projectId={projectId} active="Drawings" />
 
       <div className="mt-6">
-        <DrawingList projectId={projectId} drawings={drawings} tasks={tasks} canUpload={canManageSchedule(role)} />
+        <DrawingList projectId={projectId} drawings={securedDrawings} tasks={tasks} canUpload={canManageSchedule(role)} />
       </div>
     </div>
   );

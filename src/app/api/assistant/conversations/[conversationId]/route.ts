@@ -1,4 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import {
+  getAssistantProposalId,
+  hydrateAssistantActionPart,
+  loadAssistantProposalStates,
+} from "@/lib/assistant-actions";
 import { requireAssistantConversation } from "@/lib/assistant-conversations";
 import { requireActiveOrganization, requireUser } from "@/lib/session";
 
@@ -14,6 +19,12 @@ export async function GET(
     where: { conversationId },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
+  const proposalIds = messages.flatMap((message) =>
+    Array.isArray(message.parts)
+      ? message.parts.map(getAssistantProposalId).filter((id): id is string => id !== null)
+      : []
+  );
+  const proposalStates = await loadAssistantProposalStates(proposalIds, conversationId);
 
   return Response.json({
     conversation: {
@@ -26,7 +37,9 @@ export async function GET(
     messages: messages.map((message) => ({
       id: message.id,
       role: message.role === "USER" ? "user" : "assistant",
-      parts: [{ type: "text", text: message.content }],
+      parts: Array.isArray(message.parts)
+        ? message.parts.map((part) => hydrateAssistantActionPart(part, proposalStates))
+        : [{ type: "text", text: message.content }],
     })),
   });
 }

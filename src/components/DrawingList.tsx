@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { uploadDrawing } from "@/app/actions/drawings";
 import { Button } from "@/components/ui/Button";
 import { ErrorText } from "@/components/ui/ErrorText";
@@ -72,6 +73,7 @@ export function DrawingList({
 }
 
 function UploadDrawingForm({ projectId, tasks }: { projectId: string; tasks: TaskOption[] }) {
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -91,6 +93,7 @@ function UploadDrawingForm({ projectId, tasks }: { projectId: string; tasks: Tas
     }
     setTitle("");
     formRef.current?.reset();
+    router.refresh();
   }
 
   return (

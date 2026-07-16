@@ -51,7 +51,7 @@ function initialTitle(prompt: string): string {
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
+  const response = await fetch(url, { cache: "no-store", ...init });
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     throw new Error(payload?.error ?? "Something went wrong. Please try again.");
@@ -66,6 +66,7 @@ type ChatWorkspaceProps = {
   onPromptConsumed: () => void;
   onSent: (prompt: string) => void;
   onUpdated: () => void;
+  onRecovered: (detail: AssistantConversationDetail) => void;
 };
 
 function ChatWorkspace({
@@ -75,6 +76,7 @@ function ChatWorkspace({
   onPromptConsumed,
   onSent,
   onUpdated,
+  onRecovered,
 }: ChatWorkspaceProps) {
   const [input, setInput] = useState("");
   const pendingSentRef = useRef(false);
@@ -100,9 +102,31 @@ function ChatWorkspace({
       if (!trimmed || busy) return;
       onSent(trimmed);
       setInput("");
+      const expectedMessageCount = messages.length + 2;
+      const adoptPersistedResponse = async () => {
+        for (let attempt = 0; attempt < 30; attempt += 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 4_000));
+          try {
+            const persisted = await fetchJson<AssistantConversationDetail>(
+              `/api/assistant/conversations/${detail.conversation.id}`
+            );
+            if (
+              persisted.messages.at(-1)?.role === "assistant" &&
+              persisted.messages.length >= expectedMessageCount
+            ) {
+              await stop();
+              onRecovered(persisted);
+              return;
+            }
+          } catch {
+            // Retry while the provider is still completing or the connection is recovering.
+          }
+        }
+      };
+      void adoptPersistedResponse();
       void sendMessage({ text: trimmed });
     },
-    [busy, onSent, sendMessage]
+    [busy, detail.conversation.id, messages.length, onRecovered, onSent, sendMessage, stop]
   );
 
   useEffect(() => {
@@ -275,13 +299,6 @@ export function GlobalAssistant() {
   }
 
   const handleSent = useCallback((prompt: string) => {
-    setActive((current) => {
-      if (!current || current.conversation.messageCount > 0) return current;
-      return {
-        ...current,
-        conversation: { ...current.conversation, title: initialTitle(prompt), messageCount: 1 },
-      };
-    });
     setBootstrap((current) =>
       current
         ? {
@@ -295,6 +312,11 @@ export function GlobalAssistant() {
         : current
     );
   }, [active?.conversation.id]);
+
+  const activeTitle =
+    bootstrap?.conversations.find((conversation) => conversation.id === active?.conversation.id)?.title ??
+    active?.conversation.title ??
+    "New conversation";
 
   const refreshSummaries = useCallback(async () => {
     try {
@@ -359,7 +381,8 @@ export function GlobalAssistant() {
                   type="button"
                   onClick={() => void createConversation()}
                   aria-label="Start new conversation"
-                  className="mb-5 flex h-10 w-full items-center justify-center gap-2 rounded-md border border-white/15 bg-white text-sm font-semibold text-ink transition-colors hover:bg-white/90"
+                  disabled={loading}
+                  className="mb-5 flex h-10 w-full items-center justify-center gap-2 rounded-md border border-white/15 bg-white text-sm font-semibold text-ink transition-colors hover:bg-white/90 disabled:cursor-wait disabled:opacity-50"
                 >
                   <Plus size={16} aria-hidden />
                   New conversation
@@ -438,7 +461,7 @@ export function GlobalAssistant() {
                   <PanelLeft size={18} aria-hidden />
                 </button>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-ink">{active?.conversation.title ?? "New conversation"}</p>
+                  <p className="truncate text-sm font-semibold text-ink">{activeTitle}</p>
                   <p className="truncate text-xs text-muted">{scopeName}</p>
                 </div>
                 <div className="relative md:hidden">
@@ -479,13 +502,14 @@ export function GlobalAssistant() {
                 <div className="flex flex-1 items-center justify-center text-sm text-muted">Loading conversations...</div>
               ) : active ? (
                 <ChatWorkspace
-                  key={active.conversation.id}
+                  key={`${active.conversation.id}:${active.conversation.messageCount}`}
                   detail={active}
                   projectScoped={scopeId !== null}
                   pendingPrompt={pendingPrompt}
                   onPromptConsumed={() => setPendingPrompt(null)}
                   onSent={handleSent}
                   onUpdated={refreshSummaries}
+                  onRecovered={setActive}
                 />
               ) : (
                 <div className="flex flex-1 items-center justify-center px-6">
@@ -498,6 +522,7 @@ export function GlobalAssistant() {
                     <button
                       type="button"
                       onClick={() => void createConversation()}
+                      disabled={loading}
                       className="mt-5 inline-flex h-10 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-primary-active"
                     >
                       <Plus size={16} aria-hidden />

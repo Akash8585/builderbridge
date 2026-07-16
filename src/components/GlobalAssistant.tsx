@@ -1,178 +1,511 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { askAssistant } from "@/app/actions/ai-assistant";
-import { stripAssistantMarkdown } from "@/lib/assistant-plain-text";
-import { Button } from "@/components/ui/Button";
-import { ErrorText } from "@/components/ui/ErrorText";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
+import type { UIMessage } from "ai";
+import {
+  Bot,
+  Building2,
+  ChevronDown,
+  FolderKanban,
+  MessageSquare,
+  PanelLeft,
+  Plus,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
+import { AssistantConversation } from "@/components/ai-elements/AssistantConversation";
+import { AssistantPromptInput } from "@/components/ai-elements/AssistantPromptInput";
+import type {
+  AssistantBootstrap,
+  AssistantConversationDetail,
+  AssistantConversationSummary,
+} from "@/lib/assistant-types";
 
-type Message = { role: "user" | "assistant"; content: string };
-
-const SUGGESTIONS = [
-  "Which projects have the most open roadblocks?",
-  "What's blocking the schedule right now?",
-  "How is portfolio health looking?",
-  "What should I focus on this week?",
+const PORTFOLIO_SUGGESTIONS = [
+  "Which projects need attention today?",
+  "Where are our biggest schedule risks?",
+  "Compare open roadblocks across the portfolio.",
+  "What should leadership focus on this week?",
 ];
 
-function focusProjectIdFromPath(pathname: string | null): string | undefined {
-  if (!pathname) return undefined;
-  const match = pathname.match(/^\/projects\/([^/]+)/);
-  const id = match?.[1];
-  if (!id || id === "new") return undefined;
-  return id;
+const PROJECT_SUGGESTIONS = [
+  "What is most likely to delay this project?",
+  "Summarize the open roadblocks.",
+  "Which tasks need attention this week?",
+  "Review current RFIs and submittals.",
+];
+
+function focusProjectIdFromPath(pathname: string | null): string | null {
+  const match = pathname?.match(/^\/projects\/([^/]+)/);
+  const projectId = match?.[1];
+  return projectId && projectId !== "new" ? projectId : null;
+}
+
+function initialTitle(prompt: string): string {
+  const singleLine = prompt.replace(/\s+/g, " ").trim();
+  return singleLine.length <= 54 ? singleLine : `${singleLine.slice(0, 53).trimEnd()}...`;
+}
+
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, init);
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(payload?.error ?? "Something went wrong. Please try again.");
+  }
+  return payload as T;
+}
+
+type ChatWorkspaceProps = {
+  detail: AssistantConversationDetail;
+  projectScoped: boolean;
+  pendingPrompt: string | null;
+  onPromptConsumed: () => void;
+  onSent: (prompt: string) => void;
+  onUpdated: () => void;
+};
+
+function ChatWorkspace({
+  detail,
+  projectScoped,
+  pendingPrompt,
+  onPromptConsumed,
+  onSent,
+  onUpdated,
+}: ChatWorkspaceProps) {
+  const [input, setInput] = useState("");
+  const pendingSentRef = useRef(false);
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/assistant/chat",
+        body: { conversationId: detail.conversation.id },
+      }),
+    [detail.conversation.id]
+  );
+  const { messages, sendMessage, status, error, stop } = useChat<UIMessage>({
+    id: detail.conversation.id,
+    messages: detail.messages,
+    transport,
+    onFinish: onUpdated,
+  });
+  const busy = status === "submitted" || status === "streaming";
+
+  const send = useCallback(
+    (prompt: string) => {
+      const trimmed = prompt.trim();
+      if (!trimmed || busy) return;
+      onSent(trimmed);
+      setInput("");
+      void sendMessage({ text: trimmed });
+    },
+    [busy, onSent, sendMessage]
+  );
+
+  useEffect(() => {
+    if (!pendingPrompt || pendingSentRef.current || status !== "ready") return;
+    pendingSentRef.current = true;
+    send(pendingPrompt);
+    onPromptConsumed();
+  }, [onPromptConsumed, pendingPrompt, send, status]);
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col bg-canvas">
+      <AssistantConversation
+        messages={messages}
+        busy={busy}
+        suggestions={projectScoped ? PROJECT_SUGGESTIONS : PORTFOLIO_SUGGESTIONS}
+        onSuggestion={send}
+      />
+      {error && (
+        <div className="mx-auto w-full max-w-2xl px-6 pb-2 text-sm text-error" role="alert">
+          {error.message}
+        </div>
+      )}
+      <AssistantPromptInput
+        value={input}
+        busy={busy}
+        onChange={setInput}
+        onSubmit={() => send(input)}
+        onStop={() => void stop()}
+      />
+    </div>
+  );
 }
 
 export function GlobalAssistant() {
   const pathname = usePathname();
   const focusProjectId = focusProjectIdFromPath(pathname);
-
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [question, setQuestion] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [bootstrap, setBootstrap] = useState<AssistantBootstrap | null>(null);
+  const [scopeId, setScopeId] = useState<string | null>(null);
+  const [active, setActive] = useState<AssistantConversationDetail | null>(null);
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [railOpen, setRailOpen] = useState(false);
 
-  const close = useCallback(() => setOpen(false), []);
+  const loadConversation = useCallback(async (conversationId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const detail = await fetchJson<AssistantConversationDetail>(
+        `/api/assistant/conversations/${conversationId}`
+      );
+      setActive(detail);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Could not load this conversation.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadWorkspace = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const nextBootstrap = await fetchJson<AssistantBootstrap>("/api/assistant/conversations");
+      setBootstrap(nextBootstrap);
+      const nextScope =
+        focusProjectId && nextBootstrap.projects.some((project) => project.id === focusProjectId)
+          ? focusProjectId
+          : null;
+      setScopeId(nextScope);
+      const latest = nextBootstrap.conversations.find((conversation) => conversation.projectId === nextScope);
+      if (latest) {
+        const detail = await fetchJson<AssistantConversationDetail>(
+          `/api/assistant/conversations/${latest.id}`
+        );
+        setActive(detail);
+      } else {
+        setActive(null);
+      }
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Could not load BuilderBridge AI.");
+    } finally {
+      setLoading(false);
+    }
+  }, [focusProjectId]);
 
   useEffect(() => {
     if (!open) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
-    }
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, close]);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
 
-  async function ask(q: string) {
-    const trimmed = q.trim();
-    if (!trimmed || loading) return;
-    setError(null);
-    setLoading(true);
+  const openWorkspace = useCallback(() => {
+    setOpen(true);
+    void loadWorkspace();
+  }, [loadWorkspace]);
 
-    const history = messages;
-    setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
-    setQuestion("");
+  const currentConversations = useMemo(
+    () => bootstrap?.conversations.filter((conversation) => conversation.projectId === scopeId) ?? [],
+    [bootstrap, scopeId]
+  );
+  const scopeName =
+    scopeId === null
+      ? "Portfolio"
+      : bootstrap?.projects.find((project) => project.id === scopeId)?.name ?? "Project";
 
-    const result = await askAssistant({
-      question: trimmed,
-      focusProjectId,
-      history,
+  const selectScope = useCallback(
+    (projectId: string | null) => {
+      setScopeId(projectId);
+      setRailOpen(false);
+      setPendingPrompt(null);
+      const latest = bootstrap?.conversations.find((conversation) => conversation.projectId === projectId);
+      if (latest) void loadConversation(latest.id);
+      else setActive(null);
+    },
+    [bootstrap, loadConversation]
+  );
+
+  const createConversation = useCallback(
+    async (prompt?: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const conversation = await fetchJson<AssistantConversationSummary>("/api/assistant/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectId: scopeId }),
+        });
+        setBootstrap((current) =>
+          current
+            ? { ...current, conversations: [conversation, ...current.conversations] }
+            : current
+        );
+        setActive({ conversation, messages: [] });
+        setPendingPrompt(prompt ?? null);
+        setRailOpen(false);
+      } catch (createError) {
+        setError(createError instanceof Error ? createError.message : "Could not start a conversation.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [scopeId]
+  );
+
+  async function deleteConversation(conversationId: string) {
+      if (!window.confirm("Delete this conversation? This cannot be undone.")) return;
+      try {
+        const response = await fetch(`/api/assistant/conversations/${conversationId}`, { method: "DELETE" });
+        if (!response.ok) throw new Error("Could not delete this conversation.");
+        const remaining = bootstrap?.conversations.filter((conversation) => conversation.id !== conversationId) ?? [];
+        setBootstrap((current) => (current ? { ...current, conversations: remaining } : current));
+        if (active?.conversation.id === conversationId) {
+          const next = remaining.find((conversation) => conversation.projectId === scopeId);
+          if (next) void loadConversation(next.id);
+          else setActive(null);
+        }
+      } catch (deleteError) {
+        setError(deleteError instanceof Error ? deleteError.message : "Could not delete this conversation.");
+      }
+  }
+
+  const handleSent = useCallback((prompt: string) => {
+    setActive((current) => {
+      if (!current || current.conversation.messageCount > 0) return current;
+      return {
+        ...current,
+        conversation: { ...current.conversation, title: initialTitle(prompt), messageCount: 1 },
+      };
     });
-    setLoading(false);
-    if (!result.success) {
-      setError(result.error);
-      return;
-    }
-    setMessages((prev) => [...prev, { role: "assistant", content: stripAssistantMarkdown(result.data) }]);
-  }
+    setBootstrap((current) =>
+      current
+        ? {
+            ...current,
+            conversations: current.conversations.map((conversation) =>
+              conversation.id === active?.conversation.id && conversation.messageCount === 0
+                ? { ...conversation, title: initialTitle(prompt), messageCount: 1 }
+                : conversation
+            ),
+          }
+        : current
+    );
+  }, [active?.conversation.id]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    await ask(question);
-  }
+  const refreshSummaries = useCallback(async () => {
+    try {
+      const nextBootstrap = await fetchJson<AssistantBootstrap>("/api/assistant/conversations");
+      setBootstrap(nextBootstrap);
+    } catch {
+      // The streamed conversation remains usable even if refreshing its title fails.
+    }
+  }, []);
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-lg border border-white/10 bg-ink text-canvas shadow-[0_12px_30px_rgba(17,17,17,0.24)] transition-transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 sm:bottom-6 sm:right-6"
-        aria-label="Open AI assistant"
-        title="AI Assistant"
+        onClick={openWorkspace}
+        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-lg border border-white/10 bg-ink text-white shadow-[0_12px_30px_rgba(17,17,17,0.24)] transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 sm:bottom-6 sm:right-6"
+        aria-label="Open BuilderBridge AI"
+        title="BuilderBridge AI"
       >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <path
-            d="M12 3c4.97 0 9 3.58 9 8 0 2.13-.9 4.07-2.38 5.5L19 21l-4.5-2.2C13.7 19.27 12.86 19.35 12 19.35 7.03 19.35 3 15.77 3 11 3 6.58 7.03 3 12 3Z"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <Sparkles size={20} aria-hidden />
       </button>
 
       {open && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <button
             type="button"
-            className="absolute inset-0 bg-ink/20"
-            aria-label="Close assistant"
-            onClick={close}
+            className="absolute inset-0 bg-ink/25 backdrop-blur-[2px]"
+            aria-label="Close BuilderBridge AI"
+            onClick={() => setOpen(false)}
           />
           <aside
             role="dialog"
-            aria-label="AI Assistant"
-            className="relative flex h-full w-full max-w-lg flex-col border-l border-hairline bg-app-bg shadow-[-16px_0_40px_rgba(17,17,17,0.14)]"
+            aria-modal="true"
+            aria-label="BuilderBridge AI"
+            className="relative flex h-full w-full max-w-[980px] overflow-hidden border-l border-hairline bg-canvas shadow-[-20px_0_60px_rgba(17,17,17,0.18)]"
           >
-            <header className="flex shrink-0 items-center justify-between border-b border-white/10 bg-ink px-5 py-4 text-white">
-              <div>
-                <h2 className="font-display text-lg">AI Assistant</h2>
-                <p className="text-xs text-white/60">
-                  {focusProjectId ? "Portfolio + current project context" : "Portfolio-wide context"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={close}
-                className="rounded-md p-2 text-white/60 hover:bg-white/10 hover:text-white"
-                aria-label="Close"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-                </svg>
-              </button>
-            </header>
-
-            <div className="flex min-h-0 flex-1 flex-col px-5 py-4">
-              <div className="flex-1 space-y-4 overflow-y-auto">
-                {messages.length === 0 ? (
-                  <div className="py-8 text-center">
-                    <p className="mb-4 text-sm text-muted">
-                      Ask about your projects, schedule, roadblocks, or how BuilderBridge works.
-                    </p>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {SUGGESTIONS.map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => ask(s)}
-                          className="rounded-md border border-hairline bg-canvas px-3 py-2 text-left text-xs text-muted transition-colors hover:border-muted-soft hover:text-ink"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
+            <div
+              className={`${railOpen ? "flex" : "hidden"} absolute inset-y-0 left-0 z-20 w-[260px] flex-col border-r border-white/10 bg-app-sidebar text-white md:static md:flex`}
+            >
+              <div className="flex h-16 shrink-0 items-center justify-between border-b border-white/10 px-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white text-ink">
+                    <Bot size={17} aria-hidden />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold">BuilderBridge AI</p>
+                    <p className="text-[11px] text-white/45">Powered by OpenRouter</p>
                   </div>
-                ) : (
-                  messages.map((m, i) => (
-                    <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                      <div
-                        className={`max-w-[85%] whitespace-pre-wrap rounded-lg px-4 py-2.5 text-sm ${
-                          m.role === "user" ? "bg-ink text-canvas" : "border border-hairline bg-canvas text-body"
-                        }`}
-                      >
-                        {m.content}
-                      </div>
-                    </div>
-                  ))
-                )}
-                {loading && <div className="text-sm text-muted-soft">Thinking…</div>}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRailOpen(false)}
+                  className="rounded-md p-2 text-white/55 hover:bg-white/10 hover:text-white md:hidden"
+                  aria-label="Close project navigation"
+                >
+                  <X size={17} aria-hidden />
+                </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="mt-4 flex shrink-0 items-center gap-2 border-t border-hairline pt-4">
-                <input
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="Ask anything about your work…"
-                  maxLength={1000}
-                  className="h-10 flex-1 rounded-md border border-hairline bg-canvas px-3 text-sm shadow-sm focus:border-ink focus:outline-none"
+              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+                <button
+                  type="button"
+                  onClick={() => void createConversation()}
+                  aria-label="Start new conversation"
+                  className="mb-5 flex h-10 w-full items-center justify-center gap-2 rounded-md border border-white/15 bg-white text-sm font-semibold text-ink transition-colors hover:bg-white/90"
+                >
+                  <Plus size={16} aria-hidden />
+                  New conversation
+                </button>
+
+                <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.08em] text-white/35">Projects</p>
+                <nav className="space-y-1" aria-label="Assistant project scopes">
+                  <button
+                    type="button"
+                    onClick={() => selectScope(null)}
+                    className={`flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors ${scopeId === null ? "bg-white/12 text-white" : "text-white/65 hover:bg-white/7 hover:text-white"}`}
+                  >
+                    <FolderKanban size={15} aria-hidden />
+                    <span className="truncate">Portfolio</span>
+                  </button>
+                  {bootstrap?.projects.map((project) => (
+                    <button
+                      key={project.id}
+                      type="button"
+                      onClick={() => selectScope(project.id)}
+                      className={`flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors ${scopeId === project.id ? "bg-white/12 text-white" : "text-white/65 hover:bg-white/7 hover:text-white"}`}
+                    >
+                      <Building2 size={15} aria-hidden />
+                      <span className="truncate">{project.name}</span>
+                    </button>
+                  ))}
+                </nav>
+
+                <div className="mb-2 mt-6 flex items-center justify-between px-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-white/35">Conversations</p>
+                  <span className="text-[10px] text-white/30">{currentConversations.length}</span>
+                </div>
+                <div className="space-y-1">
+                  {currentConversations.map((conversation) => (
+                    <div
+                      key={conversation.id}
+                      className={`group flex items-center rounded-md ${active?.conversation.id === conversation.id ? "bg-white/12" : "hover:bg-white/7"}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void loadConversation(conversation.id);
+                          setRailOpen(false);
+                        }}
+                        className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-2 text-left text-xs text-white/70"
+                      >
+                        <MessageSquare size={14} className="shrink-0 text-white/35" aria-hidden />
+                        <span className="truncate">{conversation.title}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void deleteConversation(conversation.id)}
+                        className="mr-1 hidden rounded p-1.5 text-white/35 hover:bg-white/10 hover:text-white group-hover:block focus:block"
+                        aria-label={`Delete ${conversation.title}`}
+                        title="Delete conversation"
+                      >
+                        <Trash2 size={13} aria-hidden />
+                      </button>
+                    </div>
+                  ))}
+                  {!loading && currentConversations.length === 0 && (
+                    <p className="px-2.5 py-2 text-xs leading-5 text-white/35">No conversations yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex min-w-0 flex-1 flex-col">
+              <header className="flex h-16 shrink-0 items-center gap-3 border-b border-hairline px-4 sm:px-5">
+                <button
+                  type="button"
+                  onClick={() => setRailOpen(true)}
+                  className="flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-soft hover:text-ink md:hidden"
+                  aria-label="Open project navigation"
+                >
+                  <PanelLeft size={18} aria-hidden />
+                </button>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-ink">{active?.conversation.title ?? "New conversation"}</p>
+                  <p className="truncate text-xs text-muted">{scopeName}</p>
+                </div>
+                <div className="relative md:hidden">
+                  <select
+                    value={scopeId ?? "__portfolio__"}
+                    onChange={(event) => selectScope(event.target.value === "__portfolio__" ? null : event.target.value)}
+                    className="h-9 max-w-36 appearance-none rounded-md border border-hairline bg-canvas py-0 pl-3 pr-8 text-xs font-medium text-body"
+                    aria-label="Choose project scope"
+                  >
+                    <option value="__portfolio__">Portfolio</option>
+                    {bootstrap?.projects.map((project) => (
+                      <option key={project.id} value={project.id}>{project.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-3 text-muted" aria-hidden />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-soft hover:text-ink"
+                  aria-label="Close BuilderBridge AI"
+                  title="Close"
+                >
+                  <X size={19} aria-hidden />
+                </button>
+              </header>
+
+              {error && !active ? (
+                <div className="flex flex-1 items-center justify-center px-6 text-center">
+                  <div>
+                    <p className="text-sm text-error" role="alert">{error}</p>
+                    <button type="button" onClick={() => void loadWorkspace()} className="mt-4 text-sm font-semibold text-ink underline underline-offset-4">
+                      Try again
+                    </button>
+                  </div>
+                </div>
+              ) : loading && !active ? (
+                <div className="flex flex-1 items-center justify-center text-sm text-muted">Loading conversations...</div>
+              ) : active ? (
+                <ChatWorkspace
+                  key={active.conversation.id}
+                  detail={active}
+                  projectScoped={scopeId !== null}
+                  pendingPrompt={pendingPrompt}
+                  onPromptConsumed={() => setPendingPrompt(null)}
+                  onSent={handleSent}
+                  onUpdated={refreshSummaries}
                 />
-                <Button type="submit" disabled={loading || !question.trim()}>
-                  Ask
-                </Button>
-              </form>
-              <ErrorText>{error}</ErrorText>
+              ) : (
+                <div className="flex flex-1 items-center justify-center px-6">
+                  <div className="max-w-sm text-center">
+                    <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-md bg-ink text-white">
+                      <Sparkles size={19} aria-hidden />
+                    </span>
+                    <h3 className="mt-5 font-display text-xl text-ink">Start with {scopeName}</h3>
+                    <p className="mt-2 text-sm leading-6 text-muted">Create a conversation to explore the live project data in this scope.</p>
+                    <button
+                      type="button"
+                      onClick={() => void createConversation()}
+                      className="mt-5 inline-flex h-10 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-primary-active"
+                    >
+                      <Plus size={16} aria-hidden />
+                      New conversation
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </aside>
         </div>

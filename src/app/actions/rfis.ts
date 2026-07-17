@@ -13,6 +13,9 @@ import type { RFI } from "@prisma/client";
 const createRfiSchema = z.object({
   projectId: z.string().min(1, "projectId is required"),
   taskId: z.string().cuid().optional().nullable(),
+  attachmentId: z.string().cuid().optional().nullable(),
+  pageNumber: z.number().int().min(1).optional().nullable(),
+  citationExcerpt: z.string().trim().max(1000).optional().nullable(),
   question: z.string().min(1, "Question is required").max(1000),
   dueDate: z.coerce.date().optional().nullable(),
 });
@@ -31,10 +34,35 @@ export async function createRfi(input: unknown): Promise<ActionResult<RFI>> {
       where: { projectId_userId: { projectId: parsed.data.projectId, userId: user.id } },
     });
 
+    let attachmentId: string | null = parsed.data.attachmentId ?? null;
+    let pageNumber: number | null = parsed.data.pageNumber ?? null;
+    let citationExcerpt: string | null = parsed.data.citationExcerpt?.trim() || null;
+    if (attachmentId) {
+      const attachment = await prisma.assistantAttachment.findFirst({
+        where: { id: attachmentId, projectId: parsed.data.projectId },
+        select: { id: true, fileName: true },
+      });
+      if (!attachment) throw new Error("Project file not found");
+      if (pageNumber !== null && !citationExcerpt) {
+        const chunk = await prisma.documentChunk.findFirst({
+          where: { documentId: attachment.id, pageNumber },
+          orderBy: { chunkIndex: "asc" },
+          select: { text: true },
+        });
+        citationExcerpt = chunk?.text.slice(0, 500) ?? null;
+      }
+    } else {
+      pageNumber = null;
+      citationExcerpt = null;
+    }
+
     const rfi = await prisma.rFI.create({
       data: {
         projectId: parsed.data.projectId,
         taskId: parsed.data.taskId ?? null,
+        attachmentId,
+        pageNumber,
+        citationExcerpt,
         question: parsed.data.question,
         dueDate: parsed.data.dueDate ?? null,
         raisedById: raiser.id,

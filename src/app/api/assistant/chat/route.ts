@@ -23,13 +23,21 @@ import {
   isMissingProjectControlProposalConfirmation,
   isMissingScheduleProposalConfirmation,
   isMissingTaskProposalConfirmation,
+  isBaselineActionRequest,
   isRoadblockActionRequest,
   isRfiActionRequest,
   isScheduleActionRequest,
+  isScheduleImpactActionRequest,
   isTaskActionRequest,
+  isTaskProgressActionRequest,
   isSubmittalActionRequest,
+  isWeeklyCommitmentActionRequest,
+  parseDeterministicBaselineAction,
   parseDeterministicProjectControlAction,
   parseDeterministicScheduleWhatIf,
+  parseDeterministicScheduleImpactAction,
+  parseDeterministicTaskProgressAction,
+  parseDeterministicWeeklyCommitmentAction,
 } from "@/lib/assistant-intent";
 import { AssistantActionError } from "@/lib/assistant-actions";
 import { env } from "@/lib/env";
@@ -347,12 +355,55 @@ export async function POST(request: Request) {
     !forceRfiProposal &&
     !forceSubmittalProposal &&
     !isScheduleActionRequest(question) &&
+    !isTaskProgressActionRequest(question) &&
+    !isWeeklyCommitmentActionRequest(question) &&
+    !isScheduleImpactActionRequest(question) &&
+    !isBaselineActionRequest(question) &&
     (isTaskActionRequest(question) ||
       (!pendingProposal && isMissingTaskProposalConfirmation(question, previousAssistantText)));
+  const forceTaskProgressProposal =
+    !forceRoadblockProposal &&
+    !forceRfiProposal &&
+    !forceSubmittalProposal &&
+    !forceTaskProposal &&
+    !isWeeklyCommitmentActionRequest(question) &&
+    !isScheduleImpactActionRequest(question) &&
+    !isBaselineActionRequest(question) &&
+    isTaskProgressActionRequest(question);
+  const forceWeeklyCommitmentProposal =
+    !forceRoadblockProposal &&
+    !forceRfiProposal &&
+    !forceSubmittalProposal &&
+    !forceTaskProposal &&
+    !forceTaskProgressProposal &&
+    !isScheduleImpactActionRequest(question) &&
+    !isBaselineActionRequest(question) &&
+    isWeeklyCommitmentActionRequest(question);
+  const forceScheduleImpactProposal =
+    !forceRoadblockProposal &&
+    !forceRfiProposal &&
+    !forceSubmittalProposal &&
+    !forceTaskProposal &&
+    !forceTaskProgressProposal &&
+    !forceWeeklyCommitmentProposal &&
+    isScheduleImpactActionRequest(question);
+  const forceBaselineProposal =
+    !forceRoadblockProposal &&
+    !forceRfiProposal &&
+    !forceSubmittalProposal &&
+    !forceTaskProposal &&
+    !forceTaskProgressProposal &&
+    !forceWeeklyCommitmentProposal &&
+    !forceScheduleImpactProposal &&
+    isBaselineActionRequest(question);
   const forceScheduleProposal =
     !forceRoadblockProposal &&
     !forceRfiProposal &&
     !forceSubmittalProposal &&
+    !forceTaskProgressProposal &&
+    !forceWeeklyCommitmentProposal &&
+    !forceScheduleImpactProposal &&
+    !forceBaselineProposal &&
     (isScheduleActionRequest(question) ||
       (!pendingProposal && isMissingScheduleProposalConfirmation(question, previousAssistantText)));
   const forceDocumentSearch =
@@ -360,6 +411,10 @@ export async function POST(request: Request) {
     !forceRfiProposal &&
     !forceSubmittalProposal &&
     !forceTaskProposal &&
+    !forceTaskProgressProposal &&
+    !forceWeeklyCommitmentProposal &&
+    !forceScheduleImpactProposal &&
+    !forceBaselineProposal &&
     !forceScheduleProposal &&
     Boolean(conversation.projectId) &&
     isProjectDocumentQuestion(question);
@@ -373,9 +428,17 @@ export async function POST(request: Request) {
           ? "proposeScheduleChange"
           : forceTaskProposal
             ? "proposeTaskChange"
-            : forceDocumentSearch
-              ? "searchProjectDocuments"
-              : null;
+            : forceTaskProgressProposal
+              ? "proposeTaskProgressChange"
+              : forceWeeklyCommitmentProposal
+                ? "proposeWeeklyCommitmentChange"
+                : forceScheduleImpactProposal
+                  ? "proposeScheduleImpactChange"
+                  : forceBaselineProposal
+                    ? "proposeBaselineChange"
+                    : forceDocumentSearch
+                      ? "searchProjectDocuments"
+                      : null;
 
   const deterministicWhatIf = forceScheduleProposal
     ? parseDeterministicScheduleWhatIf(question)
@@ -383,9 +446,25 @@ export async function POST(request: Request) {
   const deterministicProjectControl = forceRfiProposal || forceSubmittalProposal
     ? parseDeterministicProjectControlAction(question)
     : null;
+  const deterministicTaskProgress = forceTaskProgressProposal
+    ? parseDeterministicTaskProgressAction(question)
+    : null;
+  const deterministicWeeklyCommitment = forceWeeklyCommitmentProposal
+    ? parseDeterministicWeeklyCommitmentAction(question)
+    : null;
+  const deterministicScheduleImpact = forceScheduleImpactProposal
+    ? parseDeterministicScheduleImpactAction(question)
+    : null;
+  const deterministicBaseline = forceBaselineProposal
+    ? parseDeterministicBaselineAction(question)
+    : null;
   const deterministicAction = deterministicWhatIf
     ? { toolName: "proposeScheduleChange" as const, input: deterministicWhatIf }
-    : deterministicProjectControl;
+    : deterministicProjectControl ??
+      deterministicTaskProgress ??
+      deterministicWeeklyCommitment ??
+      deterministicScheduleImpact ??
+      deterministicBaseline;
   if (deterministicAction) {
     const toolCallId = randomUUID();
     const textId = randomUUID();
@@ -411,7 +490,15 @@ export async function POST(request: Request) {
             ? await tools.proposeScheduleChange.execute!(deterministicAction.input, toolOptions)
             : deterministicAction.toolName === "proposeRfiChange"
               ? await tools.proposeRfiChange.execute!(deterministicAction.input, toolOptions)
-              : await tools.proposeSubmittalChange.execute!(deterministicAction.input, toolOptions);
+              : deterministicAction.toolName === "proposeSubmittalChange"
+                ? await tools.proposeSubmittalChange.execute!(deterministicAction.input, toolOptions)
+                : deterministicAction.toolName === "proposeTaskProgressChange"
+                  ? await tools.proposeTaskProgressChange.execute!(deterministicAction.input, toolOptions)
+                  : deterministicAction.toolName === "proposeWeeklyCommitmentChange"
+                    ? await tools.proposeWeeklyCommitmentChange.execute!(deterministicAction.input, toolOptions)
+                    : deterministicAction.toolName === "proposeScheduleImpactChange"
+                      ? await tools.proposeScheduleImpactChange.execute!(deterministicAction.input, toolOptions)
+                      : await tools.proposeBaselineChange.execute!(deterministicAction.input, toolOptions);
           writer.write({ type: "tool-output-available", toolCallId, output });
           const text = deterministicOutputText(output);
           if (text) {
@@ -445,7 +532,9 @@ export async function POST(request: Request) {
           assistantMessageId,
           model: deterministicAction.toolName === "proposeScheduleChange"
             ? "local-schedule-parser"
-            : "local-project-controls-parser",
+            : deterministicAction.toolName === "proposeRfiChange" || deterministicAction.toolName === "proposeSubmittalChange"
+              ? "local-project-controls-parser"
+              : "local-field-action-parser",
           contentLength: content.length,
         });
         await prisma.$transaction([
@@ -460,7 +549,9 @@ export async function POST(request: Request) {
               parts: serializeParts(responseMessage.parts),
               model: deterministicAction.toolName === "proposeScheduleChange"
                 ? "local-schedule-parser"
-                : "local-project-controls-parser",
+                : deterministicAction.toolName === "proposeRfiChange" || deterministicAction.toolName === "proposeSubmittalChange"
+                  ? "local-project-controls-parser"
+                  : "local-field-action-parser",
             },
           }),
           prisma.assistantConversation.update({

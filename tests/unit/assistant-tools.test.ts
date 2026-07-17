@@ -6,10 +6,18 @@ import {
   isRoadblockActionRequest,
   isRfiActionRequest,
   isScheduleActionRequest,
+  isScheduleImpactActionRequest,
   isSubmittalActionRequest,
   isTaskActionRequest,
+  isTaskProgressActionRequest,
+  isBaselineActionRequest,
+  isWeeklyCommitmentActionRequest,
+  parseDeterministicBaselineAction,
   parseDeterministicProjectControlAction,
   parseDeterministicScheduleWhatIf,
+  parseDeterministicScheduleImpactAction,
+  parseDeterministicTaskProgressAction,
+  parseDeterministicWeeklyCommitmentAction,
 } from "@/lib/assistant-intent";
 import { rankTaskNameMatches } from "@/lib/assistant-tools";
 
@@ -88,6 +96,186 @@ describe("isMissingTaskProposalConfirmation", () => {
   });
 });
 
+describe("task progress and weekly commitment intent", () => {
+  const now = new Date("2026-07-16T12:00:00.000Z");
+
+  it("detects and parses task progress updates", () => {
+    expect(isTaskProgressActionRequest("Mark Rough electrical wiring 80% complete")).toBe(true);
+    expect(isTaskProgressActionRequest("Show task progress")).toBe(false);
+    expect(parseDeterministicTaskProgressAction("Mark Rough electrical wiring 80% complete", now)).toEqual({
+      toolName: "proposeTaskProgressChange",
+      input: {
+        taskName: "Rough electrical wiring",
+        status: "IN_PROGRESS",
+        progress: 80,
+      },
+    });
+  });
+
+  it("parses explicit task status changes without including the word status in the task name", () => {
+    expect(parseDeterministicTaskProgressAction("Update Rough electrical wiring status to delayed", now)).toEqual({
+      toolName: "proposeTaskProgressChange",
+      input: {
+        taskName: "Rough electrical wiring",
+        status: "DELAYED",
+      },
+    });
+    expect(parseDeterministicTaskProgressAction("Mark Rough electrical wiring as in progress", now)).toEqual({
+      toolName: "proposeTaskProgressChange",
+      input: {
+        taskName: "Rough electrical wiring",
+        status: "IN_PROGRESS",
+      },
+    });
+    expect(parseDeterministicTaskProgressAction("Set Rough electrical wiring status to not started", now)).toEqual({
+      toolName: "proposeTaskProgressChange",
+      input: {
+        taskName: "Rough electrical wiring",
+        status: "NOT_STARTED",
+        progress: 0,
+      },
+    });
+  });
+
+  it("detects and parses weekly commitment actions", () => {
+    expect(isWeeklyCommitmentActionRequest("Commit Rough plumbing install for next week")).toBe(true);
+    expect(isWeeklyCommitmentActionRequest("Which commitments are late?")).toBe(false);
+    expect(parseDeterministicWeeklyCommitmentAction("Commit Rough plumbing install for next week", now)).toEqual({
+      toolName: "proposeWeeklyCommitmentChange",
+      input: {
+        operation: "CREATE",
+        taskName: "Rough plumbing install",
+        weekStartDate: "2026-07-20",
+      },
+    });
+    expect(
+      parseDeterministicWeeklyCommitmentAction(
+        "Remove Rough plumbing install from next week's plan because scope changed",
+        now
+      )
+    ).toEqual({
+      toolName: "proposeWeeklyCommitmentChange",
+      input: {
+        operation: "REMOVE",
+        taskName: "Rough plumbing install",
+        weekStartDate: "2026-07-20",
+        removalReason: "scope changed",
+      },
+    });
+    expect(
+      parseDeterministicWeeklyCommitmentAction(
+        "Mark Rough plumbing install not completed for this week because material late",
+        now
+      )
+    ).toEqual({
+      toolName: "proposeWeeklyCommitmentChange",
+      input: {
+        operation: "UPDATE_STATUS",
+        taskName: "Rough plumbing install",
+        weekStartDate: "2026-07-13",
+        status: "NOT_COMPLETED",
+        reasonForVariance: "material late",
+      },
+    });
+    expect(parseDeterministicWeeklyCommitmentAction("Complete Rough plumbing install for this week", now)).toEqual({
+      toolName: "proposeWeeklyCommitmentChange",
+      input: {
+        operation: "UPDATE_STATUS",
+        taskName: "Rough plumbing install",
+        weekStartDate: "2026-07-13",
+        status: "COMPLETED",
+      },
+    });
+    expect(
+      parseDeterministicWeeklyCommitmentAction(
+        "Set the variance reason for Rough plumbing install for this week to material delivery delayed",
+        now
+      )
+    ).toEqual({
+      toolName: "proposeWeeklyCommitmentChange",
+      input: {
+        operation: "UPDATE_STATUS",
+        taskName: "Rough plumbing install",
+        weekStartDate: "2026-07-13",
+        status: "NOT_COMPLETED",
+        reasonForVariance: "material delivery delayed",
+      },
+    });
+  });
+});
+
+describe("schedule impact and baseline intent", () => {
+  const now = new Date("2026-07-16T12:00:00.000Z");
+
+  it("detects and parses schedule impact request creation", () => {
+    const prompt =
+      "Create a schedule impact request for Rough plumbing install: inspection delay may push finish to 2026-08-15";
+    expect(isScheduleImpactActionRequest(prompt)).toBe(true);
+    // Generic "create" also looks like a task action; chat routing must prefer the SIR tool.
+    expect(isTaskActionRequest(prompt)).toBe(true);
+    expect(parseDeterministicScheduleImpactAction(prompt, now)).toEqual({
+      toolName: "proposeScheduleImpactChange",
+      input: {
+        operation: "CREATE",
+        taskName: "Rough plumbing install",
+        description: "inspection delay may push finish to 2026-08-15",
+        proposedNewEndDate: "2026-08-15",
+      },
+    });
+  });
+
+  it("detects and parses schedule impact request review", () => {
+    expect(isScheduleImpactActionRequest("Approve the schedule impact request rain delay")).toBe(true);
+    expect(
+      parseDeterministicScheduleImpactAction(
+        "Approve the schedule impact request rain delay because weather log confirms",
+        now
+      )
+    ).toEqual({
+      toolName: "proposeScheduleImpactChange",
+      input: {
+        operation: "REVIEW",
+        description: "rain delay",
+        status: "APPROVED",
+        reviewNote: "weather log confirms",
+      },
+    });
+    expect(
+      parseDeterministicScheduleImpactAction("Reject the SIR owner direction with note: no impact", now)
+    ).toEqual({
+      toolName: "proposeScheduleImpactChange",
+      input: {
+        operation: "REVIEW",
+        description: "owner direction",
+        status: "REJECTED",
+        reviewNote: "no impact",
+      },
+    });
+  });
+
+  it("detects and parses baseline creation", () => {
+    expect(isBaselineActionRequest("Create a baseline named Manual test baseline")).toBe(true);
+    expect(parseDeterministicBaselineAction("Create a baseline named Manual test baseline")).toEqual({
+      toolName: "proposeBaselineChange",
+      input: { operation: "CREATE", name: "Manual test baseline" },
+    });
+  });
+
+  it("detects and parses baseline comparison", () => {
+    expect(isBaselineActionRequest("Compare schedule to baseline")).toBe(true);
+    expect(parseDeterministicBaselineAction("Compare schedule to baseline")).toEqual({
+      toolName: "proposeBaselineChange",
+      input: { operation: "COMPARE" },
+    });
+    expect(
+      parseDeterministicBaselineAction("Compare current schedule to the baseline named Owner-approved baseline")
+    ).toEqual({
+      toolName: "proposeBaselineChange",
+      input: { operation: "COMPARE", name: "Owner-approved baseline" },
+    });
+  });
+});
+
 describe("isScheduleActionRequest", () => {
   it("detects dependency edits and bulk shifts", () => {
     expect(isScheduleActionRequest("Make drywall installation depend on rough electrical wiring")).toBe(true);
@@ -130,6 +318,31 @@ describe("parseDeterministicProjectControlAction", () => {
       });
     expect(parseDeterministicProjectControlAction("Close the RFI concrete mix question"))
       .toMatchObject({ input: { operation: "CLOSE" } });
+    expect(
+      parseDeterministicProjectControlAction(
+        'Raise an RFI from "Waterproofing Spec.pdf" page 3: Which membrane termination detail applies?'
+      )
+    ).toEqual({
+      toolName: "proposeRfiChange",
+      input: {
+        operation: "CREATE",
+        question: "Which membrane termination detail applies",
+        fileName: "Waterproofing Spec.pdf",
+        pageNumber: 3,
+      },
+    });
+    expect(
+      parseDeterministicProjectControlAction(
+        "Raise an RFI from Waterproofing Spec.pdf asking Which membrane detail applies?"
+      )
+    ).toEqual({
+      toolName: "proposeRfiChange",
+      input: {
+        operation: "CREATE",
+        question: "Which membrane detail applies",
+        fileName: "Waterproofing Spec.pdf",
+      },
+    });
   });
 
   it("parses common submittal commands without an AI provider", () => {

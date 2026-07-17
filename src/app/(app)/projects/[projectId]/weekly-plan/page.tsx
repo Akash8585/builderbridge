@@ -6,6 +6,7 @@ import { WeeklyPlanBoard } from "@/components/WeeklyPlanBoard";
 import { Card } from "@/components/ui/Card";
 import { formatDate, getWeekStart, percentComplete } from "@/lib/utils";
 import { ProjectPageHeader } from "@/components/PageHeader";
+import { isFutureCommitmentWeek } from "@/lib/weekly-commitments";
 
 export default async function ProjectWeeklyPlanPage({
   params,
@@ -31,10 +32,10 @@ export default async function ProjectWeeklyPlanPage({
 
   const [commitments, allTasks] = await Promise.all([
     prisma.weeklyCommitment.findMany({
-      where: { weekStartDate: weekStart, task: { projectId } },
+      where: { weekStartDate: weekStart, removedAt: null, task: { projectId } },
       include: {
         task: { select: { id: true, name: true } },
-        committedBy: { include: { user: { select: { name: true } } } },
+        committedBy: { include: { user: { select: { id: true, name: true } } } },
       },
       orderBy: { createdAt: "asc" },
     }),
@@ -46,6 +47,14 @@ export default async function ProjectWeeklyPlanPage({
 
   const alreadyCommittedTaskIds = new Set(commitments.map((c) => c.task.id));
   const canCommitAny = role === "PROJECT_MANAGER" || role === "SUPERINTENDENT";
+  const canRemoveForRole = role === "PROJECT_MANAGER" || role === "SUPERINTENDENT";
+  const commitmentsForBoard = commitments.map((commitment) => ({
+    ...commitment,
+    canRemove:
+      commitment.status === "COMMITTED" &&
+      isFutureCommitmentWeek(commitment.weekStartDate) &&
+      (canRemoveForRole || commitment.committedBy.user.id === user.id),
+  }));
   const committableTasks = allTasks
     .filter((t) => !alreadyCommittedTaskIds.has(t.id))
     .filter((t) => canCommitAny || t.assignedTo?.userId === user.id)
@@ -96,7 +105,7 @@ export default async function ProjectWeeklyPlanPage({
         <Card className="p-6">
           <WeeklyPlanBoard
             weekStartDate={weekStart.toISOString()}
-            commitments={commitments}
+            commitments={commitmentsForBoard}
             committableTasks={committableTasks}
           />
         </Card>

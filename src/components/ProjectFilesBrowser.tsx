@@ -11,6 +11,7 @@ import {
   FileText,
   FolderOpen,
   LoaderCircle,
+  MessageSquarePlus,
   RotateCcw,
   Search,
   Trash2,
@@ -158,22 +159,38 @@ function SourceAction({ file }: { file: ProjectFileRecord }) {
 function AskAiAction({ file, projectId }: { file: ProjectFileRecord; projectId: string }) {
   if (file.extractionStatus !== "READY") return null;
   return (
-    <button
-      type="button"
-      onClick={() =>
-        window.dispatchEvent(
-          new CustomEvent("builderbridge:ask-project-file", {
-            detail: { projectId, fileName: file.name },
-          })
-        )
-      }
-      className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-semibold text-body transition-colors hover:bg-canvas hover:text-ink"
-      aria-label={`Ask AI about ${file.name}`}
-      title="Ask AI about this file"
-    >
-      <Bot size={14} aria-hidden />
-      Ask AI
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() =>
+          window.dispatchEvent(
+            new CustomEvent("builderbridge:ask-project-file", {
+              detail: { projectId, fileName: file.name },
+            })
+          )
+        }
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-canvas hover:text-ink"
+        aria-label={`Ask AI about ${file.name}`}
+        title="Ask AI about this file"
+      >
+        <Bot size={15} aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          window.dispatchEvent(
+            new CustomEvent("builderbridge:raise-rfi-from-file", {
+              detail: { projectId, fileName: file.name },
+            })
+          )
+        }
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-canvas hover:text-ink"
+        aria-label={`Raise RFI from ${file.name}`}
+        title="Raise an RFI from this file"
+      >
+        <MessageSquarePlus size={15} aria-hidden />
+      </button>
+    </>
   );
 }
 

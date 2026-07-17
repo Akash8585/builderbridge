@@ -78,13 +78,13 @@ export const RFI_STATUS_LABELS: Record<RfiStatus, string> = {
   CLOSED: "Closed",
 };
 
-/** Returns the Monday (start of week) for a given date, at midnight UTC-normalized to local date. */
+/** Returns the canonical Monday for a week at noon UTC to avoid timezone date shifts. */
 export function getWeekStart(date: Date): Date {
   const d = new Date(date);
-  const day = d.getDay(); // 0 = Sunday, 1 = Monday, ...
+  const day = d.getUTCDay(); // 0 = Sunday, 1 = Monday, ...
   const diff = day === 0 ? -6 : 1 - day; // shift back to Monday
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + diff);
+  d.setUTCHours(12, 0, 0, 0);
   return d;
 }
 

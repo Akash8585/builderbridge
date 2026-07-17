@@ -23,13 +23,14 @@ model User {
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
 
-  sessions               Session[]
-  accounts               Account[]
-  projectMembers         ProjectMember[]
-  taskUpdates            TaskUpdate[]
-  activityLogEntries     ActivityLogEntry[]
-  assistantConversations AssistantConversation[]
-  assistantAttachments   AssistantAttachment[]
+  sessions                 Session[]
+  accounts                 Account[]
+  projectMembers           ProjectMember[]
+  taskUpdates              TaskUpdate[]
+  activityLogEntries       ActivityLogEntry[]
+  assistantConversations   AssistantConversation[]
+  assistantAttachments     AssistantAttachment[]
+  removedWeeklyCommitments WeeklyCommitment[]      @relation("WeeklyCommitmentRemovedBy")
 
   members     Member[]
   invitations Invitation[]
@@ -271,6 +272,10 @@ enum AssistantMessageRole {
 enum AssistantActionKind {
   ROADBLOCK_CHANGE
   TASK_CHANGE
+  TASK_PROGRESS_CHANGE
+  WEEKLY_COMMITMENT_CHANGE
+  SCHEDULE_IMPACT_CHANGE
+  BASELINE_CHANGE
   SCHEDULE_CHANGE
   PROJECT_CONTROL_CHANGE
 }
@@ -354,6 +359,7 @@ model AssistantAttachment {
   createdAt        DateTime                 @default(now())
   updatedAt        DateTime                 @updatedAt
   chunks           DocumentChunk[]
+  rfis             RFI[]
 
   @@index([conversationId, createdAt])
   @@index([messageId])
@@ -409,6 +415,8 @@ model Task {
   assignedTo        ProjectMember?   @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
   startDate         DateTime
   endDate           DateTime
+  actualStartDate   DateTime?
+  actualFinishDate  DateTime?
   status            TaskStatus       @default(NOT_STARTED)
   progress          Int              @default(0)
   isRoadblock       Boolean          @default(false)
@@ -462,11 +470,16 @@ model WeeklyCommitment {
   committedBy       ProjectMember    @relation(fields: [committedById], references: [id], onDelete: Cascade)
   status            CommitmentStatus @default(COMMITTED)
   reasonForVariance String?
+  removedAt         DateTime?
+  removedById       String?
+  removedBy         User?            @relation("WeeklyCommitmentRemovedBy", fields: [removedById], references: [id], onDelete: SetNull)
+  removalReason     String?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
   @@unique([taskId, weekStartDate])
   @@index([weekStartDate])
+  @@index([removedAt])
   @@map("weekly_commitment")
 }
 
@@ -534,25 +547,30 @@ model Submittal {
 
 // Native (no Procore) RFI tracking, linked to an optional schedule task.
 model RFI {
-  id           String            @id @default(cuid())
-  projectId    String
-  project      Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  taskId       String?
-  task         Task?             @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  question     String
-  answer       String?
-  status       RfiStatus         @default(OPEN)
-  dueDate      DateTime?
-  raisedById   String
-  raisedBy     ProjectMember     @relation(fields: [raisedById], references: [id], onDelete: Cascade)
-  source       IntegrationSource @default(NATIVE)
-  externalId   String?
-  lastSyncedAt DateTime?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  id               String               @id @default(cuid())
+  projectId        String
+  project          Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId           String?
+  task             Task?                @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  attachmentId     String?
+  attachment       AssistantAttachment? @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
+  pageNumber       Int?
+  citationExcerpt  String?              @db.Text
+  question         String
+  answer           String?
+  status           RfiStatus            @default(OPEN)
+  dueDate          DateTime?
+  raisedById       String
+  raisedBy         ProjectMember        @relation(fields: [raisedById], references: [id], onDelete: Cascade)
+  source           IntegrationSource    @default(NATIVE)
+  externalId       String?
+  lastSyncedAt     DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
 
   @@unique([projectId, source, externalId])
   @@index([projectId])
+  @@index([attachmentId])
   @@map("rfi")
 }
 

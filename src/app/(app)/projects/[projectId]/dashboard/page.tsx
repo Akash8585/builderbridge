@@ -23,7 +23,7 @@ export default async function ProjectDashboardPage({
     prisma.task.count({ where: { projectId, status: "DONE" } }),
     prisma.task.count({ where: { projectId, isRoadblock: true, roadblockStatus: "OPEN" } }),
     prisma.weeklyCommitment.findMany({
-      where: { task: { projectId } },
+      where: { removedAt: null, task: { projectId } },
       include: { committedBy: { include: { user: { select: { name: true } } } } },
       orderBy: { weekStartDate: "asc" },
     }),

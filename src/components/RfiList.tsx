@@ -15,11 +15,15 @@ export type RfiRow = {
   source: IntegrationSource;
   dueDate: Date | null;
   createdAt: Date;
+  pageNumber: number | null;
+  citationExcerpt: string | null;
   raisedBy: { user: { name: string } };
   task: { id: string; name: string } | null;
+  attachment: { id: string; fileName: string; url: string } | null;
 };
 
 export type TaskOption = { id: string; name: string };
+export type FileOption = { id: string; fileName: string };
 
 const STATUS_COLORS: Record<RfiStatus, string> = {
   OPEN: "text-muted",
@@ -31,16 +35,18 @@ export function RfiList({
   projectId,
   rfis,
   tasks,
+  files,
   canAnswer,
 }: {
   projectId: string;
   rfis: RfiRow[];
   tasks: TaskOption[];
+  files: FileOption[];
   canAnswer: boolean;
 }) {
   return (
     <div className="space-y-6">
-      <NewRfiForm projectId={projectId} tasks={tasks} />
+      <NewRfiForm projectId={projectId} tasks={tasks} files={files} />
 
       {rfis.length === 0 ? (
         <p className="text-sm text-muted text-center py-6">No RFIs match this filter.</p>
@@ -55,9 +61,19 @@ export function RfiList({
   );
 }
 
-function NewRfiForm({ projectId, tasks }: { projectId: string; tasks: TaskOption[] }) {
+function NewRfiForm({
+  projectId,
+  tasks,
+  files,
+}: {
+  projectId: string;
+  tasks: TaskOption[];
+  files: FileOption[];
+}) {
   const [question, setQuestion] = useState("");
   const [taskId, setTaskId] = useState("");
+  const [attachmentId, setAttachmentId] = useState("");
+  const [pageNumber, setPageNumber] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -66,7 +82,14 @@ function NewRfiForm({ projectId, tasks }: { projectId: string; tasks: TaskOption
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const result = await createRfi({ projectId, question, taskId: taskId || null, dueDate: dueDate || null });
+    const result = await createRfi({
+      projectId,
+      question,
+      taskId: taskId || null,
+      attachmentId: attachmentId || null,
+      pageNumber: pageNumber ? Number(pageNumber) : null,
+      dueDate: dueDate || null,
+    });
     setLoading(false);
     if (!result.success) {
       setError(result.error);
@@ -74,6 +97,8 @@ function NewRfiForm({ projectId, tasks }: { projectId: string; tasks: TaskOption
     }
     setQuestion("");
     setTaskId("");
+    setAttachmentId("");
+    setPageNumber("");
     setDueDate("");
   }
 
@@ -101,6 +126,28 @@ function NewRfiForm({ projectId, tasks }: { projectId: string; tasks: TaskOption
             </option>
           ))}
         </select>
+        <select
+          value={attachmentId}
+          onChange={(e) => setAttachmentId(e.target.value)}
+          className="h-10 max-w-[220px] rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink"
+        >
+          <option value="">No source document</option>
+          {files.map((file) => (
+            <option key={file.id} value={file.id}>
+              {file.fileName}
+            </option>
+          ))}
+        </select>
+        <input
+          type="number"
+          min={1}
+          value={pageNumber}
+          onChange={(e) => setPageNumber(e.target.value)}
+          placeholder="Page"
+          disabled={!attachmentId}
+          title="Cited page (optional)"
+          className="h-10 w-20 rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink disabled:opacity-50"
+        />
         <input
           type="date"
           value={dueDate}
@@ -122,6 +169,9 @@ function RfiCard({ rfi, canAnswer }: { rfi: RfiRow; canAnswer: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const isOverdue = rfi.status === "OPEN" && rfi.dueDate && new Date(rfi.dueDate) < new Date();
+  const sourceHref = rfi.attachment
+    ? `${rfi.attachment.url}${rfi.pageNumber ? `#page=${rfi.pageNumber}` : ""}`
+    : null;
 
   function handleAnswer() {
     setError(null);
@@ -149,6 +199,12 @@ function RfiCard({ rfi, canAnswer }: { rfi: RfiRow; canAnswer: boolean }) {
       <div className="flex flex-wrap gap-3 text-xs text-muted mb-2">
         {rfi.source === "PROCORE" && <span className="text-muted-soft">From Procore</span>}
         {rfi.task && <span>Task: {rfi.task.name}</span>}
+        {rfi.attachment && sourceHref && (
+          <a href={sourceHref} target="_blank" rel="noopener noreferrer" className="hover:text-ink hover:underline">
+            From {rfi.attachment.fileName}
+            {rfi.pageNumber ? ` · p.${rfi.pageNumber}` : ""}
+          </a>
+        )}
         {rfi.dueDate && (
           <span className={isOverdue ? "text-error font-medium" : undefined}>
             Due {formatDate(rfi.dueDate)}
@@ -157,6 +213,11 @@ function RfiCard({ rfi, canAnswer }: { rfi: RfiRow; canAnswer: boolean }) {
         )}
         <span>Raised by {rfi.raisedBy.user.name}</span>
       </div>
+      {rfi.citationExcerpt && (
+        <blockquote className="mb-2 border-l-2 border-hairline pl-3 text-xs leading-5 text-muted-soft">
+          {rfi.citationExcerpt}
+        </blockquote>
+      )}
       {rfi.answer && <p className="text-sm text-body mb-2">Answer: {rfi.answer}</p>}
       {canAnswer && rfi.status === "OPEN" && (
         <div className="flex flex-wrap items-center gap-2 mt-2">

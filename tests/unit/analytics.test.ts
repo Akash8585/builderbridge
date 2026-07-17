@@ -29,6 +29,14 @@ describe("computePpcTrend", () => {
   it("returns an empty array for no commitments", () => {
     expect(computePpcTrend([])).toEqual([]);
   });
+
+  it("excludes soft-removed commitments from PPC", () => {
+    const trend = computePpcTrend([
+      { weekStartDate: w1, status: "COMPLETED" },
+      { weekStartDate: w1, status: "NOT_COMPLETED", removedAt: new Date("2026-01-01") },
+    ]);
+    expect(trend).toEqual([{ weekStart: w1, ppc: 100, total: 1, completed: 1 }]);
+  });
 });
 
 describe("computePrrByMember", () => {
@@ -52,6 +60,19 @@ describe("computePrrByMember", () => {
       { committedById: "high", committedByName: "High", status: "COMPLETED" },
     ]);
     expect(prr[0].memberId).toBe("high");
+  });
+
+  it("excludes soft-removed commitments from PRR", () => {
+    const prr = computePrrByMember([
+      { committedById: "m1", committedByName: "Tom", status: "COMPLETED" },
+      {
+        committedById: "m1",
+        committedByName: "Tom",
+        status: "NOT_COMPLETED",
+        removedAt: new Date("2026-01-01"),
+      },
+    ]);
+    expect(prr[0]).toMatchObject({ total: 1, completed: 1, prr: 100 });
   });
 });
 

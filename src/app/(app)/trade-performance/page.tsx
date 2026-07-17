@@ -9,7 +9,7 @@ export default async function TradePerformancePage() {
   const { organizationId } = await requireActiveOrganization();
 
   const commitments = await prisma.weeklyCommitment.findMany({
-    where: { task: { project: { organizationId, isArchived: false } } },
+    where: { removedAt: null, task: { project: { organizationId, isArchived: false } } },
     include: {
       committedBy: { include: { user: { select: { id: true, name: true } } } },
       task: { select: { projectId: true } },

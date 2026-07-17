@@ -10,11 +10,15 @@ import type {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
+  canResolveRoadblocks,
+  requireCommitAccess,
+  requireCommitmentRemovalAccess,
   requireProjectMember,
   requireScheduleEditAccess,
   requireTaskEditAccess,
 } from "@/lib/permissions";
-import { formatDate, ROADBLOCK_TYPE_LABELS, TASK_STATUS_LABELS } from "@/lib/utils";
+import { formatDate, getWeekStart, ROADBLOCK_TYPE_LABELS, TASK_STATUS_LABELS } from "@/lib/utils";
+import { commitmentRemovalError } from "@/lib/weekly-commitments";
 import { notifyUser } from "@/lib/notifications";
 import { wouldCreateCycle } from "@/lib/critical-path";
 import {
@@ -105,6 +109,8 @@ const taskChangeSnapshotSchema = z.object({
   assignedToName: z.string().nullable(),
   startDate: z.string().datetime().nullable(),
   endDate: z.string().datetime().nullable(),
+  actualStartDate: z.string().datetime().nullable().optional(),
+  actualFinishDate: z.string().datetime().nullable().optional(),
   status: taskStatusSchema.nullable(),
   progress: z.number().int().min(0).max(100).nullable(),
 });
@@ -196,6 +202,9 @@ const createProjectControlProposalSchema = z.object({
   operation: z.enum(["CREATE", "UPDATE"]),
   recordId: z.string().min(1).optional(),
   taskId: z.string().min(1).nullable().optional(),
+  attachmentId: z.string().min(1).nullable().optional(),
+  pageNumber: z.number().int().min(1).nullable().optional(),
+  citationExcerpt: z.string().trim().min(1).max(1000).nullable().optional(),
   question: z.string().trim().min(1).max(1000).optional(),
   answer: z.string().trim().min(1).max(2000).nullable().optional(),
   title: z.string().trim().min(1).max(200).optional(),
@@ -209,6 +218,10 @@ const rfiControlPayloadSchema = z.object({
   recordId: z.string().nullable(),
   taskId: z.string().nullable(),
   taskName: z.string().nullable(),
+  attachmentId: z.string().nullable().default(null),
+  fileName: z.string().nullable().default(null),
+  pageNumber: z.number().int().min(1).nullable().default(null),
+  citationExcerpt: z.string().max(1000).nullable().default(null),
   question: z.string().min(1).max(1000),
   answer: z.string().max(2000).nullable(),
   status: z.enum(["OPEN", "ANSWERED", "CLOSED"]),
@@ -236,6 +249,10 @@ const rfiControlSnapshotSchema = z.object({
   source: z.enum(["NATIVE", "PROCORE", "AUTODESK"]).nullable(),
   taskId: z.string().nullable(),
   taskName: z.string().nullable(),
+  attachmentId: z.string().nullable().default(null),
+  fileName: z.string().nullable().default(null),
+  pageNumber: z.number().int().min(1).nullable().default(null),
+  citationExcerpt: z.string().nullable().default(null),
   question: z.string().nullable(),
   answer: z.string().nullable(),
   status: z.enum(["OPEN", "ANSWERED", "CLOSED"]).nullable(),
@@ -257,6 +274,136 @@ const projectControlSnapshotSchema = z.discriminatedUnion("entity", [
   rfiControlSnapshotSchema,
   submittalControlSnapshotSchema,
 ]);
+
+const createTaskProgressProposalSchema = z.object({
+  conversationId: z.string().min(1),
+  projectId: z.string().min(1),
+  taskId: z.string().min(1),
+  actualStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  actualFinishDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  status: taskStatusSchema.optional(),
+  progress: z.number().int().min(0).max(100).optional(),
+  note: z.string().trim().min(1).max(1000).optional(),
+});
+const taskProgressPayloadSchema = z.object({
+  actualStartDate: z.string().datetime().nullable(),
+  actualFinishDate: z.string().datetime().nullable(),
+  status: taskStatusSchema,
+  progress: z.number().int().min(0).max(100),
+  note: z.string().max(1000).nullable(),
+});
+const taskProgressSnapshotSchema = z.object({
+  projectName: z.string(),
+  taskName: z.string(),
+  assignedToId: z.string().nullable(),
+  actualStartDate: z.string().datetime().nullable(),
+  actualFinishDate: z.string().datetime().nullable(),
+  status: taskStatusSchema,
+  progress: z.number().int().min(0).max(100),
+});
+
+const commitmentStatusSchema = z.enum(["COMMITTED", "COMPLETED", "NOT_COMPLETED"]);
+const createWeeklyCommitmentProposalSchema = z.object({
+  conversationId: z.string().min(1),
+  projectId: z.string().min(1),
+  operation: z.enum(["CREATE", "UPDATE_STATUS", "REMOVE"]),
+  taskId: z.string().min(1).optional(),
+  commitmentId: z.string().min(1).optional(),
+  weekStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  status: commitmentStatusSchema.optional(),
+  reasonForVariance: z.string().trim().min(1).max(500).nullable().optional(),
+  removalReason: z.string().trim().min(1).max(500).nullable().optional(),
+});
+const weeklyCommitmentPayloadSchema = z.object({
+  operation: z.enum(["CREATE", "UPDATE_STATUS", "REMOVE"]),
+  taskId: z.string(),
+  weekStartDate: z.string().datetime(),
+  committedById: z.string(),
+  status: commitmentStatusSchema,
+  reasonForVariance: z.string().max(500).nullable(),
+  removalReason: z.string().max(500).nullable(),
+});
+const weeklyCommitmentSnapshotSchema = z.object({
+  projectName: z.string(),
+  taskName: z.string(),
+  commitmentId: z.string().nullable(),
+  committedById: z.string().nullable(),
+  committedByName: z.string().nullable(),
+  weekStartDate: z.string().datetime().nullable(),
+  status: commitmentStatusSchema.nullable(),
+  reasonForVariance: z.string().nullable(),
+  removedAt: z.string().datetime().nullable(),
+  removedById: z.string().nullable(),
+  removalReason: z.string().nullable(),
+});
+
+const sirStatusSchema = z.enum(["PENDING", "APPROVED", "REJECTED"]);
+const createScheduleImpactProposalSchema = z.object({
+  conversationId: z.string().min(1),
+  projectId: z.string().min(1),
+  operation: z.enum(["CREATE", "REVIEW"]),
+  sirId: z.string().min(1).optional(),
+  taskId: z.string().min(1).nullable().optional(),
+  description: z.string().trim().min(1).max(1000).optional(),
+  proposedNewEndDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  status: sirStatusSchema.optional(),
+  reviewNote: z.string().trim().min(1).max(1000).nullable().optional(),
+});
+const scheduleImpactPayloadSchema = z.object({
+  operation: z.enum(["CREATE", "REVIEW"]),
+  sirId: z.string().nullable(),
+  taskId: z.string().nullable(),
+  taskName: z.string().nullable(),
+  description: z.string().min(1).max(1000),
+  proposedNewEndDate: z.string().datetime().nullable(),
+  status: sirStatusSchema,
+  reviewNote: z.string().max(1000).nullable(),
+});
+const scheduleImpactSnapshotSchema = z.object({
+  projectName: z.string(),
+  exists: z.boolean(),
+  taskId: z.string().nullable(),
+  taskName: z.string().nullable(),
+  description: z.string().nullable(),
+  proposedNewEndDate: z.string().datetime().nullable(),
+  status: sirStatusSchema.nullable(),
+  reviewNote: z.string().nullable(),
+  submittedById: z.string().nullable(),
+  reviewedById: z.string().nullable(),
+});
+
+const createBaselineProposalSchema = z.object({
+  conversationId: z.string().min(1),
+  projectId: z.string().min(1),
+  operation: z.enum(["CREATE", "COMPARE"]).default("CREATE"),
+  name: z.string().trim().min(1).max(200).optional(),
+});
+const baselineVarianceSchema = z.object({
+  taskId: z.string(),
+  taskName: z.string(),
+  baselineEndDate: z.string().datetime(),
+  currentEndDate: z.string().datetime().nullable(),
+  varianceDays: z.number().nullable(),
+});
+const baselinePayloadSchema = z.object({
+  operation: z.enum(["CREATE", "COMPARE"]).default("CREATE"),
+  baselineId: z.string().nullable().optional(),
+  name: z.string().min(1).max(200),
+  snapshotCount: z.number().int().min(0),
+  averageVarianceDays: z.number().nullable().optional(),
+  slippedCount: z.number().int().min(0).optional(),
+  aheadCount: z.number().int().min(0).optional(),
+  onScheduleCount: z.number().int().min(0).optional(),
+  missingCount: z.number().int().min(0).optional(),
+  topVariances: z.array(baselineVarianceSchema).max(5).optional(),
+});
+const baselineSnapshotSchema = z.object({
+  projectName: z.string(),
+  taskIds: z.array(z.string()),
+  baselineId: z.string().nullable().optional(),
+  baselineCreatedAt: z.string().datetime().nullable().optional(),
+  comparisonFingerprint: z.string().nullable().optional(),
+});
 
 export class AssistantActionError extends Error {
   constructor(
@@ -287,9 +434,26 @@ function dateSnapshot(value: Date | null): string | null {
 }
 
 function parseTaskDate(value: string, label: string): Date {
-  const date = new Date(`${value}T12:00:00.000Z`);
-  if (Number.isNaN(date.getTime())) throw new AssistantActionError(`Use a valid ${label}.`);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) throw new AssistantActionError(`Use a valid ${label}.`);
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day, 12));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    throw new AssistantActionError(`Use a valid ${label}.`);
+  }
   return date;
+}
+
+function parseOptionalTaskDate(value: string | null | undefined, label: string): Date | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  return parseTaskDate(value, label);
 }
 
 function displayDate(value: string | null): string {
@@ -318,6 +482,20 @@ function sameTaskSnapshot(task: Task, snapshot: z.infer<typeof taskChangeSnapsho
     task.assignedToId === snapshot.assignedToId &&
     dateSnapshot(task.startDate) === snapshot.startDate &&
     dateSnapshot(task.endDate) === snapshot.endDate &&
+    (snapshot.actualStartDate === undefined ||
+      dateSnapshot(task.actualStartDate) === snapshot.actualStartDate) &&
+    (snapshot.actualFinishDate === undefined ||
+      dateSnapshot(task.actualFinishDate) === snapshot.actualFinishDate) &&
+    task.status === snapshot.status &&
+    task.progress === snapshot.progress
+  );
+}
+
+function sameTaskProgressSnapshot(task: Task, snapshot: z.infer<typeof taskProgressSnapshotSchema>): boolean {
+  return (
+    task.assignedToId === snapshot.assignedToId &&
+    dateSnapshot(task.actualStartDate) === snapshot.actualStartDate &&
+    dateSnapshot(task.actualFinishDate) === snapshot.actualFinishDate &&
     task.status === snapshot.status &&
     task.progress === snapshot.progress
   );
@@ -331,6 +509,9 @@ function sameProjectControlSnapshot(
   if (snapshot.entity === "RFI" && "question" in record) {
     return (
       record.taskId === snapshot.taskId &&
+      record.attachmentId === snapshot.attachmentId &&
+      record.pageNumber === snapshot.pageNumber &&
+      (record.citationExcerpt ?? null) === snapshot.citationExcerpt &&
       record.question === snapshot.question &&
       record.answer === snapshot.answer &&
       record.status === snapshot.status &&
@@ -544,6 +725,372 @@ async function taskProposalView(proposal: AssistantActionProposal): Promise<Assi
   };
 }
 
+function taskProgressChangesForProposal(
+  payload: z.infer<typeof taskProgressPayloadSchema>,
+  snapshot: z.infer<typeof taskProgressSnapshotSchema>
+): AssistantActionChange[] {
+  const changes: AssistantActionChange[] = [];
+  if (snapshot.actualStartDate !== payload.actualStartDate) {
+    changes.push({
+      field: "actualStartDate",
+      label: "Actual start",
+      before: displayDate(snapshot.actualStartDate),
+      after: displayDate(payload.actualStartDate),
+    });
+  }
+  if (snapshot.actualFinishDate !== payload.actualFinishDate) {
+    changes.push({
+      field: "actualFinishDate",
+      label: "Actual finish",
+      before: displayDate(snapshot.actualFinishDate),
+      after: displayDate(payload.actualFinishDate),
+    });
+  }
+  if (snapshot.status !== payload.status) {
+    changes.push({
+      field: "taskStatus",
+      label: "Status",
+      before: TASK_STATUS_LABELS[snapshot.status],
+      after: TASK_STATUS_LABELS[payload.status],
+    });
+  }
+  if (snapshot.progress !== payload.progress) {
+    changes.push({
+      field: "progress",
+      label: "Progress",
+      before: `${snapshot.progress}%`,
+      after: `${payload.progress}%`,
+    });
+  }
+  if (payload.note) {
+    changes.push({ field: "fieldNote", label: "Field note", before: "No new note", after: payload.note });
+  }
+  return changes;
+}
+
+async function taskProgressProposalView(
+  proposal: AssistantActionProposal
+): Promise<AssistantActionProposalView> {
+  const payload = taskProgressPayloadSchema.parse(proposal.payload);
+  const snapshot = taskProgressSnapshotSchema.parse(proposal.snapshot);
+  return {
+    id: proposal.id,
+    projectId: proposal.projectId,
+    status: proposal.status,
+    actionLabel: "Update progress",
+    title: `Update progress: ${snapshot.taskName}`,
+    projectName: snapshot.projectName,
+    taskName: snapshot.taskName,
+    changes: taskProgressChangesForProposal(payload, snapshot),
+    warnings: [],
+    href: `/projects/${proposal.projectId}/tasks/${proposal.taskId}`,
+    hrefLabel: "Open task",
+    expiresAt: proposal.expiresAt.toISOString(),
+    confirmedAt: proposal.confirmedAt?.toISOString() ?? null,
+    cancelledAt: proposal.cancelledAt?.toISOString() ?? null,
+    result: proposal.result,
+  };
+}
+
+const COMMITMENT_STATUS_LABELS = {
+  COMMITTED: "Committed",
+  COMPLETED: "Completed",
+  NOT_COMPLETED: "Not completed",
+} satisfies Record<z.infer<typeof commitmentStatusSchema>, string>;
+
+function requireConsistentCommitmentState(
+  status: z.infer<typeof commitmentStatusSchema>,
+  reasonForVariance: string | null
+) {
+  if (status === "NOT_COMPLETED" && !reasonForVariance?.trim()) {
+    throw new AssistantActionError("Give a reason for variance when marking a commitment not completed.");
+  }
+  if (status !== "NOT_COMPLETED" && reasonForVariance) {
+    throw new AssistantActionError("A variance reason is only valid for a commitment marked not completed.");
+  }
+}
+
+const SIR_STATUS_LABELS = {
+  PENDING: "Pending",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+} satisfies Record<z.infer<typeof sirStatusSchema>, string>;
+
+function weeklyCommitmentChangesForProposal(
+  payload: z.infer<typeof weeklyCommitmentPayloadSchema>,
+  snapshot: z.infer<typeof weeklyCommitmentSnapshotSchema>
+): AssistantActionChange[] {
+  const changes: AssistantActionChange[] = [];
+  if (payload.operation === "REMOVE") {
+    changes.push({
+      field: "weeklyPlan",
+      label: "Weekly plan",
+      before: `Scheduled for week of ${displayDate(payload.weekStartDate)}`,
+      after: "Removed",
+    });
+    if (payload.removalReason) {
+      changes.push({
+        field: "removalReason",
+        label: "Removal reason",
+        before: "Not set",
+        after: payload.removalReason,
+      });
+    }
+    return changes;
+  }
+  if (payload.operation === "CREATE" && snapshot.removedAt) {
+    changes.push({
+      field: "weeklyPlan",
+      label: "Weekly plan",
+      before: "Removed",
+      after: `Scheduled for week of ${displayDate(payload.weekStartDate)}`,
+    });
+  }
+  if (!snapshot.commitmentId) {
+    changes.push({
+      field: "commitment",
+      label: "Commitment",
+      before: "Not committed",
+      after: `Week of ${displayDate(payload.weekStartDate)}`,
+    });
+  }
+  if (snapshot.committedById !== payload.committedById) {
+    changes.push({
+      field: "committedBy",
+      label: "Committed by",
+      before: displayValue(snapshot.committedByName),
+      after: "Current user",
+    });
+  }
+  if (snapshot.status !== payload.status) {
+    changes.push({
+      field: "commitmentStatus",
+      label: "Status",
+      before: snapshot.status ? COMMITMENT_STATUS_LABELS[snapshot.status] : "Not created",
+      after: COMMITMENT_STATUS_LABELS[payload.status],
+    });
+  }
+  if (snapshot.reasonForVariance !== payload.reasonForVariance) {
+    changes.push({
+      field: "reasonForVariance",
+      label: "Variance reason",
+      before: displayValue(snapshot.reasonForVariance),
+      after: displayValue(payload.reasonForVariance),
+    });
+  }
+  return changes;
+}
+
+async function weeklyCommitmentProposalView(
+  proposal: AssistantActionProposal
+): Promise<AssistantActionProposalView> {
+  const payload = weeklyCommitmentPayloadSchema.parse(proposal.payload);
+  const snapshot = weeklyCommitmentSnapshotSchema.parse(proposal.snapshot);
+  const weeklyPlanHref = `/projects/${proposal.projectId}/weekly-plan?week=${payload.weekStartDate.slice(0, 10)}`;
+  const actionLabel = payload.operation === "REMOVE"
+    ? "Remove from plan"
+    : payload.operation === "CREATE"
+    ? "Commit task"
+    : payload.status === "COMPLETED"
+      ? "Complete commitment"
+      : payload.status === "NOT_COMPLETED"
+        ? "Record incomplete commitment"
+        : "Reopen commitment";
+  return {
+    id: proposal.id,
+    projectId: proposal.projectId,
+    status: proposal.status,
+    actionLabel,
+    title: `${actionLabel}: ${snapshot.taskName}`,
+    projectName: snapshot.projectName,
+    taskName: snapshot.taskName,
+    changes: weeklyCommitmentChangesForProposal(payload, snapshot),
+    warnings: [],
+    href: weeklyPlanHref,
+    hrefLabel: "Open weekly plan",
+    expiresAt: proposal.expiresAt.toISOString(),
+    confirmedAt: proposal.confirmedAt?.toISOString() ?? null,
+    cancelledAt: proposal.cancelledAt?.toISOString() ?? null,
+    result: proposal.result,
+  };
+}
+
+function scheduleImpactChangesForProposal(
+  payload: z.infer<typeof scheduleImpactPayloadSchema>,
+  snapshot: z.infer<typeof scheduleImpactSnapshotSchema>
+): AssistantActionChange[] {
+  const changes: AssistantActionChange[] = [];
+  if (!snapshot.exists) {
+    changes.push({ field: "scheduleImpact", label: "Request", before: "New request", after: payload.description });
+  }
+  if (snapshot.taskId !== payload.taskId) {
+    changes.push({
+      field: "linkedTask",
+      label: "Linked task",
+      before: displayValue(snapshot.taskName),
+      after: displayValue(payload.taskName),
+    });
+  }
+  if (snapshot.proposedNewEndDate !== payload.proposedNewEndDate) {
+    changes.push({
+      field: "proposedNewEndDate",
+      label: "Proposed finish",
+      before: displayDate(snapshot.proposedNewEndDate),
+      after: displayDate(payload.proposedNewEndDate),
+    });
+  }
+  if (snapshot.status !== payload.status) {
+    changes.push({
+      field: "status",
+      label: "Status",
+      before: snapshot.status ? SIR_STATUS_LABELS[snapshot.status] : "Not created",
+      after: SIR_STATUS_LABELS[payload.status],
+    });
+  }
+  if (snapshot.reviewNote !== payload.reviewNote) {
+    changes.push({
+      field: "reviewNote",
+      label: "Review note",
+      before: displayValue(snapshot.reviewNote),
+      after: displayValue(payload.reviewNote),
+    });
+  }
+  return changes;
+}
+
+async function scheduleImpactProposalView(
+  proposal: AssistantActionProposal
+): Promise<AssistantActionProposalView> {
+  const payload = scheduleImpactPayloadSchema.parse(proposal.payload);
+  const snapshot = scheduleImpactSnapshotSchema.parse(proposal.snapshot);
+  const result = proposal.result as { href?: string } | null;
+  const actionLabel = payload.operation === "CREATE"
+    ? "Create impact request"
+    : payload.status === "APPROVED"
+      ? "Approve impact request"
+      : "Reject impact request";
+  return {
+    id: proposal.id,
+    projectId: proposal.projectId,
+    status: proposal.status,
+    actionLabel,
+    title: `${actionLabel}: ${payload.description}`,
+    projectName: snapshot.projectName,
+    taskName: payload.taskName ?? snapshot.taskName ?? "Schedule impacts",
+    changes: scheduleImpactChangesForProposal(payload, snapshot),
+    warnings: [],
+    href: result?.href ?? `/projects/${proposal.projectId}/impacts`,
+    hrefLabel: "Open impacts",
+    expiresAt: proposal.expiresAt.toISOString(),
+    confirmedAt: proposal.confirmedAt?.toISOString() ?? null,
+    cancelledAt: proposal.cancelledAt?.toISOString() ?? null,
+    result: proposal.result,
+  };
+}
+
+function baselineChangesForProposal(
+  payload: z.infer<typeof baselinePayloadSchema>
+): AssistantActionChange[] {
+  if (payload.operation === "COMPARE") {
+    const changes: AssistantActionChange[] = [
+      {
+        field: "baseline",
+        label: "Baseline",
+        before: "Current schedule",
+        after: payload.name,
+      },
+      {
+        field: "averageVarianceDays",
+        label: "Avg variance",
+        before: "—",
+        after:
+          payload.averageVarianceDays === null || payload.averageVarianceDays === undefined
+            ? "No overlapping tasks"
+            : payload.averageVarianceDays === 0
+              ? "On schedule"
+              : payload.averageVarianceDays > 0
+                ? `+${payload.averageVarianceDays}d slip`
+                : `${payload.averageVarianceDays}d ahead`,
+      },
+      {
+        field: "slippedCount",
+        label: "Slipped tasks",
+        before: "—",
+        after: String(payload.slippedCount ?? 0),
+      },
+      {
+        field: "aheadCount",
+        label: "Ahead tasks",
+        before: "—",
+        after: String(payload.aheadCount ?? 0),
+      },
+      {
+        field: "onScheduleCount",
+        label: "On schedule",
+        before: "—",
+        after: String(payload.onScheduleCount ?? 0),
+      },
+    ];
+    for (const variance of payload.topVariances ?? []) {
+      changes.push({
+        field: `task:${variance.taskId}`,
+        label: variance.taskName,
+        before: displayDate(variance.baselineEndDate),
+        after:
+          variance.varianceDays === null
+            ? "Task missing"
+            : variance.varianceDays === 0
+              ? "On schedule"
+              : variance.varianceDays > 0
+                ? `+${variance.varianceDays}d slip`
+                : `${variance.varianceDays}d ahead`,
+      });
+    }
+    return changes;
+  }
+
+  return [
+    { field: "name", label: "Baseline", before: "New baseline", after: payload.name },
+    {
+      field: "snapshotCount",
+      label: "Task snapshots",
+      before: "0",
+      after: String(payload.snapshotCount),
+    },
+  ];
+}
+
+async function baselineProposalView(
+  proposal: AssistantActionProposal
+): Promise<AssistantActionProposalView> {
+  const payload = baselinePayloadSchema.parse(proposal.payload);
+  const snapshot = baselineSnapshotSchema.parse(proposal.snapshot);
+  const result = proposal.result as { href?: string } | null;
+  const actionLabel = payload.operation === "COMPARE" ? "Compare baseline" : "Create baseline";
+  const href =
+    result?.href ??
+    (payload.baselineId
+      ? `/projects/${proposal.projectId}/baselines?baselineId=${payload.baselineId}`
+      : `/projects/${proposal.projectId}/baselines`);
+  return {
+    id: proposal.id,
+    projectId: proposal.projectId,
+    status: proposal.status,
+    actionLabel,
+    title: `${actionLabel}: ${payload.name}`,
+    projectName: snapshot.projectName,
+    taskName: "Baselines",
+    changes: baselineChangesForProposal(payload),
+    warnings: [],
+    href,
+    hrefLabel: "Open baselines",
+    expiresAt: proposal.expiresAt.toISOString(),
+    confirmedAt: proposal.confirmedAt?.toISOString() ?? null,
+    cancelledAt: proposal.cancelledAt?.toISOString() ?? null,
+    result: proposal.result,
+  };
+}
+
 function scheduleChangesForProposal(
   payload: z.infer<typeof schedulePayloadSchema>
 ): AssistantActionChange[] {
@@ -645,6 +1192,32 @@ function projectControlChangesForProposal(
         after: displayValue(payload.answer),
       });
     }
+    if (
+      snapshot.attachmentId !== payload.attachmentId ||
+      snapshot.pageNumber !== payload.pageNumber ||
+      snapshot.citationExcerpt !== payload.citationExcerpt
+    ) {
+      const beforeSource = snapshot.fileName
+        ? `${snapshot.fileName}${snapshot.pageNumber ? ` · p.${snapshot.pageNumber}` : ""}`
+        : "Not linked";
+      const afterSource = payload.fileName
+        ? `${payload.fileName}${payload.pageNumber ? ` · p.${payload.pageNumber}` : ""}`
+        : "Not linked";
+      changes.push({
+        field: "document",
+        label: "Source document",
+        before: beforeSource,
+        after: afterSource,
+      });
+      if (payload.citationExcerpt && payload.citationExcerpt !== snapshot.citationExcerpt) {
+        changes.push({
+          field: "citationExcerpt",
+          label: "Cited passage",
+          before: displayValue(snapshot.citationExcerpt),
+          after: payload.citationExcerpt,
+        });
+      }
+    }
   } else if (payload.entity === "SUBMITTAL" && snapshot.entity === "SUBMITTAL") {
     if (!snapshot.exists) {
       changes.push({ field: "title", label: "Submittal", before: "New submittal", after: payload.title });
@@ -728,6 +1301,10 @@ async function projectControlProposalView(
 
 async function proposalView(proposal: AssistantActionProposal): Promise<AssistantActionProposalView> {
   if (proposal.kind === "TASK_CHANGE") return taskProposalView(proposal);
+  if (proposal.kind === "TASK_PROGRESS_CHANGE") return taskProgressProposalView(proposal);
+  if (proposal.kind === "WEEKLY_COMMITMENT_CHANGE") return weeklyCommitmentProposalView(proposal);
+  if (proposal.kind === "SCHEDULE_IMPACT_CHANGE") return scheduleImpactProposalView(proposal);
+  if (proposal.kind === "BASELINE_CHANGE") return baselineProposalView(proposal);
   if (proposal.kind === "SCHEDULE_CHANGE") return scheduleProposalView(proposal);
   if (proposal.kind === "PROJECT_CONTROL_CHANGE") return projectControlProposalView(proposal);
   return roadblockProposalView(proposal);
@@ -840,6 +1417,38 @@ function normalizeTaskState(params: {
   return { status, progress };
 }
 
+function requireConsistentTaskState(params: {
+  status: TaskStatus;
+  progress: number;
+  actualStartDate?: Date | null;
+  actualFinishDate?: Date | null;
+}) {
+  if (params.status === "DONE" && params.progress !== 100) {
+    throw new AssistantActionError("A completed task must be 100% complete.");
+  }
+  if (params.progress === 100 && params.status !== "DONE") {
+    throw new AssistantActionError("A task at 100% must have Done status.");
+  }
+  if (params.status === "NOT_STARTED" && params.progress !== 0) {
+    throw new AssistantActionError("A not-started task must be 0% complete.");
+  }
+  if (params.actualFinishDate && !params.actualStartDate) {
+    throw new AssistantActionError("Set the actual start before recording the actual finish.");
+  }
+  if (
+    params.actualFinishDate &&
+    (params.status !== "DONE" || params.progress !== 100)
+  ) {
+    throw new AssistantActionError("A task with an actual finish must be Done and 100% complete.");
+  }
+  if (
+    params.status === "NOT_STARTED" &&
+    (params.actualStartDate || params.actualFinishDate)
+  ) {
+    throw new AssistantActionError("Clear the actual dates before returning a task to Not Started.");
+  }
+}
+
 async function requireTaskChangeAccess(
   userId: string,
   projectId: string,
@@ -927,6 +1536,11 @@ export async function createTaskActionProposal(
     status: parsed.status,
     progress: parsed.progress,
   });
+  requireConsistentTaskState({
+    ...normalized,
+    actualStartDate: task?.actualStartDate ?? null,
+    actualFinishDate: task?.actualFinishDate ?? null,
+  });
   const payload = taskChangePayloadSchema.parse({
     operation: parsed.operation,
     name,
@@ -946,6 +1560,8 @@ export async function createTaskActionProposal(
     assignedToName: task?.assignedTo?.user.name ?? null,
     startDate: task ? task.startDate.toISOString() : null,
     endDate: task ? task.endDate.toISOString() : null,
+    actualStartDate: dateSnapshot(task?.actualStartDate ?? null),
+    actualFinishDate: dateSnapshot(task?.actualFinishDate ?? null),
     status: task?.status ?? null,
     progress: task?.progress ?? null,
   });
@@ -971,6 +1587,510 @@ export async function createTaskActionProposal(
     kind: "action-proposal",
     proposal: view,
     sources: [{ label: `${project.name} schedule`, href: `/projects/${project.id}/gantt` }],
+  };
+}
+
+export async function createTaskProgressActionProposal(
+  input: unknown,
+  context: ActionContext
+): Promise<AssistantActionToolOutput> {
+  const parsed = createTaskProgressProposalSchema.parse(input);
+  const conversation = await requireOwnedConversation(parsed.conversationId, context);
+  if (conversation.projectId && conversation.projectId !== parsed.projectId) {
+    throw new AssistantActionError("This conversation belongs to a different project.", 409);
+  }
+
+  const task = await prisma.task.findFirst({
+    where: {
+      id: parsed.taskId,
+      projectId: parsed.projectId,
+      project: { organizationId: context.organizationId, isArchived: false },
+    },
+    include: { project: { select: { name: true } } },
+  });
+  if (!task) throw new AssistantActionError("Task not found.", 404);
+
+  await requireTaskEditAccess(context.userId, task.id);
+
+  const actualStartDate = parseOptionalTaskDate(parsed.actualStartDate, "actual start date");
+  const actualFinishDate = parseOptionalTaskDate(parsed.actualFinishDate, "actual finish date");
+  const nextActualStart = actualStartDate === undefined ? task.actualStartDate : actualStartDate;
+  const nextActualFinish = actualFinishDate === undefined ? task.actualFinishDate : actualFinishDate;
+  if (nextActualStart && nextActualFinish && nextActualFinish < nextActualStart) {
+    throw new AssistantActionError("Actual finish must be on or after actual start.");
+  }
+
+  const inferredStatus =
+    parsed.status ??
+    (parsed.actualFinishDate !== undefined && nextActualFinish
+      ? "DONE"
+      : parsed.actualStartDate !== undefined && nextActualStart && task.status === "NOT_STARTED"
+        ? "IN_PROGRESS"
+        : undefined);
+  const inferredProgress =
+    parsed.progress ??
+    (parsed.actualFinishDate !== undefined && nextActualFinish ? 100 : undefined);
+  const normalized = normalizeTaskState({
+    currentStatus: task.status,
+    currentProgress: task.progress,
+    status: inferredStatus,
+    progress: inferredProgress,
+  });
+  requireConsistentTaskState({
+    ...normalized,
+    actualStartDate: nextActualStart,
+    actualFinishDate: nextActualFinish,
+  });
+  const payload = taskProgressPayloadSchema.parse({
+    actualStartDate: dateSnapshot(nextActualStart),
+    actualFinishDate: dateSnapshot(nextActualFinish),
+    status: normalized.status,
+    progress: normalized.progress,
+    note: parsed.note ?? null,
+  });
+  const snapshot = taskProgressSnapshotSchema.parse({
+    projectName: task.project.name,
+    taskName: task.name,
+    assignedToId: task.assignedToId,
+    actualStartDate: dateSnapshot(task.actualStartDate),
+    actualFinishDate: dateSnapshot(task.actualFinishDate),
+    status: task.status,
+    progress: task.progress,
+  });
+  const changes = taskProgressChangesForProposal(payload, snapshot);
+  if (changes.length === 0) throw new AssistantActionError("This proposal would not change task progress.");
+
+  const proposal = await prisma.assistantActionProposal.create({
+    data: {
+      conversationId: parsed.conversationId,
+      projectId: task.projectId,
+      taskId: task.id,
+      createdById: context.userId,
+      kind: "TASK_PROGRESS_CHANGE",
+      payload: payload as Prisma.InputJsonValue,
+      snapshot: snapshot as Prisma.InputJsonValue,
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+    },
+  });
+  const view = await proposalView(proposal);
+  return {
+    kind: "action-proposal",
+    proposal: view,
+    sources: [{ label: task.name, href: `/projects/${task.projectId}/tasks/${task.id}` }],
+  };
+}
+
+export async function createWeeklyCommitmentActionProposal(
+  input: unknown,
+  context: ActionContext
+): Promise<AssistantActionToolOutput> {
+  const parsed = createWeeklyCommitmentProposalSchema.parse(input);
+  const conversation = await requireOwnedConversation(parsed.conversationId, context);
+  if (conversation.projectId && conversation.projectId !== parsed.projectId) {
+    throw new AssistantActionError("This conversation belongs to a different project.", 409);
+  }
+  if (parsed.operation === "CREATE" && (!parsed.taskId || !parsed.weekStartDate)) {
+    throw new AssistantActionError("Choose a task and week to commit.");
+  }
+  if (parsed.operation !== "CREATE" && !parsed.commitmentId) {
+    throw new AssistantActionError("Choose the commitment to update.");
+  }
+  if (parsed.status === "NOT_COMPLETED" && !parsed.reasonForVariance?.trim()) {
+    throw new AssistantActionError("Give a reason for variance when marking a commitment not completed.");
+  }
+
+  let existing = parsed.operation !== "CREATE"
+    ? await prisma.weeklyCommitment.findFirst({
+        where: { id: parsed.commitmentId },
+        include: {
+          task: { include: { project: { select: { name: true, organizationId: true, isArchived: true } } } },
+          committedBy: { include: { user: { select: { name: true } } } },
+        },
+      })
+    : null;
+  const task = existing
+    ? existing.task
+    : await prisma.task.findFirst({
+        where: {
+          id: parsed.taskId,
+          projectId: parsed.projectId,
+          project: { organizationId: context.organizationId, isArchived: false },
+        },
+        include: { project: { select: { name: true, organizationId: true, isArchived: true } } },
+      });
+  if (!task || task.projectId !== parsed.projectId || task.project.organizationId !== context.organizationId || task.project.isArchived) {
+    throw new AssistantActionError("Task not found.", 404);
+  }
+
+  const allowedTask = await requireCommitAccess(context.userId, task.id);
+  const committer = await prisma.projectMember.findUniqueOrThrow({
+    where: { projectId_userId: { projectId: allowedTask.projectId, userId: context.userId } },
+    include: { user: { select: { name: true } } },
+  });
+  const weekStartDate = existing
+    ? existing.weekStartDate
+    : getWeekStart(parseTaskDate(parsed.weekStartDate!, "week start date"));
+  if (parsed.operation === "CREATE") {
+    const duplicate = await prisma.weeklyCommitment.findUnique({
+      where: { taskId_weekStartDate: { taskId: task.id, weekStartDate } },
+      include: {
+        task: { include: { project: { select: { name: true, organizationId: true, isArchived: true } } } },
+        committedBy: { include: { user: { select: { name: true } } } },
+      },
+    });
+    if (duplicate && !duplicate.removedAt) {
+      throw new AssistantActionError("This task is already committed for that week.");
+    }
+    if (duplicate?.removedAt) existing = duplicate;
+  }
+  if (parsed.operation === "REMOVE") {
+    const policyError = commitmentRemovalError(existing!);
+    if (policyError) throw new AssistantActionError(policyError);
+  }
+  if (parsed.operation === "UPDATE_STATUS" && existing?.removedAt) {
+    throw new AssistantActionError("This commitment was removed. Recommit it before changing its status.");
+  }
+
+  const status = parsed.operation === "CREATE" ? "COMMITTED" : parsed.status ?? existing!.status;
+  const reasonForVariance = status === "NOT_COMPLETED" ? parsed.reasonForVariance?.trim() ?? existing?.reasonForVariance ?? null : null;
+  requireConsistentCommitmentState(status, reasonForVariance);
+  const removalReason = parsed.operation === "REMOVE"
+    ? parsed.removalReason?.trim() ?? "Removed before the committed week began"
+    : null;
+  const payload = weeklyCommitmentPayloadSchema.parse({
+    operation: parsed.operation,
+    taskId: task.id,
+    weekStartDate: weekStartDate.toISOString(),
+    committedById: parsed.operation === "CREATE" ? committer.id : existing!.committedById,
+    status,
+    reasonForVariance,
+    removalReason,
+  });
+  const snapshot = weeklyCommitmentSnapshotSchema.parse({
+    projectName: task.project.name,
+    taskName: task.name,
+    commitmentId: existing?.id ?? null,
+    committedById: existing?.committedById ?? null,
+    committedByName: existing?.committedBy.user.name ?? null,
+    weekStartDate: existing?.weekStartDate.toISOString() ?? null,
+    status: existing?.status ?? null,
+    reasonForVariance: existing?.reasonForVariance ?? null,
+    removedAt: existing?.removedAt?.toISOString() ?? null,
+    removedById: existing?.removedById ?? null,
+    removalReason: existing?.removalReason ?? null,
+  });
+  const changes = weeklyCommitmentChangesForProposal(payload, snapshot);
+  if (changes.length === 0) throw new AssistantActionError("This proposal would not change the weekly plan.");
+
+  const proposal = await prisma.assistantActionProposal.create({
+    data: {
+      conversationId: parsed.conversationId,
+      projectId: task.projectId,
+      taskId: task.id,
+      createdById: context.userId,
+      kind: "WEEKLY_COMMITMENT_CHANGE",
+      payload: payload as Prisma.InputJsonValue,
+      snapshot: snapshot as Prisma.InputJsonValue,
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+    },
+  });
+  const view = await proposalView(proposal);
+  return {
+    kind: "action-proposal",
+    proposal: view,
+    sources: [{
+      label: `${task.project.name} weekly plan`,
+      href: `/projects/${task.projectId}/weekly-plan?week=${weekStartDate.toISOString().slice(0, 10)}`,
+    }],
+  };
+}
+
+export async function createScheduleImpactActionProposal(
+  input: unknown,
+  context: ActionContext
+): Promise<AssistantActionToolOutput> {
+  const parsed = createScheduleImpactProposalSchema.parse(input);
+  const conversation = await requireOwnedConversation(parsed.conversationId, context);
+  if (conversation.projectId && conversation.projectId !== parsed.projectId) {
+    throw new AssistantActionError("This conversation belongs to a different project.", 409);
+  }
+
+  const project = await prisma.project.findFirst({
+    where: {
+      id: parsed.projectId,
+      organizationId: context.organizationId,
+      isArchived: false,
+      members: { some: { userId: context.userId } },
+    },
+    select: { id: true, name: true },
+  });
+  if (!project) throw new AssistantActionError("Project not found.", 404);
+
+  let task: { id: string; name: string; endDate?: Date } | null = null;
+  if (parsed.taskId) {
+    task = await prisma.task.findFirst({
+      where: { id: parsed.taskId, projectId: project.id },
+      select: { id: true, name: true, endDate: true },
+    });
+    if (!task) throw new AssistantActionError("The linked task is no longer available.", 409);
+  }
+
+  const existing = parsed.operation === "REVIEW"
+    ? await prisma.scheduleImpactRequest.findFirst({
+        where: { id: parsed.sirId, projectId: project.id },
+        include: { task: { select: { id: true, name: true } } },
+      })
+    : null;
+  if (parsed.operation === "REVIEW" && !existing) {
+    throw new AssistantActionError("Schedule Impact Request not found.", 404);
+  }
+  if (parsed.operation === "CREATE") {
+    await requireProjectMember(context.userId, project.id);
+    if (!parsed.description) throw new AssistantActionError("Describe the schedule impact request.");
+  } else {
+    const role = await requireProjectMember(context.userId, project.id);
+    if (!canResolveRoadblocks(role)) {
+      throw new AssistantActionError("Only a Project Manager or Superintendent can review this request.", 403);
+    }
+    if (!parsed.status || parsed.status === "PENDING") {
+      throw new AssistantActionError("Choose whether to approve or reject this request.");
+    }
+  }
+
+  const proposedNewEndDate = parsed.operation === "CREATE"
+    ? parseDueDate(parsed.proposedNewEndDate) ?? null
+    : existing!.proposedNewEndDate;
+  const payload = scheduleImpactPayloadSchema.parse({
+    operation: parsed.operation,
+    sirId: existing?.id ?? null,
+    taskId: existing?.taskId ?? task?.id ?? null,
+    taskName: existing?.task?.name ?? task?.name ?? null,
+    description: parsed.operation === "CREATE" ? parsed.description : existing!.description,
+    proposedNewEndDate: dateSnapshot(proposedNewEndDate),
+    status: parsed.operation === "CREATE" ? "PENDING" : parsed.status,
+    reviewNote: parsed.operation === "CREATE" ? null : parsed.reviewNote ?? null,
+  });
+  const snapshot = scheduleImpactSnapshotSchema.parse({
+    projectName: project.name,
+    exists: Boolean(existing),
+    taskId: existing?.taskId ?? null,
+    taskName: existing?.task?.name ?? null,
+    description: existing?.description ?? null,
+    proposedNewEndDate: dateSnapshot(existing?.proposedNewEndDate ?? null),
+    status: existing?.status ?? null,
+    reviewNote: existing?.reviewNote ?? null,
+    submittedById: existing?.submittedById ?? null,
+    reviewedById: existing?.reviewedById ?? null,
+  });
+  const changes = scheduleImpactChangesForProposal(payload, snapshot);
+  if (changes.length === 0) throw new AssistantActionError("This proposal would not change the impact log.");
+
+  const proposal = await prisma.assistantActionProposal.create({
+    data: {
+      conversationId: parsed.conversationId,
+      projectId: project.id,
+      taskId: payload.taskId,
+      createdById: context.userId,
+      kind: "SCHEDULE_IMPACT_CHANGE",
+      payload: payload as Prisma.InputJsonValue,
+      snapshot: snapshot as Prisma.InputJsonValue,
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+    },
+  });
+  const view = await proposalView(proposal);
+  return {
+    kind: "action-proposal",
+    proposal: view,
+    sources: [{ label: `${project.name} impacts`, href: `/projects/${project.id}/impacts` }],
+  };
+}
+
+function buildBaselineComparison(params: {
+  baseline: {
+    id: string;
+    name: string;
+    createdAt: Date;
+    snapshots: { taskId: string; taskName: string; endDate: Date }[];
+  };
+  currentTasks: { id: string; name: string; endDate: Date }[];
+}) {
+  const currentById = new Map(params.currentTasks.map((task) => [task.id, task]));
+  const variances = params.baseline.snapshots.map((snapshot) => {
+    const current = currentById.get(snapshot.taskId);
+    const varianceDays = current
+      ? Math.round((current.endDate.getTime() - snapshot.endDate.getTime()) / 86_400_000)
+      : null;
+    return {
+      taskId: snapshot.taskId,
+      taskName: snapshot.taskName,
+      baselineEndDate: snapshot.endDate.toISOString(),
+      currentEndDate: current?.endDate.toISOString() ?? null,
+      varianceDays,
+    };
+  });
+  const measured = variances.filter((item) => item.varianceDays !== null);
+  const slippedCount = measured.filter((item) => (item.varianceDays ?? 0) > 0).length;
+  const aheadCount = measured.filter((item) => (item.varianceDays ?? 0) < 0).length;
+  const onScheduleCount = measured.filter((item) => item.varianceDays === 0).length;
+  const missingCount = variances.length - measured.length;
+  const averageVarianceDays =
+    measured.length === 0
+      ? null
+      : Math.round(
+          measured.reduce((sum, item) => sum + (item.varianceDays ?? 0), 0) / measured.length
+        );
+  const topVariances = [...variances]
+    .sort((a, b) => Math.abs(b.varianceDays ?? 0) - Math.abs(a.varianceDays ?? 0))
+    .slice(0, 5);
+  const comparisonFingerprint = variances
+    .map(
+      (item) =>
+        `${item.taskId}:${item.baselineEndDate}:${item.currentEndDate ?? "missing"}:${item.varianceDays ?? "n"}`
+    )
+    .join("|");
+  return {
+    baselineId: params.baseline.id,
+    name: params.baseline.name,
+    snapshotCount: params.baseline.snapshots.length,
+    averageVarianceDays,
+    slippedCount,
+    aheadCount,
+    onScheduleCount,
+    missingCount,
+    topVariances,
+    comparisonFingerprint,
+    baselineCreatedAt: params.baseline.createdAt.toISOString(),
+  };
+}
+
+export async function createBaselineActionProposal(
+  input: unknown,
+  context: ActionContext
+): Promise<AssistantActionToolOutput> {
+  const parsed = createBaselineProposalSchema.parse(input);
+  const conversation = await requireOwnedConversation(parsed.conversationId, context);
+  if (conversation.projectId && conversation.projectId !== parsed.projectId) {
+    throw new AssistantActionError("This conversation belongs to a different project.", 409);
+  }
+  const project = await prisma.project.findFirst({
+    where: {
+      id: parsed.projectId,
+      organizationId: context.organizationId,
+      isArchived: false,
+      members: { some: { userId: context.userId } },
+    },
+    select: { id: true, name: true },
+  });
+  if (!project) throw new AssistantActionError("Project not found.", 404);
+
+  if (parsed.operation === "COMPARE") {
+    await requireProjectMember(context.userId, project.id);
+    const baseline = parsed.name
+      ? await prisma.baseline.findFirst({
+          where: {
+            projectId: project.id,
+            name: { equals: parsed.name, mode: "insensitive" },
+          },
+          include: { snapshots: { orderBy: { taskName: "asc" } } },
+          orderBy: { createdAt: "desc" },
+        })
+      : await prisma.baseline.findFirst({
+          where: { projectId: project.id },
+          include: { snapshots: { orderBy: { taskName: "asc" } } },
+          orderBy: { createdAt: "desc" },
+        });
+    if (!baseline) {
+      throw new AssistantActionError(
+        parsed.name
+          ? `I couldn't find a baseline named "${parsed.name}".`
+          : "Create a baseline before comparing the schedule.",
+        404
+      );
+    }
+    const currentTasks = await prisma.task.findMany({
+      where: { projectId: project.id },
+      select: { id: true, name: true, endDate: true },
+      orderBy: { id: "asc" },
+    });
+    const comparison = buildBaselineComparison({ baseline, currentTasks });
+    const payload = baselinePayloadSchema.parse({
+      operation: "COMPARE",
+      baselineId: comparison.baselineId,
+      name: comparison.name,
+      snapshotCount: comparison.snapshotCount,
+      averageVarianceDays: comparison.averageVarianceDays,
+      slippedCount: comparison.slippedCount,
+      aheadCount: comparison.aheadCount,
+      onScheduleCount: comparison.onScheduleCount,
+      missingCount: comparison.missingCount,
+      topVariances: comparison.topVariances,
+    });
+    const snapshot = baselineSnapshotSchema.parse({
+      projectName: project.name,
+      taskIds: currentTasks.map((task) => task.id),
+      baselineId: comparison.baselineId,
+      baselineCreatedAt: comparison.baselineCreatedAt,
+      comparisonFingerprint: comparison.comparisonFingerprint,
+    });
+    const proposal = await prisma.assistantActionProposal.create({
+      data: {
+        conversationId: parsed.conversationId,
+        projectId: project.id,
+        createdById: context.userId,
+        kind: "BASELINE_CHANGE",
+        payload: payload as Prisma.InputJsonValue,
+        snapshot: snapshot as Prisma.InputJsonValue,
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      },
+    });
+    const view = await proposalView(proposal);
+    return {
+      kind: "action-proposal",
+      proposal: view,
+      sources: [
+        {
+          label: `${project.name} baselines`,
+          href: `/projects/${project.id}/baselines?baselineId=${baseline.id}`,
+        },
+      ],
+    };
+  }
+
+  await requireScheduleEditAccess(context.userId, project.id);
+  if (!parsed.name) throw new AssistantActionError("Give the new baseline a name.");
+
+  const tasks = await prisma.task.findMany({
+    where: { projectId: project.id },
+    select: { id: true },
+    orderBy: { id: "asc" },
+  });
+  if (tasks.length === 0) throw new AssistantActionError("Add some tasks before creating a baseline.");
+
+  const payload = baselinePayloadSchema.parse({
+    operation: "CREATE",
+    name: parsed.name,
+    snapshotCount: tasks.length,
+  });
+  const snapshot = baselineSnapshotSchema.parse({
+    projectName: project.name,
+    taskIds: tasks.map((task) => task.id),
+  });
+  const proposal = await prisma.assistantActionProposal.create({
+    data: {
+      conversationId: parsed.conversationId,
+      projectId: project.id,
+      createdById: context.userId,
+      kind: "BASELINE_CHANGE",
+      payload: payload as Prisma.InputJsonValue,
+      snapshot: snapshot as Prisma.InputJsonValue,
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+    },
+  });
+  const view = await proposalView(proposal);
+  return {
+    kind: "action-proposal",
+    proposal: view,
+    sources: [{ label: `${project.name} baselines`, href: `/projects/${project.id}/baselines` }],
   };
 }
 
@@ -1296,7 +2416,10 @@ export async function createProjectControlActionProposal(
     const existing = parsed.operation === "UPDATE"
       ? await prisma.rFI.findFirst({
           where: { id: parsed.recordId, projectId: project.id },
-          include: { task: { select: { name: true } } },
+          include: {
+            task: { select: { name: true } },
+            attachment: { select: { id: true, fileName: true } },
+          },
         })
       : null;
     if (parsed.operation === "UPDATE" && !existing) throw new AssistantActionError("RFI not found.", 404);
@@ -1311,6 +2434,46 @@ export async function createProjectControlActionProposal(
       }
     } else {
       await requireScheduleEditAccess(context.userId, project.id);
+    }
+
+    let attachment: { id: string; fileName: string } | null = null;
+    let pageNumber: number | null = null;
+    let citationExcerpt: string | null = null;
+    if (parsed.operation === "CREATE") {
+      if (parsed.attachmentId) {
+        attachment = await prisma.assistantAttachment.findFirst({
+          where: { id: parsed.attachmentId, projectId: project.id },
+          select: { id: true, fileName: true },
+        });
+        if (!attachment) throw new AssistantActionError("The cited project file is no longer available.", 409);
+        pageNumber = parsed.pageNumber ?? null;
+        citationExcerpt = parsed.citationExcerpt ?? null;
+        if (pageNumber !== null) {
+          const pageExists = await prisma.documentChunk.count({
+            where: { documentId: attachment.id, pageNumber },
+          });
+          if (!pageExists && parsed.citationExcerpt == null) {
+            const anyChunks = await prisma.documentChunk.count({ where: { documentId: attachment.id } });
+            if (anyChunks > 0) {
+              throw new AssistantActionError(`I couldn't find page ${pageNumber} in ${attachment.fileName}.`);
+            }
+          }
+          if (!citationExcerpt) {
+            const chunk = await prisma.documentChunk.findFirst({
+              where: { documentId: attachment.id, pageNumber },
+              orderBy: { chunkIndex: "asc" },
+              select: { text: true },
+            });
+            citationExcerpt = chunk?.text.slice(0, 500) ?? null;
+          }
+        }
+      } else if (parsed.pageNumber != null || parsed.citationExcerpt) {
+        throw new AssistantActionError("Choose a project file before citing a page or passage.");
+      }
+    } else {
+      attachment = existing?.attachment ?? null;
+      pageNumber = existing?.pageNumber ?? null;
+      citationExcerpt = existing?.citationExcerpt ?? null;
     }
 
     const status = parsed.operation === "CREATE"
@@ -1340,6 +2503,10 @@ export async function createProjectControlActionProposal(
       recordId: existing?.id ?? null,
       taskId: existing?.taskId ?? task?.id ?? null,
       taskName: existing?.task?.name ?? task?.name ?? null,
+      attachmentId: existing?.attachmentId ?? attachment?.id ?? null,
+      fileName: existing?.attachment?.fileName ?? attachment?.fileName ?? null,
+      pageNumber: existing?.pageNumber ?? pageNumber,
+      citationExcerpt: existing?.citationExcerpt ?? citationExcerpt,
       question: existing?.question ?? parsed.question,
       answer,
       status,
@@ -1352,6 +2519,10 @@ export async function createProjectControlActionProposal(
       source: existing?.source ?? null,
       taskId: existing?.taskId ?? null,
       taskName: existing?.task?.name ?? null,
+      attachmentId: existing?.attachmentId ?? null,
+      fileName: existing?.attachment?.fileName ?? null,
+      pageNumber: existing?.pageNumber ?? null,
+      citationExcerpt: existing?.citationExcerpt ?? null,
       question: existing?.question ?? null,
       answer: existing?.answer ?? null,
       status: existing?.status ?? null,
@@ -1565,6 +2736,12 @@ async function confirmTaskChangeAction(
           );
         }
       }
+      requireConsistentTaskState({
+        status: payload.status,
+        progress: payload.progress,
+        actualStartDate: currentTask?.actualStartDate ?? null,
+        actualFinishDate: currentTask?.actualFinishDate ?? null,
+      });
 
       const claimed = await tx.assistantActionProposal.updateMany({
         where: { id: proposal.id, status: "PENDING" },
@@ -1655,6 +2832,573 @@ async function confirmTaskChangeAction(
         path: `/projects/${proposal.projectId}/tasks/${appliedTaskId}`,
       });
     }
+  }
+  return proposalView(confirmedProposal);
+}
+
+async function confirmTaskProgressAction(
+  proposal: AssistantActionProposal,
+  context: ActionContext
+) {
+  const payload = taskProgressPayloadSchema.parse(proposal.payload);
+  const snapshot = taskProgressSnapshotSchema.parse(proposal.snapshot);
+  const project = await prisma.project.findFirst({
+    where: {
+      id: proposal.projectId,
+      organizationId: context.organizationId,
+      isArchived: false,
+      members: { some: { userId: context.userId } },
+    },
+    select: { id: true },
+  });
+  if (!project) throw new AssistantActionError("Project not found.", 404);
+  if (!proposal.taskId) throw new AssistantActionError("Task not found.", 404);
+  const taskId = proposal.taskId;
+  await requireTaskEditAccess(context.userId, taskId);
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const currentTask = await tx.task.findUnique({ where: { id: taskId } });
+      if (!currentTask || currentTask.projectId !== proposal.projectId || !sameTaskProgressSnapshot(currentTask, snapshot)) {
+        throw new AssistantActionError(
+          "This task progress changed after the proposal was created. Ask BuilderBridge AI to prepare a fresh proposal.",
+          409
+        );
+      }
+      requireConsistentTaskState({
+        status: payload.status,
+        progress: payload.progress,
+        actualStartDate: payload.actualStartDate ? new Date(payload.actualStartDate) : null,
+        actualFinishDate: payload.actualFinishDate ? new Date(payload.actualFinishDate) : null,
+      });
+
+      const claimed = await tx.assistantActionProposal.updateMany({
+        where: { id: proposal.id, status: "PENDING" },
+        data: { status: "CONFIRMED", confirmedAt: new Date() },
+      });
+      if (claimed.count !== 1) throw new ProposalAlreadyHandledError();
+
+      const task = await tx.task.update({
+        where: { id: taskId },
+        data: {
+          actualStartDate: payload.actualStartDate ? new Date(payload.actualStartDate) : null,
+          actualFinishDate: payload.actualFinishDate ? new Date(payload.actualFinishDate) : null,
+          status: payload.status,
+          progress: payload.progress,
+        },
+      });
+
+      if (payload.note) {
+        await tx.taskUpdate.create({
+          data: { taskId: task.id, authorId: context.userId, note: payload.note },
+        });
+      }
+
+      await tx.activityLogEntry.create({
+        data: {
+          projectId: proposal.projectId,
+          taskId: task.id,
+          taskName: task.name,
+          userId: context.userId,
+          action: "assistant_task_progress_updated",
+          detail: `Updated task progress via BuilderBridge AI confirmation: ${task.name}`,
+        },
+      });
+
+      await tx.assistantActionProposal.update({
+        where: { id: proposal.id },
+        data: {
+          result: {
+            taskId: task.id,
+            projectId: proposal.projectId,
+            href: `/projects/${proposal.projectId}/tasks/${task.id}`,
+          },
+        },
+      });
+    }, { isolationLevel: "Serializable" });
+  } catch (error) {
+    if (!(error instanceof ProposalAlreadyHandledError)) throw error;
+  }
+
+  const confirmedProposal = await loadProposal(proposal.id, context);
+  if (confirmedProposal.status !== "CONFIRMED") {
+    throw new AssistantActionError("This proposal could not be confirmed.", 409);
+  }
+  return proposalView(confirmedProposal);
+}
+
+async function confirmWeeklyCommitmentAction(
+  proposal: AssistantActionProposal,
+  context: ActionContext
+) {
+  const payload = weeklyCommitmentPayloadSchema.parse(proposal.payload);
+  const snapshot = weeklyCommitmentSnapshotSchema.parse(proposal.snapshot);
+  if (payload.operation !== "REMOVE") {
+    requireConsistentCommitmentState(payload.status, payload.reasonForVariance);
+  }
+  const project = await prisma.project.findFirst({
+    where: {
+      id: proposal.projectId,
+      organizationId: context.organizationId,
+      isArchived: false,
+      members: { some: { userId: context.userId } },
+    },
+    select: { id: true },
+  });
+  if (!project) throw new AssistantActionError("Project not found.", 404);
+  if (payload.operation === "REMOVE") {
+    await requireCommitmentRemovalAccess(context.userId, snapshot.commitmentId!);
+  } else {
+    await requireCommitAccess(context.userId, payload.taskId);
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const current = snapshot.commitmentId
+        ? await tx.weeklyCommitment.findUnique({ where: { id: snapshot.commitmentId }, include: { task: true } })
+        : null;
+      if (payload.operation === "CREATE") {
+        const duplicate = await tx.weeklyCommitment.findUnique({
+          where: {
+            taskId_weekStartDate: {
+              taskId: payload.taskId,
+              weekStartDate: new Date(payload.weekStartDate),
+            },
+          },
+        });
+        if (!snapshot.commitmentId && duplicate) {
+          throw new AssistantActionError("This task is already committed for that week.", 409);
+        }
+        if (
+          snapshot.commitmentId &&
+          (!current ||
+            duplicate?.id !== snapshot.commitmentId ||
+            (current.removedAt?.toISOString() ?? null) !== snapshot.removedAt ||
+            current.removedById !== snapshot.removedById ||
+            current.removalReason !== snapshot.removalReason)
+        ) {
+          throw new AssistantActionError(
+            "This removed commitment changed after the proposal was created. Ask BuilderBridge AI to prepare a fresh proposal.",
+            409
+          );
+        }
+      } else if (
+        !current ||
+        current.taskId !== payload.taskId ||
+        current.task.projectId !== proposal.projectId ||
+        current.committedById !== snapshot.committedById ||
+        current.weekStartDate.toISOString() !== snapshot.weekStartDate ||
+        current.status !== snapshot.status ||
+        current.reasonForVariance !== snapshot.reasonForVariance ||
+        (current.removedAt?.toISOString() ?? null) !== snapshot.removedAt ||
+        current.removedById !== snapshot.removedById ||
+        current.removalReason !== snapshot.removalReason
+      ) {
+        throw new AssistantActionError(
+          "This weekly commitment changed after the proposal was created. Ask BuilderBridge AI to prepare a fresh proposal.",
+          409
+        );
+      }
+      if (payload.operation === "REMOVE") {
+        const policyError = commitmentRemovalError(current!);
+        if (policyError) throw new AssistantActionError(policyError, 409);
+      }
+
+      const claimed = await tx.assistantActionProposal.updateMany({
+        where: { id: proposal.id, status: "PENDING" },
+        data: { status: "CONFIRMED", confirmedAt: new Date() },
+      });
+      if (claimed.count !== 1) throw new ProposalAlreadyHandledError();
+
+      const commitment = payload.operation === "CREATE"
+        ? snapshot.commitmentId
+          ? await tx.weeklyCommitment.update({
+              where: { id: snapshot.commitmentId },
+              data: {
+                committedById: payload.committedById,
+                status: "COMMITTED",
+                reasonForVariance: null,
+                removedAt: null,
+                removedById: null,
+                removalReason: null,
+              },
+            })
+          : await tx.weeklyCommitment.create({
+              data: {
+                taskId: payload.taskId,
+                weekStartDate: new Date(payload.weekStartDate),
+                committedById: payload.committedById,
+              },
+            })
+        : payload.operation === "REMOVE"
+          ? await tx.weeklyCommitment.update({
+              where: { id: snapshot.commitmentId! },
+              data: {
+                removedAt: new Date(),
+                removedById: context.userId,
+                removalReason: payload.removalReason,
+              },
+            })
+          : await tx.weeklyCommitment.update({
+              where: { id: snapshot.commitmentId! },
+              data: {
+                status: payload.status,
+                reasonForVariance: payload.status === "NOT_COMPLETED" ? payload.reasonForVariance : null,
+              },
+            });
+
+      const task = await tx.task.findUniqueOrThrow({ where: { id: payload.taskId } });
+      await tx.activityLogEntry.create({
+        data: {
+          projectId: proposal.projectId,
+          taskId: task.id,
+          taskName: task.name,
+          userId: context.userId,
+          action:
+            payload.operation === "CREATE"
+              ? snapshot.removedAt
+                ? "assistant_commitment_restored"
+                : "assistant_commitment_made"
+              : payload.operation === "REMOVE"
+                ? "assistant_commitment_removed"
+                : "assistant_commitment_status_changed",
+          detail:
+            payload.operation === "CREATE"
+              ? `${snapshot.removedAt ? "Restored" : "Committed"} "${task.name}" for the week of ${new Date(payload.weekStartDate).toDateString()} via BuilderBridge AI confirmation`
+              : payload.operation === "REMOVE"
+                ? `Removed "${task.name}" from the week of ${new Date(payload.weekStartDate).toDateString()} via BuilderBridge AI confirmation: ${payload.removalReason}`
+              : `Marked "${task.name}" commitment ${COMMITMENT_STATUS_LABELS[payload.status]} via BuilderBridge AI confirmation${
+                  payload.reasonForVariance ? `: ${payload.reasonForVariance}` : ""
+                }`,
+        },
+      });
+
+      await tx.assistantActionProposal.update({
+        where: { id: proposal.id },
+        data: {
+          result: {
+            commitmentId: commitment.id,
+            projectId: proposal.projectId,
+            href: `/projects/${proposal.projectId}/weekly-plan?week=${payload.weekStartDate.slice(0, 10)}`,
+          },
+        },
+      });
+    }, { isolationLevel: "Serializable" });
+  } catch (error) {
+    if (!(error instanceof ProposalAlreadyHandledError)) throw error;
+  }
+
+  const confirmedProposal = await loadProposal(proposal.id, context);
+  if (confirmedProposal.status !== "CONFIRMED") {
+    throw new AssistantActionError("This proposal could not be confirmed.", 409);
+  }
+  return proposalView(confirmedProposal);
+}
+
+async function confirmScheduleImpactAction(
+  proposal: AssistantActionProposal,
+  context: ActionContext
+) {
+  const payload = scheduleImpactPayloadSchema.parse(proposal.payload);
+  const snapshot = scheduleImpactSnapshotSchema.parse(proposal.snapshot);
+  const project = await prisma.project.findFirst({
+    where: {
+      id: proposal.projectId,
+      organizationId: context.organizationId,
+      isArchived: false,
+      members: { some: { userId: context.userId } },
+    },
+    select: { id: true },
+  });
+  if (!project) throw new AssistantActionError("Project not found.", 404);
+  if (payload.operation === "CREATE") {
+    await requireProjectMember(context.userId, proposal.projectId);
+  } else {
+    const role = await requireProjectMember(context.userId, proposal.projectId);
+    if (!canResolveRoadblocks(role)) {
+      throw new AssistantActionError("Only a Project Manager or Superintendent can review this request.", 403);
+    }
+  }
+
+  let submittedByUserId: string | null = null;
+  try {
+    await prisma.$transaction(async (tx) => {
+      const current = payload.operation === "REVIEW" && payload.sirId
+        ? await tx.scheduleImpactRequest.findUnique({ where: { id: payload.sirId } })
+        : null;
+      if (payload.operation === "REVIEW") {
+        if (
+          !current ||
+          current.projectId !== proposal.projectId ||
+          current.taskId !== snapshot.taskId ||
+          current.description !== snapshot.description ||
+          dateSnapshot(current.proposedNewEndDate) !== snapshot.proposedNewEndDate ||
+          current.status !== snapshot.status ||
+          current.reviewNote !== snapshot.reviewNote ||
+          current.reviewedById !== snapshot.reviewedById
+        ) {
+          throw new AssistantActionError(
+            "This schedule impact request changed after the proposal was created. Ask BuilderBridge AI to prepare a fresh proposal.",
+            409
+          );
+        }
+      }
+
+      const member = await tx.projectMember.findUnique({
+        where: { projectId_userId: { projectId: proposal.projectId, userId: context.userId } },
+      });
+      if (!member) throw new AssistantActionError("You are no longer a member of this project.", 403);
+
+      const claimed = await tx.assistantActionProposal.updateMany({
+        where: { id: proposal.id, status: "PENDING" },
+        data: { status: "CONFIRMED", confirmedAt: new Date() },
+      });
+      if (claimed.count !== 1) throw new ProposalAlreadyHandledError();
+
+      const sir = payload.operation === "CREATE"
+        ? await tx.scheduleImpactRequest.create({
+            data: {
+              projectId: proposal.projectId,
+              taskId: payload.taskId,
+              description: payload.description,
+              proposedNewEndDate: payload.proposedNewEndDate ? new Date(payload.proposedNewEndDate) : null,
+              submittedById: member.id,
+            },
+          })
+        : await tx.scheduleImpactRequest.update({
+            where: { id: payload.sirId! },
+            data: {
+              status: payload.status,
+              reviewNote: payload.reviewNote,
+              reviewedById: member.id,
+              reviewedAt: new Date(),
+            },
+          });
+
+      if (payload.operation === "REVIEW" && payload.status === "APPROVED" && current?.taskId && current.proposedNewEndDate) {
+        await tx.task.update({
+          where: { id: current.taskId },
+          data: { endDate: current.proposedNewEndDate },
+        });
+      }
+
+      await tx.activityLogEntry.create({
+        data: {
+          projectId: proposal.projectId,
+          taskId: payload.taskId,
+          taskName: payload.taskName,
+          userId: context.userId,
+          action: payload.operation === "CREATE" ? "assistant_sir_submitted" : "assistant_sir_reviewed",
+          detail:
+            payload.operation === "CREATE"
+              ? `Submitted a Schedule Impact Request via BuilderBridge AI confirmation: ${payload.description}`
+              : `${payload.status === "APPROVED" ? "Approved" : "Rejected"} a Schedule Impact Request via BuilderBridge AI confirmation${
+                  payload.reviewNote ? `: ${payload.reviewNote}` : ""
+                }`,
+        },
+      });
+
+      if (payload.operation === "REVIEW" && current) {
+        const submitter = await tx.projectMember.findUnique({
+          where: { id: current.submittedById },
+          select: { userId: true },
+        });
+        submittedByUserId = submitter?.userId ?? null;
+      }
+
+      await tx.assistantActionProposal.update({
+        where: { id: proposal.id },
+        data: {
+          result: {
+            sirId: sir.id,
+            projectId: proposal.projectId,
+            href: `/projects/${proposal.projectId}/impacts`,
+          },
+        },
+      });
+    }, { isolationLevel: "Serializable" });
+  } catch (error) {
+    if (!(error instanceof ProposalAlreadyHandledError)) throw error;
+  }
+
+  const confirmedProposal = await loadProposal(proposal.id, context);
+  if (confirmedProposal.status !== "CONFIRMED") {
+    throw new AssistantActionError("This proposal could not be confirmed.", 409);
+  }
+  if (payload.operation === "REVIEW" && submittedByUserId) {
+    const outcome = payload.status === "APPROVED" ? "approved" : "rejected";
+    await notifyUser({
+      userId: submittedByUserId,
+      actorUserId: context.userId,
+      subject: `Your schedule impact request was ${outcome}`,
+      heading: `Schedule Impact Request ${outcome}`,
+      bodyLines: [
+        `Your request - "${payload.description}" - was <strong>${outcome}</strong>.`,
+        payload.reviewNote ? `Reviewer note: ${payload.reviewNote}` : "",
+      ].filter(Boolean),
+      path: `/projects/${proposal.projectId}/impacts`,
+    });
+  }
+  return proposalView(confirmedProposal);
+}
+
+async function confirmBaselineAction(
+  proposal: AssistantActionProposal,
+  context: ActionContext
+) {
+  const payload = baselinePayloadSchema.parse(proposal.payload);
+  const snapshot = baselineSnapshotSchema.parse(proposal.snapshot);
+  const project = await prisma.project.findFirst({
+    where: {
+      id: proposal.projectId,
+      organizationId: context.organizationId,
+      isArchived: false,
+      members: { some: { userId: context.userId } },
+    },
+    select: { id: true },
+  });
+  if (!project) throw new AssistantActionError("Project not found.", 404);
+  if (payload.operation === "CREATE") {
+    await requireScheduleEditAccess(context.userId, proposal.projectId);
+  } else {
+    await requireProjectMember(context.userId, proposal.projectId);
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      if (payload.operation === "COMPARE") {
+        const baseline = payload.baselineId
+          ? await tx.baseline.findFirst({
+              where: { id: payload.baselineId, projectId: proposal.projectId },
+              include: { snapshots: { orderBy: { taskName: "asc" } } },
+            })
+          : null;
+        if (!baseline || baseline.name !== payload.name) {
+          throw new AssistantActionError(
+            "This baseline changed after the comparison proposal was created. Ask BuilderBridge AI to prepare a fresh proposal.",
+            409
+          );
+        }
+        const currentTasks = await tx.task.findMany({
+          where: { projectId: proposal.projectId },
+          select: { id: true, name: true, endDate: true },
+          orderBy: { id: "asc" },
+        });
+        const comparison = buildBaselineComparison({ baseline, currentTasks });
+        if (comparison.comparisonFingerprint !== snapshot.comparisonFingerprint) {
+          throw new AssistantActionError(
+            "The schedule changed after this baseline comparison was prepared. Ask BuilderBridge AI to prepare a fresh proposal.",
+            409
+          );
+        }
+
+        const claimed = await tx.assistantActionProposal.updateMany({
+          where: { id: proposal.id, status: "PENDING" },
+          data: { status: "CONFIRMED", confirmedAt: new Date() },
+        });
+        if (claimed.count !== 1) throw new ProposalAlreadyHandledError();
+
+        await tx.activityLogEntry.create({
+          data: {
+            projectId: proposal.projectId,
+            userId: context.userId,
+            action: "assistant_baseline_compared",
+            detail: `Reviewed baseline comparison for "${baseline.name}" via BuilderBridge AI confirmation (${
+              comparison.averageVarianceDays === null
+                ? "no overlapping tasks"
+                : comparison.averageVarianceDays === 0
+                  ? "on schedule"
+                  : comparison.averageVarianceDays > 0
+                    ? `+${comparison.averageVarianceDays}d average slip`
+                    : `${comparison.averageVarianceDays}d average ahead`
+            })`,
+          },
+        });
+
+        await tx.assistantActionProposal.update({
+          where: { id: proposal.id },
+          data: {
+            result: {
+              baselineId: baseline.id,
+              projectId: proposal.projectId,
+              href: `/projects/${proposal.projectId}/baselines?baselineId=${baseline.id}`,
+              averageVarianceDays: comparison.averageVarianceDays,
+            },
+          },
+        });
+        return;
+      }
+
+      const currentTasks = await tx.task.findMany({
+        where: { projectId: proposal.projectId },
+        orderBy: { id: "asc" },
+      });
+      const currentTaskIds = currentTasks.map((task) => task.id);
+      if (
+        currentTaskIds.length !== snapshot.taskIds.length ||
+        currentTaskIds.some((taskId, index) => taskId !== snapshot.taskIds[index])
+      ) {
+        throw new AssistantActionError(
+          "The task list changed after the baseline proposal was created. Ask BuilderBridge AI to prepare a fresh proposal.",
+          409
+        );
+      }
+
+      const member = await tx.projectMember.findUnique({
+        where: { projectId_userId: { projectId: proposal.projectId, userId: context.userId } },
+      });
+      if (!member) throw new AssistantActionError("You are no longer a member of this project.", 403);
+
+      const claimed = await tx.assistantActionProposal.updateMany({
+        where: { id: proposal.id, status: "PENDING" },
+        data: { status: "CONFIRMED", confirmedAt: new Date() },
+      });
+      if (claimed.count !== 1) throw new ProposalAlreadyHandledError();
+
+      const baseline = await tx.baseline.create({
+        data: {
+          projectId: proposal.projectId,
+          name: payload.name,
+          createdById: member.id,
+          snapshots: {
+            create: currentTasks.map((task) => ({
+              taskId: task.id,
+              taskName: task.name,
+              startDate: task.startDate,
+              endDate: task.endDate,
+              status: task.status,
+            })),
+          },
+        },
+      });
+
+      await tx.activityLogEntry.create({
+        data: {
+          projectId: proposal.projectId,
+          userId: context.userId,
+          action: "assistant_baseline_created",
+          detail: `Created baseline "${baseline.name}" with ${payload.snapshotCount} task snapshots via BuilderBridge AI confirmation`,
+        },
+      });
+
+      await tx.assistantActionProposal.update({
+        where: { id: proposal.id },
+        data: {
+          result: {
+            baselineId: baseline.id,
+            projectId: proposal.projectId,
+            href: `/projects/${proposal.projectId}/baselines?baselineId=${baseline.id}`,
+          },
+        },
+      });
+    }, { isolationLevel: "Serializable" });
+  } catch (error) {
+    if (!(error instanceof ProposalAlreadyHandledError)) throw error;
+  }
+
+  const confirmedProposal = await loadProposal(proposal.id, context);
+  if (confirmedProposal.status !== "CONFIRMED") {
+    throw new AssistantActionError("This proposal could not be confirmed.", 409);
   }
   return proposalView(confirmedProposal);
 }
@@ -1958,6 +3702,9 @@ async function confirmProjectControlAction(
               data: {
                 projectId: proposal.projectId,
                 taskId: payload.taskId,
+                attachmentId: payload.attachmentId,
+                pageNumber: payload.pageNumber,
+                citationExcerpt: payload.citationExcerpt,
                 question: payload.question,
                 dueDate: payload.dueDate ? new Date(payload.dueDate) : null,
                 raisedById: member.id,
@@ -1987,7 +3734,11 @@ async function confirmProjectControlAction(
                 ? "assistant_rfi_closed"
                 : "assistant_rfi_answered",
             detail: payload.operation === "CREATE"
-              ? `Raised RFI via BuilderBridge AI confirmation: ${payload.question}`
+              ? `Raised RFI via BuilderBridge AI confirmation: ${payload.question}${
+                  payload.fileName
+                    ? ` (from ${payload.fileName}${payload.pageNumber ? ` p.${payload.pageNumber}` : ""})`
+                    : ""
+                }`
               : payload.status === "CLOSED"
                 ? `Closed RFI via BuilderBridge AI confirmation: ${payload.question}`
                 : `Answered RFI via BuilderBridge AI confirmation: ${payload.question}`,
@@ -2075,6 +3826,10 @@ export async function confirmAssistantAction(proposalId: string, context: Action
     throw new AssistantActionError(`This proposal is already ${proposal.status.toLowerCase()}.`, 409);
   }
   if (proposal.kind === "TASK_CHANGE") return confirmTaskChangeAction(proposal, context);
+  if (proposal.kind === "TASK_PROGRESS_CHANGE") return confirmTaskProgressAction(proposal, context);
+  if (proposal.kind === "WEEKLY_COMMITMENT_CHANGE") return confirmWeeklyCommitmentAction(proposal, context);
+  if (proposal.kind === "SCHEDULE_IMPACT_CHANGE") return confirmScheduleImpactAction(proposal, context);
+  if (proposal.kind === "BASELINE_CHANGE") return confirmBaselineAction(proposal, context);
   if (proposal.kind === "SCHEDULE_CHANGE") return confirmScheduleChangeAction(proposal, context);
   if (proposal.kind === "PROJECT_CONTROL_CHANGE") return confirmProjectControlAction(proposal, context);
   return confirmRoadblockAction(proposal, context);

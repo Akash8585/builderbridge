@@ -17,7 +17,7 @@ test("RFI commands create proposal cards without OpenRouter", async ({ page }) =
     await page.getByRole("button", { name: "Open BuilderBridge AI" }).click();
     const dialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
     await dialog
-      .getByRole("navigation", { name: "Assistant project scopes" })
+      .getByRole("navigation", { name: "Project chats" })
       .getByRole("button", { name: /Riverside Apartments/ })
       .click();
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
@@ -26,14 +26,17 @@ test("RFI commands create proposal cards without OpenRouter", async ({ page }) =
 
     const proposal = dialog
       .locator('section[aria-label="Action proposal"]')
-      .filter({ hasText: "Confirmation required" })
       .filter({ hasText: question });
     await expect(proposal).toBeVisible({ timeout: 30_000 });
+    await expect(proposal.getByText("Confirmation required")).toBeVisible();
     await expect(proposal.getByText("Raise RFI", { exact: false })).toBeVisible();
     await expect(proposal.getByRole("button", { name: "Confirm change" })).toBeVisible();
     await expect(dialog.getByText(/OpenRouter could not complete/)).toHaveCount(0);
     await proposal.getByRole("button", { name: "Cancel" }).click();
     await expect(proposal.getByText("Proposal cancelled")).toBeVisible();
+    await proposal.getByRole("link", { name: "Open RFI log" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page).toHaveURL(/\/projects\/[^/]+\/rfis$/);
   } finally {
     const response = await page.request.get("/api/assistant/conversations", { timeout: 10_000 });
     if (response.ok()) {
@@ -68,7 +71,7 @@ test("what-if schedule prompts create proposal cards without OpenRouter", async 
     await page.getByRole("button", { name: "Open BuilderBridge AI" }).click();
     const dialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
     await dialog
-      .getByRole("navigation", { name: "Assistant project scopes" })
+      .getByRole("navigation", { name: "Project chats" })
       .getByRole("button", { name: /Riverside Apartments/ })
       .click();
     await dialog.getByRole("button", { name: "Start new conversation" }).click();

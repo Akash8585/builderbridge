@@ -2,11 +2,12 @@ import type { CommitmentStatus, TaskStatus } from "@prisma/client";
 
 /** Weekly Percent Plan Complete: completed / total commitments made for that week. */
 export function computePpcTrend(
-  commitments: { weekStartDate: Date; status: CommitmentStatus }[]
+  commitments: { weekStartDate: Date; status: CommitmentStatus; removedAt?: Date | null }[]
 ): { weekStart: Date; ppc: number; total: number; completed: number }[] {
   const byWeek = new Map<string, { weekStart: Date; total: number; completed: number }>();
 
   for (const c of commitments) {
+    if (c.removedAt) continue;
     const key = c.weekStartDate.toISOString();
     const bucket = byWeek.get(key) ?? { weekStart: c.weekStartDate, total: 0, completed: 0 };
     bucket.total += 1;
@@ -25,11 +26,17 @@ export function computePpcTrend(
  * breakdown — useful for spotting which trades are behind on commitments.
  */
 export function computePrrByMember(
-  commitments: { committedById: string; committedByName: string; status: CommitmentStatus }[]
+  commitments: {
+    committedById: string;
+    committedByName: string;
+    status: CommitmentStatus;
+    removedAt?: Date | null;
+  }[]
 ): { memberId: string; name: string; prr: number; total: number; completed: number }[] {
   const byMember = new Map<string, { name: string; total: number; completed: number }>();
 
   for (const c of commitments) {
+    if (c.removedAt) continue;
     const bucket = byMember.get(c.committedById) ?? { name: c.committedByName, total: 0, completed: 0 };
     bucket.total += 1;
     if (c.status === "COMPLETED") bucket.completed += 1;

@@ -3,13 +3,17 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { loadProjectSummary } from "@/lib/project-summary";
 import {
+  createBaselineActionProposal,
   createRoadblockActionProposal,
   createProjectControlActionProposal,
   createScheduleActionProposal,
+  createScheduleImpactActionProposal,
   createTaskActionProposal,
+  createTaskProgressActionProposal,
+  createWeeklyCommitmentActionProposal,
 } from "@/lib/assistant-actions";
 import { MS_PER_DAY } from "@/lib/schedule-impact";
-import { formatDate, ROADBLOCK_TYPE_LABELS, TASK_STATUS_LABELS } from "@/lib/utils";
+import { formatDate, getWeekStart, ROADBLOCK_TYPE_LABELS, TASK_STATUS_LABELS } from "@/lib/utils";
 import { searchProjectDocuments } from "@/lib/project-document-search";
 
 type AssistantToolContext = {
@@ -49,6 +53,16 @@ export function rankTaskNameMatches<T extends NamedTask>(tasks: T[], query: stri
     .filter(({ score }) => score >= 0.3)
     .sort((left, right) => right.score - left.score || left.task.name.localeCompare(right.task.name))
     .slice(0, limit);
+}
+
+function chooseUnambiguousTask<T extends NamedTask>(tasks: T[], query: string, limit = 3) {
+  const matches = rankTaskNameMatches(tasks, query, limit);
+  const [best, second] = matches;
+  const task =
+    best && (best.score === 1 || (best.score >= 0.85 && (!second || best.score - second.score >= 0.15)))
+      ? best.task
+      : null;
+  return { matches, task };
 }
 
 const projectInput = {
@@ -321,16 +335,29 @@ export function createAssistantTools(context: AssistantToolContext) {
 
     proposeRfiChange: tool({
       description:
-        "Prepare, but do not apply, a user-confirmable RFI creation, answer, or close action. Resolve the RFI and optional linked task from human-readable text; never ask for an internal ID.",
+        "Prepare, but do not apply, a user-confirmable RFI creation, answer, or close action. Resolve the RFI, optional linked task, and optional source document from human-readable text; never ask for an internal ID. For document-to-RFI create actions, pass fileName and optional pageNumber/citationExcerpt.",
       inputSchema: z.object({
         ...projectInput,
         operation: z.enum(["CREATE", "ANSWER", "CLOSE"]),
         question: z.string().trim().min(1).max(1000).describe("The new RFI question or identifying text from an existing RFI."),
         answer: z.string().trim().min(1).max(2000).optional(),
         taskName: z.string().trim().min(1).max(200).optional(),
+        fileName: z.string().trim().min(1).max(260).optional(),
+        pageNumber: z.number().int().min(1).nullable().optional(),
+        citationExcerpt: z.string().trim().min(1).max(1000).nullable().optional(),
         dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
       }),
-      execute: async ({ projectId, operation, question, answer, taskName, dueDate }) => {
+      execute: async ({
+        projectId,
+        operation,
+        question,
+        answer,
+        taskName,
+        fileName,
+        pageNumber,
+        citationExcerpt,
+        dueDate,
+      }) => {
         const project = await resolveProject(context, projectId);
         let recordId: string | undefined;
         if (operation !== "CREATE") {
@@ -395,6 +422,37 @@ export function createAssistantTools(context: AssistantToolContext) {
           }
           taskId = best.task.id;
         }
+
+        let attachmentId: string | null | undefined;
+        if (operation === "CREATE" && fileName) {
+          const files = await prisma.assistantAttachment.findMany({
+            where: { projectId: project.id },
+            select: { id: true, fileName: true },
+            orderBy: { createdAt: "desc" },
+            take: 200,
+          });
+          const matches = rankTaskNameMatches(
+            files.map((file) => ({ ...file, name: file.fileName })),
+            fileName,
+            3
+          );
+          const [best, second] = matches;
+          const unambiguous = best &&
+            (best.score === 1 || (best.score >= 0.85 && (!second || best.score - second.score >= 0.15)));
+          if (!unambiguous) {
+            return {
+              kind: "action-clarification",
+              subject: "document",
+              message: matches.length > 0
+                ? `Which project file did you mean: ${matches.map(({ task }) => `“${task.fileName}”`).join(" or ")}?`
+                : `I couldn't find a project file matching “${fileName}”.`,
+              suggestions: matches.map(({ task }) => task.fileName),
+              sources: [{ label: `${project.name} files`, href: `/projects/${project.id}/files` }],
+            };
+          }
+          attachmentId = best.task.id;
+        }
+
         if (operation === "ANSWER" && !answer) {
           return {
             kind: "action-clarification",
@@ -412,6 +470,9 @@ export function createAssistantTools(context: AssistantToolContext) {
             operation: operation === "CREATE" ? "CREATE" : "UPDATE",
             recordId,
             taskId,
+            attachmentId,
+            pageNumber: operation === "CREATE" ? pageNumber : undefined,
+            citationExcerpt: operation === "CREATE" ? citationExcerpt : undefined,
             question: operation === "CREATE" ? question : undefined,
             answer: operation === "ANSWER" ? answer : undefined,
             status: operation === "CLOSE" ? "CLOSED" : operation === "ANSWER" ? "ANSWERED" : "OPEN",
@@ -621,6 +682,134 @@ export function createAssistantTools(context: AssistantToolContext) {
             taskId,
             name: newName ?? taskName,
             assignedToId,
+          },
+          { organizationId: context.organizationId, userId: context.userId }
+        );
+      },
+    }),
+
+    proposeTaskProgressChange: tool({
+      description:
+        "Prepare, but do not apply, a user-confirmable field progress update for an existing task. Supports actual start, actual finish, status, percent complete, and an append-only field note.",
+      inputSchema: z.object({
+        ...projectInput,
+        taskName: z.string().trim().min(1).max(200).describe("The human-readable task name."),
+        actualStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+        actualFinishDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+        status: z.enum(["NOT_STARTED", "IN_PROGRESS", "DONE", "DELAYED"]).optional(),
+        progress: z.number().int().min(0).max(100).optional(),
+        note: z.string().trim().min(1).max(1000).optional(),
+      }),
+      execute: async ({ projectId, taskName, ...change }) => {
+        const project = await resolveProject(context, projectId);
+        const tasks = await prisma.task.findMany({
+          where: { projectId: project.id },
+          select: { id: true, name: true },
+          orderBy: [{ startDate: "asc" }, { sequenceOrder: "asc" }],
+          take: 200,
+        });
+        const resolved = chooseUnambiguousTask(tasks, taskName);
+        if (!resolved.task) {
+          return {
+            kind: "action-clarification",
+            subject: "task",
+            message:
+              resolved.matches.length > 0
+                ? `I couldn't identify one task named "${taskName}". Did you mean ${resolved.matches
+                    .map(({ task }) => `"${task.name}"`)
+                    .join(" or ")}?`
+                : `I couldn't find a task matching "${taskName}".`,
+            suggestions: resolved.matches.map(({ task }) => task.name),
+            sources: [{ label: `${project.name} schedule`, href: `/projects/${project.id}/gantt` }],
+          };
+        }
+        return createTaskProgressActionProposal(
+          {
+            ...change,
+            conversationId: context.conversationId,
+            projectId: project.id,
+            taskId: resolved.task.id,
+          },
+          { organizationId: context.organizationId, userId: context.userId }
+        );
+      },
+    }),
+
+    proposeWeeklyCommitmentChange: tool({
+      description:
+        "Prepare, but do not apply, a user-confirmable weekly-plan commitment action. Use CREATE to commit a task, UPDATE_STATUS to record its result, or REMOVE only for a still-committed future week.",
+      inputSchema: z.object({
+        ...projectInput,
+        operation: z.enum(["CREATE", "UPDATE_STATUS", "REMOVE"]),
+        taskName: z.string().trim().min(1).max(200).describe("The task being committed or completed."),
+        weekStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Week start date in YYYY-MM-DD."),
+        status: z.enum(["COMMITTED", "COMPLETED", "NOT_COMPLETED"]).optional(),
+        reasonForVariance: z.string().trim().min(1).max(500).nullable().optional(),
+        removalReason: z.string().trim().min(1).max(500).nullable().optional(),
+      }),
+      execute: async ({ projectId, operation, taskName, weekStartDate, status, reasonForVariance, removalReason }) => {
+        const project = await resolveProject(context, projectId);
+        const canonicalWeekStart = getWeekStart(new Date(`${weekStartDate}T12:00:00.000Z`));
+        const canonicalWeekStartDate = canonicalWeekStart.toISOString().slice(0, 10);
+        const tasks = await prisma.task.findMany({
+          where: { projectId: project.id },
+          select: { id: true, name: true },
+          orderBy: [{ startDate: "asc" }, { sequenceOrder: "asc" }],
+          take: 200,
+        });
+        const resolved = chooseUnambiguousTask(tasks, taskName);
+        if (!resolved.task) {
+          return {
+            kind: "action-clarification",
+            subject: "task",
+            message:
+              resolved.matches.length > 0
+                ? `I couldn't identify one task named "${taskName}". Did you mean ${resolved.matches
+                    .map(({ task }) => `"${task.name}"`)
+                    .join(" or ")}?`
+                : `I couldn't find a task matching "${taskName}".`,
+            suggestions: resolved.matches.map(({ task }) => task.name),
+            sources: [{
+              label: `${project.name} weekly plan`,
+              href: `/projects/${project.id}/weekly-plan?week=${canonicalWeekStartDate}`,
+            }],
+          };
+        }
+        let commitmentId: string | undefined;
+        if (operation !== "CREATE") {
+          const commitment = await prisma.weeklyCommitment.findUnique({
+            where: {
+              taskId_weekStartDate: {
+                taskId: resolved.task.id,
+                weekStartDate: canonicalWeekStart,
+              },
+            },
+          });
+          if (!commitment) {
+            return {
+              kind: "action-clarification",
+              subject: "commitment",
+              message: `"${resolved.task.name}" is not committed for the week of ${canonicalWeekStartDate}.`,
+              suggestions: [],
+              sources: [{
+                label: `${project.name} weekly plan`,
+                href: `/projects/${project.id}/weekly-plan?week=${canonicalWeekStartDate}`,
+              }],
+            };
+          }
+          commitmentId = commitment.id;
+        }
+        return createWeeklyCommitmentActionProposal(
+          {
+            conversationId: context.conversationId,
+            projectId: project.id,
+            operation,
+            taskId: resolved.task.id,
+            commitmentId,
+            weekStartDate: canonicalWeekStartDate,
+            status,
+            reasonForVariance,
+            removalReason,
           },
           { organizationId: context.organizationId, userId: context.userId }
         );
@@ -854,6 +1043,133 @@ export function createAssistantTools(context: AssistantToolContext) {
             operation,
             taskIds: [...new Set(selectedTaskIds)],
             shiftDays,
+          },
+          { organizationId: context.organizationId, userId: context.userId }
+        );
+      },
+    }),
+
+    proposeScheduleImpactChange: tool({
+      description:
+        "Prepare, but do not apply, a user-confirmable Schedule Impact Request creation or review action. Use CREATE for a new field condition and REVIEW to approve or reject an existing request.",
+      inputSchema: z.object({
+        ...projectInput,
+        operation: z.enum(["CREATE", "REVIEW"]),
+        taskName: z.string().trim().min(1).max(200).optional(),
+        description: z.string().trim().min(1).max(1000).optional(),
+        proposedNewEndDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+        status: z.enum(["APPROVED", "REJECTED"]).optional(),
+        reviewNote: z.string().trim().min(1).max(1000).nullable().optional(),
+      }),
+      execute: async ({ projectId, operation, taskName, ...change }) => {
+        const project = await resolveProject(context, projectId);
+        let taskId: string | null | undefined;
+        if (taskName) {
+          const tasks = await prisma.task.findMany({
+            where: { projectId: project.id },
+            select: { id: true, name: true },
+            orderBy: [{ startDate: "asc" }, { sequenceOrder: "asc" }],
+            take: 200,
+          });
+          const resolved = chooseUnambiguousTask(tasks, taskName);
+          if (!resolved.task) {
+            return {
+              kind: "action-clarification",
+              subject: "task",
+              message:
+                resolved.matches.length > 0
+                  ? `I couldn't identify one task named "${taskName}". Did you mean ${resolved.matches
+                      .map(({ task }) => `"${task.name}"`)
+                      .join(" or ")}?`
+                  : `I couldn't find a task matching "${taskName}".`,
+              suggestions: resolved.matches.map(({ task }) => task.name),
+              sources: [{ label: `${project.name} impacts`, href: `/projects/${project.id}/impacts` }],
+            };
+          }
+          taskId = resolved.task.id;
+        }
+
+        let sirId: string | undefined;
+        if (operation === "REVIEW") {
+          if (!change.description) {
+            return {
+              kind: "action-clarification",
+              subject: "impact request",
+              message: "Which schedule impact request should I review?",
+              suggestions: [],
+              sources: [{ label: `${project.name} impacts`, href: `/projects/${project.id}/impacts` }],
+            };
+          }
+          const records = await prisma.scheduleImpactRequest.findMany({
+            where: { projectId: project.id },
+            select: { id: true, description: true, status: true },
+            orderBy: { createdAt: "desc" },
+            take: 100,
+          });
+          const matches = rankTaskNameMatches(
+            records.map((record) => ({ ...record, name: record.description })),
+            change.description,
+            3
+          );
+          const [best, second] = matches;
+          const unambiguous =
+            best && (best.score === 1 || (best.score >= 0.85 && (!second || best.score - second.score >= 0.15)));
+          if (!unambiguous) {
+            return {
+              kind: "action-clarification",
+              subject: "impact request",
+              message:
+                matches.length > 0
+                  ? `Which schedule impact request did you mean: ${matches
+                      .map(({ task }) => `"${task.description}"`)
+                      .join(" or ")}?`
+                  : `I couldn't find a schedule impact request matching "${change.description}".`,
+              suggestions: matches.map(({ task }) => task.description),
+              sources: [{ label: `${project.name} impacts`, href: `/projects/${project.id}/impacts` }],
+            };
+          }
+          sirId = best.task.id;
+        }
+
+        return createScheduleImpactActionProposal(
+          {
+            ...change,
+            conversationId: context.conversationId,
+            projectId: project.id,
+            operation,
+            taskId,
+            sirId,
+          },
+          { organizationId: context.organizationId, userId: context.userId }
+        );
+      },
+    }),
+
+    proposeBaselineChange: tool({
+      description:
+        "Prepare, but do not apply, a user-confirmable baseline action. Use CREATE to snapshot the current schedule, or COMPARE to show variance against an existing baseline (latest when unnamed).",
+      inputSchema: z.object({
+        ...projectInput,
+        operation: z.enum(["CREATE", "COMPARE"]).default("CREATE"),
+        name: z.string().trim().min(1).max(200).optional(),
+      }),
+      execute: async ({ projectId, operation, name }) => {
+        const project = await resolveProject(context, projectId);
+        if (operation === "CREATE" && !name) {
+          return {
+            kind: "action-clarification",
+            subject: "baseline",
+            message: "What should I name the new baseline?",
+            suggestions: [],
+            sources: [{ label: `${project.name} baselines`, href: `/projects/${project.id}/baselines` }],
+          };
+        }
+        return createBaselineActionProposal(
+          {
+            conversationId: context.conversationId,
+            projectId: project.id,
+            operation,
+            name,
           },
           { organizationId: context.organizationId, userId: context.userId }
         );

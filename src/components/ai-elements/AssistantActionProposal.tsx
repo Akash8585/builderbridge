@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Check,
@@ -20,6 +21,7 @@ type ActionResponse = {
 };
 
 export function AssistantActionProposal({ initialProposal }: { initialProposal: AssistantActionProposalView }) {
+  const router = useRouter();
   const [proposal, setProposal] = useState(initialProposal);
   const [submitting, setSubmitting] = useState<"confirm" | "cancel" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -114,6 +116,17 @@ export function AssistantActionProposal({ initialProposal }: { initialProposal: 
       <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.08] px-4 py-3">
         <Link
           href={proposal.href}
+          onClick={(event) => {
+            window.dispatchEvent(
+              new CustomEvent("builderbridge:toggle-assistant", { detail: { open: false } })
+            );
+            const destination = new URL(proposal.href, window.location.href);
+            const currentLocation = `${window.location.pathname}${window.location.search}`;
+            if (`${destination.pathname}${destination.search}` === currentLocation) {
+              event.preventDefault();
+              router.refresh();
+            }
+          }}
           className="inline-flex h-8 items-center gap-1.5 text-xs font-medium text-white/50 hover:text-white"
         >
           {proposal.hrefLabel}

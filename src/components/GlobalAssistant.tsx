@@ -407,6 +407,58 @@ export function GlobalAssistant() {
     return () => window.removeEventListener("builderbridge:ask-project-file", askAboutFile);
   }, []);
 
+  useEffect(() => {
+    const raiseRfiFromFile = async (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId?: string; fileName?: string }>).detail;
+      if (!detail?.projectId || !detail.fileName) return;
+      setOpen(true);
+      setLoading(true);
+      setError(null);
+      try {
+        const nextBootstrap = await fetchJson<AssistantBootstrap>("/api/assistant/conversations");
+        if (!nextBootstrap.projects.some((project) => project.id === detail.projectId)) {
+          throw new Error("This project is unavailable or you no longer have access.");
+        }
+        setBootstrap(nextBootstrap);
+        setScopeId(detail.projectId);
+        const latest = nextBootstrap.conversations.find(
+          (conversation) => conversation.projectId === detail.projectId
+        );
+        if (latest) {
+          setActive(
+            await fetchJson<AssistantConversationDetail>(
+              `/api/assistant/conversations/${latest.id}`
+            )
+          );
+        } else {
+          const conversation = await fetchJson<AssistantConversationSummary>(
+            "/api/assistant/conversations",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ projectId: detail.projectId }),
+            }
+          );
+          setBootstrap((current) =>
+            current
+              ? { ...current, conversations: [conversation, ...current.conversations] }
+              : current
+          );
+          setActive({ conversation, messages: [] });
+        }
+        setDraftPrompt(`Raise an RFI from "${detail.fileName}": `);
+        setDraftVersion((version) => version + 1);
+        setRailOpen(false);
+      } catch (openError) {
+        setError(openError instanceof Error ? openError.message : "Could not open BuilderBridge AI.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    window.addEventListener("builderbridge:raise-rfi-from-file", raiseRfiFromFile);
+    return () => window.removeEventListener("builderbridge:raise-rfi-from-file", raiseRfiFromFile);
+  }, []);
+
   const visibleConversations = useMemo(() => {
     const query = conversationQuery.trim().toLowerCase();
     const conversations = bootstrap?.conversations ?? [];

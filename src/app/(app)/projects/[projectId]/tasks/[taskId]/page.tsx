@@ -63,6 +63,16 @@ export default async function TaskDetailPage({
           <span>{task.progress}% complete</span>
           {task.isRoadblock && task.roadblockStatus && <RoadblockBadge status={task.roadblockStatus} />}
         </div>
+        <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
+          <span>
+            <span className="font-medium text-body">Actual start:</span>{" "}
+            {task.actualStartDate ? formatDate(task.actualStartDate) : "Not set"}
+          </span>
+          <span>
+            <span className="font-medium text-body">Actual finish:</span>{" "}
+            {task.actualFinishDate ? formatDate(task.actualFinishDate) : "Not set"}
+          </span>
+        </div>
         {task.isRoadblock && task.roadblockNote && (
           <p className="mt-4 rounded-md border border-error/20 bg-error/5 px-3 py-2 text-sm text-body">{task.roadblockNote}</p>
         )}

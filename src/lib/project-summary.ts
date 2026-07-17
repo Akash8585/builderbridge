@@ -13,7 +13,7 @@ export async function loadProjectSummary(projectId: string) {
     prisma.task.count({ where: { projectId } }),
     prisma.task.count({ where: { projectId, status: "DONE" } }),
     prisma.weeklyCommitment.findMany({
-      where: { task: { projectId } },
+      where: { removedAt: null, task: { projectId } },
       select: { weekStartDate: true, status: true },
       orderBy: { weekStartDate: "asc" },
     }),

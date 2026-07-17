@@ -5,6 +5,7 @@ import { canManageSchedule } from "@/lib/permissions";
 import { syncOverdueRfiFlags } from "@/app/actions/rfis";
 import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { RfiList } from "@/components/RfiList";
+import { privateStoredFileUrl } from "@/lib/storage";
 import type { RfiStatus } from "@prisma/client";
 import { ProjectPageHeader } from "@/components/PageHeader";
 
@@ -24,16 +25,23 @@ export default async function ProjectRfisPage({
   const validStatuses: (RfiStatus | "ALL")[] = ["OPEN", "ANSWERED", "CLOSED", "ALL"];
   const statusFilter = validStatuses.includes(status as never) ? (status as RfiStatus | "ALL") : "OPEN";
 
-  const [rfis, tasks] = await Promise.all([
+  const [rfis, tasks, files] = await Promise.all([
     prisma.rFI.findMany({
       where: { projectId, ...(statusFilter === "ALL" ? {} : { status: statusFilter }) },
       include: {
         raisedBy: { include: { user: { select: { name: true } } } },
         task: { select: { id: true, name: true } },
+        attachment: { select: { id: true, fileName: true, fileUrl: true } },
       },
       orderBy: { createdAt: "desc" },
     }),
     prisma.task.findMany({ where: { projectId }, select: { id: true, name: true } }),
+    prisma.assistantAttachment.findMany({
+      where: { projectId },
+      select: { id: true, fileName: true },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
   ]);
 
   return (
@@ -62,7 +70,22 @@ export default async function ProjectRfisPage({
           ))}
         </div>
 
-        <RfiList projectId={projectId} rfis={rfis} tasks={tasks} canAnswer={canManageSchedule(role)} />
+        <RfiList
+          projectId={projectId}
+          rfis={rfis.map((rfi) => ({
+            ...rfi,
+            attachment: rfi.attachment
+              ? {
+                  id: rfi.attachment.id,
+                  fileName: rfi.attachment.fileName,
+                  url: privateStoredFileUrl(rfi.attachment.fileUrl),
+                }
+              : null,
+          }))}
+          tasks={tasks}
+          files={files}
+          canAnswer={canManageSchedule(role)}
+        />
       </div>
     </div>
   );

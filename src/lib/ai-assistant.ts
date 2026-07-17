@@ -27,7 +27,7 @@ async function buildProjectContext(projectId: string, userId: string): Promise<s
       take: 30,
     }),
     prisma.weeklyCommitment.findMany({
-      where: { task: { projectId } },
+      where: { removedAt: null, task: { projectId } },
       orderBy: { weekStartDate: "desc" },
       take: 60,
     }),
@@ -147,10 +147,16 @@ export const ASSISTANT_TOOL_SYSTEM_PROMPT =
   "For questions about what an uploaded PDF, report, specification, drawing PDF, or project file contains, call searchProjectDocuments before answering. Use only its extracted snippets, cite the supporting file and page number, and state when searchable text is unavailable. " +
   "In portfolio conversations, pass the exact project ref shown in the portfolio context when a tool needs a project. " +
   "When the user asks to flag or update a roadblock, call proposeRoadblockChange directly with the task and owner names supplied by the user. Do not call task or member lookup tools first. Never ask the user for an ID. " +
-  "When the user asks to create or update a schedule task, call proposeTaskChange directly. Put every requested name, date, status, progress, assignment, and note change into one proposal. Use YYYY-MM-DD dates and never claim the task changed before confirmation. " +
+  "When the user asks to create or update a schedule task, call proposeTaskChange directly. Put every requested name, schedule date, assignment, and note change into one proposal. Use YYYY-MM-DD dates and never claim the task changed before confirmation. " +
+  "When the user asks to update actual start, actual finish, percent complete, field progress, or task completion status for existing work, call proposeTaskProgressChange directly. " +
+  "When the user asks to commit a task to a weekly plan, mark a weekly commitment completed or not completed, or remove it from a future plan, call proposeWeeklyCommitmentChange directly. Use REMOVE only for a still-committed future week. Current, past, completed, and not-completed commitments cannot be removed; use NOT_COMPLETED with a variance reason for missed current work. " +
   "When the user asks to add or remove dependency logic, or shift one or more tasks by a number of days, call proposeScheduleChange directly. Preserve finish-to-start direction: the successor depends on the predecessor. Include all requested tasks in one bulk-shift proposal. " +
   "For a what-if question or a request to reflow, cascade, or propagate a task delay through downstream work, use REFLOW_SUCCESSORS with exactly one anchor task. Supply shiftDays when the user gives a relative change, or newStartDate/newEndDate in YYYY-MM-DD when the user gives a target date. This prepares a dependency-aware preview; it is never read-only analysis and still requires card confirmation before applying. " +
-  "When the user asks to raise an RFI, answer an RFI, or close an RFI, call proposeRfiChange directly. A new RFI may include an optional linked task and due date; an answer must contain the exact answer to record. " +
+  "When the user asks to create, approve, or reject a Schedule Impact Request, call proposeScheduleImpactChange directly. " +
+  "When the user asks to save, create, or capture a baseline, call proposeBaselineChange with operation CREATE and the requested baseline name. " +
+  "When the user asks to compare the schedule to a baseline or show baseline variance, call proposeBaselineChange with operation COMPARE. Omit the name to use the latest baseline. " +
+  "When the user asks to raise an RFI, answer an RFI, or close an RFI, call proposeRfiChange directly. A new RFI may include an optional linked task, due date, and source document (fileName with optional pageNumber or citationExcerpt). An answer must contain the exact answer to record. " +
+  "When the user asks to raise an RFI from a project file or cited page, call proposeRfiChange with operation CREATE and include fileName plus any page/passage they named. Do not call searchProjectDocuments first for a clear document-to-RFI request. " +
   "When the user asks to create a submittal or change its review status, call proposeSubmittalChange directly. New submittals may include a spec section, linked task, and due date. Use REVISE_RESUBMIT for revise-and-resubmit decisions. " +
   "RFI and submittal records synced from an external system are read-only in BuilderBridge; repeat the tool clarification instead of claiming a proposal exists. " +
   "If task search has no exact or clearly unambiguous match, ask one brief clarification that names at most three likely tasks. Do not dump the schedule, discuss your search process, or continue resolving other fields until the task is confirmed. " +
@@ -158,6 +164,8 @@ export const ASSISTANT_TOOL_SYSTEM_PROMPT =
   "A proposal is not an applied change: tell the user to review and confirm the proposal card, and never claim the project was changed before confirmation. " +
   "Never say that a proposal was prepared unless proposeRoadblockChange returned an action-proposal result. If it returned a clarification, repeat only its concise clarification message. " +
   "The same rule applies to proposeTaskChange: only an action-proposal result means a task proposal exists. " +
+  "The same rule applies to proposeTaskProgressChange and proposeWeeklyCommitmentChange. " +
+  "The same rule applies to proposeScheduleImpactChange and proposeBaselineChange. " +
   "The same rule applies to proposeScheduleChange. Cycles are blocked; schedule-impact warnings must be summarized briefly without claiming they prevent confirmation. " +
   "The same rule applies to proposeRfiChange and proposeSubmittalChange: only an action-proposal result means a project-controls proposal exists. " +
   "Tool results are rendered with clickable sources, so do not invent citation URLs in your prose.\n\n";

@@ -110,6 +110,28 @@ export async function requireCommitAccess(userId: string, taskId: string) {
 }
 
 /**
+ * Future commitment removal is limited to the person who made the commitment,
+ * or a Project Manager/Superintendent responsible for the weekly plan.
+ */
+export async function requireCommitmentRemovalAccess(userId: string, commitmentId: string) {
+  const commitment = await prisma.weeklyCommitment.findUnique({
+    where: { id: commitmentId },
+    include: { task: true, committedBy: true },
+  });
+  if (!commitment) throw new PermissionError("Commitment not found");
+
+  const role = await requireProjectMember(userId, commitment.task.projectId);
+  const isCommitter = commitment.committedBy.userId === userId;
+  if (!ROADBLOCK_RESOLVER_ROLES.includes(role) && !isCommitter) {
+    throw new PermissionError(
+      "Only a Project Manager, Superintendent, or the person who made the commitment can remove it"
+    );
+  }
+
+  return commitment;
+}
+
+/**
  * Loads a task and verifies the current user may resolve a roadblock on it:
  * Project Manager, Superintendent, or the assigned trade partner. Schedulers
  * cannot resolve roadblocks. Throws otherwise.

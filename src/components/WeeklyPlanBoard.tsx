@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { commitToWeek, updateCommitmentStatus } from "@/app/actions/weekly-plan";
+import { useRouter } from "next/navigation";
+import { CircleMinus } from "lucide-react";
+import { commitToWeek, removeFutureCommitment, updateCommitmentStatus } from "@/app/actions/weekly-plan";
 import { Button } from "@/components/ui/Button";
 import { ErrorText } from "@/components/ui/ErrorText";
 import { COMMITMENT_STATUS_LABELS } from "@/lib/utils";
@@ -11,6 +13,7 @@ export type CommitmentRow = {
   id: string;
   status: CommitmentStatus;
   reasonForVariance: string | null;
+  canRemove: boolean;
   task: { id: string; name: string };
   committedBy: { user: { name: string } };
 };
@@ -43,11 +46,15 @@ export function WeeklyPlanBoard({
                 <th className="px-4 py-2.5 font-medium">Task</th>
                 <th className="px-4 py-2.5 font-medium">Committed by</th>
                 <th className="px-4 py-2.5 font-medium">Status</th>
+                <th className="w-32 px-4 py-2.5 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {commitments.map((c) => (
-                <CommitmentRowView key={c.id} commitment={c} />
+                <CommitmentRowView
+                  key={`${c.id}:${c.status}:${c.reasonForVariance ?? ""}:${c.canRemove}`}
+                  commitment={c}
+                />
               ))}
             </tbody>
           </table>
@@ -62,8 +69,10 @@ export function WeeklyPlanBoard({
 function CommitmentRowView({ commitment }: { commitment: CommitmentRow }) {
   const [status, setStatus] = useState(commitment.status);
   const [reason, setReason] = useState(commitment.reasonForVariance ?? "");
+  const [confirmingRemoval, setConfirmingRemoval] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   function handleStatusChange(next: CommitmentStatus) {
     setStatus(next);
@@ -85,6 +94,19 @@ function CommitmentRowView({ commitment }: { commitment: CommitmentRow }) {
         reasonForVariance: reason,
       });
       if (!result.success) setError(result.error);
+    });
+  }
+
+  function handleRemove() {
+    setError(null);
+    startTransition(async () => {
+      const result = await removeFutureCommitment({ commitmentId: commitment.id });
+      if (!result.success) {
+        setError(result.error);
+        setConfirmingRemoval(false);
+        return;
+      }
+      router.refresh();
     });
   }
 
@@ -119,6 +141,34 @@ function CommitmentRowView({ commitment }: { commitment: CommitmentRow }) {
           </div>
         )}
         <ErrorText>{error}</ErrorText>
+      </td>
+      <td className="px-4 py-3">
+        {commitment.canRemove &&
+          (confirmingRemoval ? (
+            <div className="flex items-center gap-1.5">
+              <Button variant="text" className="h-8 px-2 text-xs" onClick={handleRemove} disabled={pending}>
+                {pending ? "Removing..." : "Remove"}
+              </Button>
+              <Button
+                variant="ghost"
+                className="h-8 px-2 text-xs"
+                onClick={() => setConfirmingRemoval(false)}
+                disabled={pending}
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="ghost"
+              className="h-8 w-8 p-0 text-muted hover:text-error"
+              onClick={() => setConfirmingRemoval(true)}
+              aria-label={`Remove ${commitment.task.name} from this weekly plan`}
+              title="Remove from weekly plan"
+            >
+              <CircleMinus size={16} aria-hidden />
+            </Button>
+          ))}
       </td>
     </tr>
   );
@@ -164,7 +214,7 @@ function CommitForm({ weekStartDate, tasks }: { weekStartDate: string; tasks: Co
         </Button>
       </div>
       <p className="text-xs text-muted-soft mt-2">
-        Once committed, this can&apos;t be un-committed — only marked completed or not completed with a reason.
+        Future commitments can be removed before their week begins. Current and past commitments stay in the plan.
       </p>
       <ErrorText>{error}</ErrorText>
     </div>

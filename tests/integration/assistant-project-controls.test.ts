@@ -86,6 +86,66 @@ describe("Assistant RFI and submittal proposals", () => {
     ).toBe(1);
   });
 
+  it("raises an RFI from a cited project document page", async () => {
+    const conversation = await createConversation(fixture.trade.user.id);
+    const attachment = await prisma.assistantAttachment.create({
+      data: {
+        projectId: fixture.project.id,
+        uploadedById: fixture.trade.user.id,
+        fileName: "Waterproofing Spec.pdf",
+        mediaType: "application/pdf",
+        sizeBytes: 2048,
+        storageKey: `test/${fixture.organization.id}/waterproofing-spec.pdf`,
+        fileUrl: `/api/files/test/${fixture.organization.id}/waterproofing-spec.pdf`,
+        source: "DIRECT_UPLOAD",
+        extractionStatus: "READY",
+        pageCount: 4,
+        processedAt: new Date(),
+      },
+    });
+    await prisma.documentChunk.create({
+      data: {
+        documentId: attachment.id,
+        pageNumber: 3,
+        chunkIndex: 0,
+        text: "Membrane terminations at parapets shall follow detail 7/A-501.",
+      },
+    });
+
+    const output = await toolsFor(fixture.trade.user.id, conversation.id).proposeRfiChange.execute!(
+      {
+        operation: "CREATE",
+        question: "Which membrane termination detail applies at the parapet?",
+        fileName: "Waterproofing Spec.pdf",
+        pageNumber: 3,
+      },
+      { toolCallId: "rfi-from-doc", messages: [], context: {} }
+    );
+    expect(output).toMatchObject({
+      kind: "action-proposal",
+      proposal: { actionLabel: "Raise RFI", status: "PENDING" },
+    });
+    if (!output || typeof output !== "object" || !("proposal" in output)) {
+      throw new Error("Expected a document-linked RFI proposal");
+    }
+    expect(output.proposal.changes.some((change) => change.field === "document")).toBe(true);
+    expect(output.proposal.changes.some((change) => change.field === "citationExcerpt")).toBe(true);
+
+    const context = { organizationId: fixture.organization.id, userId: fixture.trade.user.id };
+    await confirmAssistantAction(output.proposal.id, context);
+    const rfi = await prisma.rFI.findFirstOrThrow({
+      where: {
+        projectId: fixture.project.id,
+        question: "Which membrane termination detail applies at the parapet?",
+      },
+    });
+    expect(rfi).toMatchObject({
+      attachmentId: attachment.id,
+      pageNumber: 3,
+      citationExcerpt: "Membrane terminations at parapets shall follow detail 7/A-501.",
+    });
+  });
+
   it("answers an RFI as a GC role and rejects a stale proposal", async () => {
     const conversation = await createConversation(fixture.pm.user.id);
     const rfi = await prisma.rFI.create({

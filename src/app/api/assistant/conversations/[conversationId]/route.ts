@@ -26,6 +26,9 @@ export async function GET(
       : []
   );
   const proposalStates = await loadAssistantProposalStates(proposalIds, conversationId);
+  const visibleMessages = messages.filter(
+    (message) => !(message.role === "ASSISTANT" && message.model === "pending" && !message.content && !message.parts)
+  );
 
   return Response.json({
     conversation: {
@@ -33,9 +36,9 @@ export async function GET(
       title: conversation.title,
       projectId: conversation.projectId,
       updatedAt: conversation.updatedAt.toISOString(),
-      messageCount: conversation._count.messages,
+      messageCount: visibleMessages.length,
     },
-    messages: messages.map((message) => ({
+    messages: visibleMessages.map((message) => ({
       id: message.id,
       role: message.role === "USER" ? "user" : "assistant",
       parts: Array.isArray(message.parts)

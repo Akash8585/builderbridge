@@ -49,10 +49,10 @@ export function AssistantActionProposal({ initialProposal }: { initialProposal: 
   const pending = proposal.status === "PENDING";
   const warnings = proposal.warnings ?? [];
   return (
-    <section className="overflow-hidden rounded-md border border-hairline bg-canvas" aria-label="Action proposal">
-      <div className="border-b border-hairline bg-surface-soft px-4 py-3.5">
+    <section className="overflow-hidden rounded-md border border-white/[0.1] bg-white/[0.035]" aria-label="Action proposal">
+      <div className="border-b border-white/[0.08] bg-white/[0.035] px-4 py-3.5">
         <div className="flex items-start gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-ink text-white">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-[#111211]">
             {proposal.status === "CONFIRMED" ? (
               <CheckCircle2 size={17} aria-hidden />
             ) : (
@@ -60,7 +60,7 @@ export function AssistantActionProposal({ initialProposal }: { initialProposal: 
             )}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-bold uppercase text-muted">
+            <p className="text-[11px] font-bold uppercase text-white/35">
               {proposal.status === "CONFIRMED"
                 ? "Change applied"
                 : proposal.status === "CANCELLED"
@@ -69,22 +69,22 @@ export function AssistantActionProposal({ initialProposal }: { initialProposal: 
                     ? "Proposal expired"
                     : "Confirmation required"}
             </p>
-            <h4 className="mt-0.5 text-sm font-semibold text-ink">{proposal.title}</h4>
-            <p className="mt-1 text-xs text-muted">{proposal.projectName}</p>
+            <h4 className="mt-0.5 text-sm font-semibold text-white/90">{proposal.title}</h4>
+            <p className="mt-1 text-xs text-white/35">{proposal.projectName}</p>
           </div>
         </div>
       </div>
 
-      <div className="divide-y divide-hairline px-4">
+      <div className="divide-y divide-white/[0.07] px-4">
         {proposal.changes.map((change) => (
           <div
             key={change.field}
             className="grid gap-1.5 py-3 sm:grid-cols-[92px_1fr_18px_1fr] sm:items-center"
           >
-            <span className="text-[11px] font-semibold text-muted">{change.label}</span>
-            <span className="min-w-0 break-words text-xs text-body">{change.before}</span>
-            <ArrowRight size={13} className="hidden text-muted-soft sm:block" aria-hidden />
-            <span className="min-w-0 break-words text-xs font-semibold text-ink">{change.after}</span>
+            <span className="text-[11px] font-semibold text-white/35">{change.label}</span>
+            <span className="min-w-0 break-words text-xs text-white/50">{change.before}</span>
+            <ArrowRight size={13} className="hidden text-white/25 sm:block" aria-hidden />
+            <span className="min-w-0 break-words text-xs font-semibold text-white/85">{change.after}</span>
           </div>
         ))}
       </div>
@@ -94,8 +94,8 @@ export function AssistantActionProposal({ initialProposal }: { initialProposal: 
           <div className="flex items-start gap-2">
             <TriangleAlert size={15} className="mt-0.5 shrink-0 text-warning" aria-hidden />
             <div>
-              <p className="text-xs font-semibold text-ink">Schedule impact</p>
-              <ul className="mt-1.5 space-y-1 text-xs leading-5 text-body">
+              <p className="text-xs font-semibold text-white/85">Schedule impact</p>
+              <ul className="mt-1.5 space-y-1 text-xs leading-5 text-white/55">
                 {warnings.map((warning) => (
                   <li key={warning}>{warning}</li>
                 ))}
@@ -106,15 +106,15 @@ export function AssistantActionProposal({ initialProposal }: { initialProposal: 
       )}
 
       {error && (
-        <p className="border-t border-hairline bg-error-soft px-4 py-2.5 text-xs text-error" role="alert">
+        <p className="border-t border-white/[0.08] bg-error/10 px-4 py-2.5 text-xs text-error" role="alert">
           {error}
         </p>
       )}
 
-      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-hairline px-4 py-3">
+      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.08] px-4 py-3">
         <Link
           href={proposal.href}
-          className="inline-flex h-8 items-center gap-1.5 text-xs font-medium text-body hover:text-ink"
+          className="inline-flex h-8 items-center gap-1.5 text-xs font-medium text-white/50 hover:text-white"
         >
           {proposal.hrefLabel}
           <ExternalLink size={12} aria-hidden />
@@ -125,7 +125,7 @@ export function AssistantActionProposal({ initialProposal }: { initialProposal: 
               type="button"
               onClick={() => void submit("cancel")}
               disabled={submitting !== null}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-hairline px-3 text-xs font-semibold text-body hover:bg-surface-soft disabled:opacity-50"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold text-white/60 hover:bg-white/[0.06] hover:text-white disabled:opacity-50"
             >
               {submitting === "cancel" ? (
                 <LoaderCircle size={13} className="animate-spin" aria-hidden />
@@ -138,7 +138,7 @@ export function AssistantActionProposal({ initialProposal }: { initialProposal: 
               type="button"
               onClick={() => void submit("confirm")}
               disabled={submitting !== null}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-ink px-3 text-xs font-semibold text-white hover:bg-primary-active disabled:opacity-50"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-white px-3 text-xs font-semibold text-[#111211] hover:bg-white/85 disabled:opacity-50"
             >
               {submitting === "confirm" ? (
                 <LoaderCircle size={13} className="animate-spin" aria-hidden />

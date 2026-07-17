@@ -31,8 +31,8 @@ function AttachmentPreview({ part, userMessage }: { part: FileUIPart; userMessag
       rel="noreferrer"
       className={`group block overflow-hidden rounded-md border transition-colors ${
         userMessage
-          ? "border-white/15 bg-white/8 hover:bg-white/12"
-          : "border-hairline bg-surface-soft hover:border-muted-soft"
+          ? "border-white/10 bg-white/[0.06] hover:bg-white/[0.09]"
+          : "border-white/[0.09] bg-white/[0.04] text-white/75 hover:border-white/15"
       }`}
     >
       {isImage && (
@@ -68,14 +68,14 @@ export function AssistantConversation({
   }, [messages, busy]);
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-8">
+    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-7 sm:px-8">
       {messages.length === 0 ? (
-        <div className="mx-auto flex min-h-full max-w-xl flex-col justify-center py-10">
-          <span className="mb-5 flex h-10 w-10 items-center justify-center rounded-md bg-ink text-white">
+        <div className="mx-auto flex min-h-full max-w-2xl flex-col justify-center py-10">
+          <span className="mb-5 flex h-10 w-10 items-center justify-center rounded-md bg-white text-[#111211]">
             <Sparkles size={18} aria-hidden />
           </span>
-          <h3 className="font-display text-2xl text-ink">What needs attention?</h3>
-          <p className="mt-2 max-w-md text-sm leading-6 text-muted">
+          <h3 className="font-display text-2xl text-white">What needs attention?</h3>
+          <p className="mt-2 max-w-md text-sm leading-6 text-white/40">
             Ask about schedule risk, roadblocks, commitments, RFIs, submittals, or portfolio health.
           </p>
           <div className="mt-7 grid gap-2 sm:grid-cols-2">
@@ -84,7 +84,7 @@ export function AssistantConversation({
                 key={suggestion}
                 type="button"
                 onClick={() => onSuggestion(suggestion)}
-                className="min-h-14 rounded-md border border-hairline bg-canvas px-3.5 py-3 text-left text-sm leading-5 text-body transition-colors hover:border-muted-soft hover:bg-surface-soft hover:text-ink"
+                className="min-h-14 rounded-md border border-white/[0.08] bg-white/[0.025] px-3.5 py-3 text-left text-sm leading-5 text-white/55 transition-colors hover:border-white/15 hover:bg-white/[0.055] hover:text-white"
               >
                 {suggestion}
               </button>
@@ -92,7 +92,7 @@ export function AssistantConversation({
           </div>
         </div>
       ) : (
-        <div className="mx-auto max-w-2xl space-y-7">
+        <div className="mx-auto max-w-3xl space-y-9 pb-4">
           {messages.map((message) => {
             const text = getUIMessageText(message);
             const toolParts = message.parts.filter(isToolUIPart);
@@ -103,7 +103,7 @@ export function AssistantConversation({
             return (
               <div key={message.id} className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
                 {!isUser && (
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-ink text-white">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.05] text-white/65">
                     <Bot size={15} aria-hidden />
                   </span>
                 )}
@@ -111,8 +111,8 @@ export function AssistantConversation({
                   data-message-role={isUser ? "user" : "assistant"}
                   className={
                     isUser
-                      ? "max-w-[82%] whitespace-pre-wrap rounded-lg bg-ink px-4 py-3 text-sm leading-6 text-white"
-                      : "max-w-[calc(100%-40px)] space-y-3 whitespace-pre-wrap pt-0.5 text-sm leading-6 text-body"
+                      ? "max-w-[82%] whitespace-pre-wrap rounded-lg border border-white/[0.08] bg-white/[0.08] px-4 py-3 text-sm leading-6 text-white/90"
+                      : "max-w-[calc(100%-40px)] space-y-3 whitespace-pre-wrap pt-0.5 text-[15px] leading-7 text-white/72"
                   }
                 >
                   {fileParts.length > 0 && (
@@ -135,14 +135,14 @@ export function AssistantConversation({
             );
           })}
           {busy && messages.at(-1)?.role === "user" && (
-            <div className="flex items-center gap-3 text-muted-soft">
-              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-ink text-white">
+            <div className="flex items-center gap-3 text-white/35">
+              <span className="flex h-7 w-7 items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.05] text-white/65">
                 <Bot size={15} aria-hidden />
               </span>
               <span className="flex gap-1" aria-label="BuilderBridge AI is thinking">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-muted-soft" />
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-muted-soft [animation-delay:150ms]" />
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-muted-soft [animation-delay:300ms]" />
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/35" />
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/35 [animation-delay:150ms]" />
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/35 [animation-delay:300ms]" />
               </span>
             </div>
           )}

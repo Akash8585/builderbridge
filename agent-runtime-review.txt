@@ -1,0 +1,59 @@
+Agent Runtime Review
+Date: 2026-07-17
+
+Findings
+
+P1: Portfolio context can leak project data outside project membership.
+
+src/lib/ai-assistant.ts loads every non-archived project in the active organization, while the tools and project conversations correctly check project membership elsewhere. In a portfolio conversation, a user can get names, IDs, health, PPC, roadblocks, and dates for projects they may not belong to before any tool permission boundary applies.
+
+Recommended fix:
+Pass userId into buildAssistantContext and filter projects by membership, matching the access pattern used in src/lib/assistant-tools.ts.
+
+
+P2: Deterministic tool failures persist as blank assistant turns.
+
+In the direct deterministic path, the catch block writes only tool-output-error and finish. The onEnd handler then persists messageText(responseMessage).trim(), which can be empty. Permission errors, no-op proposals, or parser failures can therefore become empty assistant messages in history.
+
+Recommended fix:
+Add a text part with the error message, or skip persistence for failed deterministic tool runs.
+
+
+P2: Context and tool policy fight each other.
+
+Each model turn builds full portfolio context plus detailed focus-project context, then instructs the model to call a read-only tool for every current-data question anyway. This is costly, increases stale-context conflict risk, and leaves only six steps for forced tools plus follow-up calls.
+
+Recommended fix:
+Use a smaller scoped briefing plus tool-first retrieval. Keep the preloaded context to identity, scope, and high-level navigation hints, then rely on tools for live data.
+
+
+What Is Strong
+
+The write path is sensibly confirmation-gated. Proposals snapshot state, expire after 30 minutes, and schedule confirmations use serializable transactions and re-check affected tasks before mutation. This lines up well with current agent guidance: simple loops, clear tool contracts, environment feedback, and human checkpoints.
+
+
+Principles Check
+
+Current agent guidance from OpenAI and Anthropic emphasizes tool ergonomics, scoped context, permission boundaries, and multi-turn evals. Anthropic's agent eval guidance specifically calls out tool calls, state mutation, transcripts, and final environment state as evaluation targets; their tool guidance recommends measuring tool errors, redundant calls, and invalid parameters.
+
+Your runtime has good deterministic safeguards, but needs an eval suite for full agent trajectories:
+
+- Permission-scoped portfolio Q&A
+- Document search grounding
+- Forced-tool clarifications
+- Failed proposal tools
+- "Confirm/yes" recovery
+
+
+Sources
+
+- OpenAI tools guide: https://developers.openai.com/api/docs/guides/tools
+- OpenAI Agents docs: https://developers.openai.com/api/docs/guides/agents
+- Anthropic building effective agents: https://www.anthropic.com/engineering/building-effective-agents
+- Anthropic tool guidance: https://www.anthropic.com/engineering/writing-tools-for-agents
+- Anthropic agent evals: https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents
+
+
+Verification Note
+
+I attempted focused tests, but npm is unavailable in this shell, and bundled pnpm tried to install dependencies then failed on restricted network access. I cleaned the generated .pnpm-store; tracked changes remained the same pre-existing files.

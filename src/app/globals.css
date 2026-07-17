@@ -108,12 +108,15 @@ textarea {
 }
 
 button:focus-visible,
-a:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 2px;
+  outline: none;
 }
 
 .app-shell {

@@ -10,9 +10,11 @@ export { AssistantNotConfiguredError } from "@/lib/openrouter";
 
 export type AssistantMessage = { role: "user" | "assistant"; content: string };
 
-async function buildProjectContext(projectId: string): Promise<string> {
+async function buildProjectContext(projectId: string, userId: string): Promise<string> {
   const [project, tasks, openRoadblocks, recentCommitments, openSubmittals, openRfis] = await Promise.all([
-    prisma.project.findUniqueOrThrow({ where: { id: projectId } }),
+    prisma.project.findFirstOrThrow({
+      where: { id: projectId, isArchived: false, members: { some: { userId } } },
+    }),
     prisma.task.findMany({
       where: { projectId },
       include: { assignedTo: { include: { user: { select: { name: true } } } } },
@@ -71,11 +73,15 @@ OPEN RFIS (${openRfis.length}):
 ${rfiLines || "(none)"}`;
 }
 
-export async function buildAssistantContext(organizationId: string, focusProjectId?: string): Promise<string> {
+export async function buildAssistantContext(
+  organizationId: string,
+  userId: string,
+  focusProjectId?: string
+): Promise<string> {
   const [organization, projects] = await Promise.all([
     prisma.organization.findUniqueOrThrow({ where: { id: organizationId } }),
     prisma.project.findMany({
-      where: { organizationId, isArchived: false },
+      where: { organizationId, isArchived: false, members: { some: { userId } } },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -83,7 +89,7 @@ export async function buildAssistantContext(organizationId: string, focusProject
     projects.map(async (project) => ({ project, summary: await loadProjectSummary(project.id) }))
   );
   const portfolioLines = summaries
-    .map(({ project, summary }) => {
+    .map(({ project, summary }, index) => {
       const variance =
         summary.variance === null
           ? "variance n/a"
@@ -93,7 +99,7 @@ export async function buildAssistantContext(organizationId: string, focusProject
               : `${Math.abs(summary.variance)}d ahead`
             : `${summary.variance}d behind`;
       return (
-        `- "${project.name}" [project ID: ${project.id}]: ${summary.percentComplete}% complete, PPC ${summary.ppc ?? "n/a"}%, ` +
+        `- "${project.name}" [project ref: project-${index + 1}]: ${summary.percentComplete}% complete, PPC ${summary.ppc ?? "n/a"}%, ` +
         `PRR ${summary.prr ?? "n/a"}%, ${summary.openRoadblocks} open roadblocks, ` +
         `health score ${summary.healthScore ?? "n/a"}, ${variance}, ` +
         `${formatDate(project.startDate)}-${formatDate(project.endDate)}`
@@ -115,7 +121,7 @@ export async function buildAssistantContext(organizationId: string, focusProject
     : null;
   const focusBlock =
     focusProjectId && projects.some((project) => project.id === focusProjectId)
-      ? `\n\nCURRENT PROJECT (detailed data):\n${await buildProjectContext(focusProjectId)}`
+      ? `\n\nCURRENT PROJECT (detailed data):\n${await buildProjectContext(focusProjectId, userId)}`
       : "";
 
   return `TODAY: ${new Date().toISOString().slice(0, 10)}
@@ -139,7 +145,7 @@ export const ASSISTANT_TOOL_SYSTEM_PROMPT =
   ASSISTANT_SYSTEM_PROMPT +
   "For every question about current BuilderBridge data, call the most relevant read-only tool before answering, even when the context already contains a summary. " +
   "For questions about what an uploaded PDF, report, specification, drawing PDF, or project file contains, call searchProjectDocuments before answering. Use only its extracted snippets, cite the supporting file and page number, and state when searchable text is unavailable. " +
-  "In portfolio conversations, pass the exact project ID shown in the portfolio context when a tool needs a project. " +
+  "In portfolio conversations, pass the exact project ref shown in the portfolio context when a tool needs a project. " +
   "When the user asks to flag or update a roadblock, call proposeRoadblockChange directly with the task and owner names supplied by the user. Do not call task or member lookup tools first. Never ask the user for an ID. " +
   "When the user asks to create or update a schedule task, call proposeTaskChange directly. Put every requested name, date, status, progress, assignment, and note change into one proposal. Use YYYY-MM-DD dates and never claim the task changed before confirmation. " +
   "When the user asks to add or remove dependency logic, or shift one or more tasks by a number of days, call proposeScheduleChange directly. Preserve finish-to-start direction: the successor depends on the predecessor. Include all requested tasks in one bulk-shift proposal. " +
@@ -159,9 +165,9 @@ export const ASSISTANT_TOOL_SYSTEM_PROMPT =
 export async function answerAssistantQuestion(
   organizationId: string,
   question: string,
-  options?: { focusProjectId?: string; history?: AssistantMessage[] }
+  options: { userId: string; focusProjectId?: string; history?: AssistantMessage[] }
 ): Promise<string> {
-  const context = await buildAssistantContext(organizationId, options?.focusProjectId);
+  const context = await buildAssistantContext(organizationId, options.userId, options?.focusProjectId);
   const { text } = await generateText({
     model: getOpenRouterModel(),
     system: ASSISTANT_SYSTEM_PROMPT + context,
@@ -178,7 +184,8 @@ export async function answerAssistantQuestion(
 }
 
 /** @deprecated Use answerAssistantQuestion. */
-export async function answerScheduleQuestion(projectId: string, question: string): Promise<string> {
-  const project = await prisma.project.findUniqueOrThrow({ where: { id: projectId } });
-  return answerAssistantQuestion(project.organizationId, question, { focusProjectId: projectId });
+export async function answerScheduleQuestion(_projectId: string, _question: string): Promise<string> {
+  void _projectId;
+  void _question;
+  throw new Error("answerScheduleQuestion requires a user-scoped call path. Use answerAssistantQuestion instead.");
 }

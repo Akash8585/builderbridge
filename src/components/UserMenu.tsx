@@ -1,12 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Bot, LayoutDashboard } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
 export function UserMenu() {
   const router = useRouter();
   const { data: session } = authClient.useSession();
+  const [assistantOpen, setAssistantOpen] = useState(false);
+
+  useEffect(() => {
+    const syncAssistantState = (event: Event) => {
+      const open = (event as CustomEvent<{ open?: boolean }>).detail?.open;
+      if (typeof open === "boolean") setAssistantOpen(open);
+    };
+    window.addEventListener("builderbridge:assistant-state", syncAssistantState);
+    return () => window.removeEventListener("builderbridge:assistant-state", syncAssistantState);
+  }, []);
 
   if (!session?.user) return null;
 
@@ -41,6 +53,27 @@ export function UserMenu() {
         className="hidden h-9 rounded-md px-2 text-xs font-medium text-muted transition-colors hover:bg-surface-soft hover:text-ink sm:inline-flex sm:items-center"
       >
         Sign out
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          const open = !assistantOpen;
+          setAssistantOpen(open);
+          window.dispatchEvent(
+            new CustomEvent("builderbridge:toggle-assistant", { detail: { open } })
+          );
+        }}
+        aria-pressed={assistantOpen}
+        aria-label={assistantOpen ? "Close BuilderBridge AI" : "Open BuilderBridge AI"}
+        title={assistantOpen ? "Return to dashboard" : "Open AI workspace"}
+        className={`inline-flex h-9 items-center gap-2 rounded-md px-2.5 text-xs font-semibold transition-colors ${
+          assistantOpen
+            ? "bg-ink text-white hover:bg-primary-active"
+            : "border border-hairline bg-canvas text-body hover:bg-surface-soft hover:text-ink"
+        }`}
+      >
+        {assistantOpen ? <LayoutDashboard size={15} aria-hidden /> : <Bot size={15} aria-hidden />}
+        <span className="hidden xl:inline">{assistantOpen ? "Dashboard" : "AI workspace"}</span>
       </button>
     </div>
   );

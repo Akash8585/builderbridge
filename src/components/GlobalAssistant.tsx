@@ -8,11 +8,12 @@ import type { UIMessage } from "ai";
 import {
   Bot,
   Building2,
-  ChevronDown,
   FolderKanban,
+  LayoutDashboard,
   MessageSquare,
   PanelLeft,
   Plus,
+  Search,
   Sparkles,
   Trash2,
   X,
@@ -211,7 +212,7 @@ function ChatWorkspace({
   }, [onPromptConsumed, pendingPrompt, send, status]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-canvas">
+    <div className="flex min-h-0 flex-1 flex-col bg-transparent text-white">
       <AssistantConversation
         messages={messages}
         busy={busy}
@@ -219,7 +220,7 @@ function ChatWorkspace({
         onSuggestion={send}
       />
       {error && (
-        <div className="mx-auto w-full max-w-2xl px-6 pb-2 text-sm text-error" role="alert">
+        <div className="mx-auto w-full max-w-3xl px-6 pb-2 text-sm text-error" role="alert">
           {error.message}
         </div>
       )}
@@ -253,6 +254,7 @@ export function GlobalAssistant() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [railOpen, setRailOpen] = useState(false);
+  const [conversationQuery, setConversationQuery] = useState("");
 
   const loadConversation = useCallback(async (conversationId: string) => {
     setLoading(true);
@@ -309,6 +311,23 @@ export function GlobalAssistant() {
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [open]);
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("builderbridge:assistant-state", { detail: { open } })
+    );
+  }, [open]);
+
+  useEffect(() => {
+    const toggleAssistant = (event: Event) => {
+      const requestedOpen = (event as CustomEvent<{ open?: boolean }>).detail?.open;
+      const nextOpen = typeof requestedOpen === "boolean" ? requestedOpen : !open;
+      setOpen(nextOpen);
+      if (nextOpen) void loadWorkspace();
+    };
+    window.addEventListener("builderbridge:toggle-assistant", toggleAssistant);
+    return () => window.removeEventListener("builderbridge:toggle-assistant", toggleAssistant);
+  }, [loadWorkspace, open]);
 
   useEffect(() => {
     const openConversation = async (event: Event) => {
@@ -388,14 +407,20 @@ export function GlobalAssistant() {
     return () => window.removeEventListener("builderbridge:ask-project-file", askAboutFile);
   }, []);
 
-  const openWorkspace = useCallback(() => {
-    setOpen(true);
-    void loadWorkspace();
-  }, [loadWorkspace]);
-
-  const currentConversations = useMemo(
-    () => bootstrap?.conversations.filter((conversation) => conversation.projectId === scopeId) ?? [],
-    [bootstrap, scopeId]
+  const visibleConversations = useMemo(() => {
+    const query = conversationQuery.trim().toLowerCase();
+    const conversations = bootstrap?.conversations ?? [];
+    if (!query) return conversations;
+    return conversations.filter((conversation) =>
+      conversation.title.toLowerCase().includes(query)
+    );
+  }, [bootstrap?.conversations, conversationQuery]);
+  const scopeGroups = useMemo(
+    () => [
+      { id: null as string | null, name: "Portfolio" },
+      ...(bootstrap?.projects.map((project) => ({ id: project.id, name: project.name })) ?? []),
+    ],
+    [bootstrap?.projects]
   );
   const scopeName =
     scopeId === null
@@ -491,163 +516,164 @@ export function GlobalAssistant() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={openWorkspace}
-        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-lg border border-white/10 bg-ink text-white shadow-[0_12px_30px_rgba(17,17,17,0.24)] transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 sm:bottom-6 sm:right-6"
-        aria-label="Open BuilderBridge AI"
-        title="BuilderBridge AI"
-      >
-        <Sparkles size={20} aria-hidden />
-      </button>
-
       {open && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <button
-            type="button"
-            className="absolute inset-0 bg-ink/25 backdrop-blur-[2px]"
-            aria-label="Close BuilderBridge AI"
-            onClick={() => setOpen(false)}
-          />
+        <div className="fixed inset-0 z-50 bg-[rgba(9,10,11,0.46)] backdrop-blur-[18px] backdrop-saturate-150">
           <aside
             role="dialog"
-            aria-modal="true"
             aria-label="BuilderBridge AI"
-            className="relative flex h-full w-full max-w-[980px] overflow-hidden border-l border-hairline bg-canvas shadow-[-20px_0_60px_rgba(17,17,17,0.18)]"
+            className="relative flex h-full w-full overflow-hidden bg-transparent before:pointer-events-none before:absolute before:left-0 before:top-0 before:z-0 before:h-4 before:w-4 before:bg-[rgba(41,34,34,0.68)] before:backdrop-blur-[38px] before:backdrop-saturate-150 before:content-[''] md:grid md:grid-cols-[280px_minmax(0,1fr)] md:before:left-[280px] lg:grid-cols-[296px_minmax(0,1fr)] lg:before:left-[296px]"
           >
             <div
-              className={`${railOpen ? "flex" : "hidden"} absolute inset-y-0 left-0 z-20 w-[260px] flex-col border-r border-white/10 bg-app-sidebar text-white md:static md:flex`}
+              className={`${railOpen ? "flex" : "hidden"} absolute inset-y-0 left-0 z-30 w-[280px] shrink-0 flex-col bg-[rgba(41,34,34,0.68)] text-white shadow-[24px_0_60px_rgba(0,0,0,0.26)] backdrop-blur-[38px] backdrop-saturate-150 md:relative md:inset-auto md:z-10 md:flex md:w-full md:shadow-none`}
             >
-              <div className="flex h-16 shrink-0 items-center justify-between border-b border-white/10 px-4">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white text-ink">
-                    <Bot size={17} aria-hidden />
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold">BuilderBridge AI</p>
-                    <p className="text-[11px] text-white/45">Powered by OpenRouter</p>
+              <div className="shrink-0 px-3 pb-1 pt-3">
+                <div className="flex items-center gap-2">
+                  <div className="grid h-9 min-w-0 flex-1 grid-cols-2 rounded-md border border-white/[0.07] bg-black/25 p-1 shadow-inner backdrop-blur-xl" aria-label="Workspace mode">
+                    <button
+                      type="button"
+                      className="flex min-w-0 items-center justify-center gap-1.5 rounded-sm border border-white/[0.06] bg-white/[0.12] px-2 text-[11px] font-semibold text-white shadow-[0_2px_12px_rgba(0,0,0,0.18)] backdrop-blur-xl"
+                      aria-pressed="true"
+                    >
+                      <Bot size={13} aria-hidden />
+                      <span>AI Assist</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOpen(false)}
+                      className="flex min-w-0 items-center justify-center gap-1.5 rounded-sm px-2 text-[11px] font-medium text-white/45 transition-colors hover:bg-white/[0.07] hover:text-white"
+                      aria-label="Return to dashboard"
+                    >
+                      <LayoutDashboard size={13} aria-hidden />
+                      <span>Dashboard</span>
+                    </button>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setRailOpen(false)}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/45 hover:bg-white/[0.07] hover:text-white md:hidden"
+                    aria-label="Close project navigation"
+                  >
+                    <X size={16} aria-hidden />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setRailOpen(false)}
-                  className="rounded-md p-2 text-white/55 hover:bg-white/10 hover:text-white md:hidden"
-                  aria-label="Close project navigation"
-                >
-                  <X size={17} aria-hidden />
-                </button>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+              <div className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-3 pt-3">
                 <button
                   type="button"
                   onClick={() => void createConversation()}
                   aria-label="Start new conversation"
                   disabled={loading}
-                  className="mb-5 flex h-10 w-full items-center justify-center gap-2 rounded-md border border-white/15 bg-white text-sm font-semibold text-ink transition-colors hover:bg-white/90 disabled:cursor-wait disabled:opacity-50"
+                  className="flex h-9 w-full items-center gap-2 rounded-md px-2.5 text-left text-xs font-medium text-white/70 transition-colors hover:bg-white/[0.07] hover:text-white disabled:cursor-wait disabled:opacity-50"
                 >
-                  <Plus size={16} aria-hidden />
-                  New conversation
+                  <Plus size={15} aria-hidden />
+                  New chat
                 </button>
 
-                <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.08em] text-white/35">Projects</p>
-                <nav className="space-y-1" aria-label="Assistant project scopes">
-                  <button
-                    type="button"
-                    onClick={() => selectScope(null)}
-                    className={`flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors ${scopeId === null ? "bg-white/12 text-white" : "text-white/65 hover:bg-white/7 hover:text-white"}`}
-                  >
-                    <FolderKanban size={15} aria-hidden />
-                    <span className="truncate">Portfolio</span>
-                  </button>
-                  {bootstrap?.projects.map((project) => (
-                    <button
-                      key={project.id}
-                      type="button"
-                      onClick={() => selectScope(project.id)}
-                      className={`flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors ${scopeId === project.id ? "bg-white/12 text-white" : "text-white/65 hover:bg-white/7 hover:text-white"}`}
-                    >
-                      <Building2 size={15} aria-hidden />
-                      <span className="truncate">{project.name}</span>
-                    </button>
-                  ))}
+                <label className="mt-0.5 flex h-9 items-center gap-2 rounded-md px-2.5 text-white/35 transition-colors focus-within:bg-white/[0.07] focus-within:text-white/65">
+                  <Search size={14} className="shrink-0" aria-hidden />
+                  <span className="sr-only">Search conversations</span>
+                  <input
+                    value={conversationQuery}
+                    onChange={(event) => setConversationQuery(event.target.value)}
+                    placeholder="Search chats"
+                    className="min-w-0 flex-1 bg-transparent text-xs text-white/80 outline-none placeholder:text-white/30"
+                  />
+                </label>
+
+                <p className="mb-3 mt-6 px-2 text-[10px] font-bold uppercase tracking-[0.08em] text-white/28">Projects</p>
+                <nav className="space-y-5" aria-label="Project chats">
+                  {scopeGroups.map((group) => {
+                    const projectConversations = visibleConversations.filter(
+                      (conversation) => conversation.projectId === group.id
+                    );
+                    const conversationCount =
+                      bootstrap?.conversations.filter(
+                        (conversation) => conversation.projectId === group.id
+                      ).length ?? 0;
+                    const GroupIcon = group.id === null ? FolderKanban : Building2;
+
+                    return (
+                      <section key={group.id ?? "portfolio"} aria-label={`${group.name} chats`}>
+                        <div className="group flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => selectScope(group.id)}
+                            className={`flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left text-xs font-medium transition-colors ${scopeId === group.id ? "text-white" : "text-white/55 hover:bg-white/[0.05] hover:text-white/85"}`}
+                          >
+                            <GroupIcon size={14} className="shrink-0 text-white/35" aria-hidden />
+                            <span className="truncate">{group.name}</span>
+                          </button>
+                          <span className="pr-2 text-[10px] tabular-nums text-white/22">
+                            {conversationCount}
+                          </span>
+                        </div>
+
+                        <div className="ml-3 mt-1 space-y-0.5 border-l border-white/[0.07] pl-2">
+                          {projectConversations.map((conversation) => (
+                            <div
+                              key={conversation.id}
+                              className={`group/chat flex items-center rounded-md border transition-colors ${active?.conversation.id === conversation.id ? "border-white/[0.08] bg-white/[0.1] shadow-[0_5px_18px_rgba(0,0,0,0.12)] backdrop-blur-xl" : "border-transparent hover:bg-white/[0.05]"}`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setScopeId(conversation.projectId);
+                                  void loadConversation(conversation.id);
+                                  setRailOpen(false);
+                                }}
+                                className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left text-[11px] text-white/48 transition-colors group-hover/chat:text-white/80"
+                              >
+                                <MessageSquare size={12} className="shrink-0 text-white/25" aria-hidden />
+                                <span className="truncate">{conversation.title}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void deleteConversation(conversation.id)}
+                                className="mr-1 hidden rounded p-1.5 text-white/30 hover:bg-white/10 hover:text-white group-hover/chat:block focus:block"
+                                aria-label={`Delete ${conversation.title}`}
+                                title="Delete chat"
+                              >
+                                <Trash2 size={12} aria-hidden />
+                              </button>
+                            </div>
+                          ))}
+                          {!loading && !conversationQuery && conversationCount === 0 && scopeId === group.id && (
+                            <p className="px-2 py-1.5 text-[11px] text-white/25">No chats yet</p>
+                          )}
+                        </div>
+                      </section>
+                    );
+                  })}
                 </nav>
 
-                <div className="mb-2 mt-6 flex items-center justify-between px-2">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-white/35">Conversations</p>
-                  <span className="text-[10px] text-white/30">{currentConversations.length}</span>
-                </div>
-                <div className="space-y-1">
-                  {currentConversations.map((conversation) => (
-                    <div
-                      key={conversation.id}
-                      className={`group flex items-center rounded-md ${active?.conversation.id === conversation.id ? "bg-white/12" : "hover:bg-white/7"}`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void loadConversation(conversation.id);
-                          setRailOpen(false);
-                        }}
-                        className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-2 text-left text-xs text-white/70"
-                      >
-                        <MessageSquare size={14} className="shrink-0 text-white/35" aria-hidden />
-                        <span className="truncate">{conversation.title}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void deleteConversation(conversation.id)}
-                        className="mr-1 hidden rounded p-1.5 text-white/35 hover:bg-white/10 hover:text-white group-hover:block focus:block"
-                        aria-label={`Delete ${conversation.title}`}
-                        title="Delete conversation"
-                      >
-                        <Trash2 size={13} aria-hidden />
-                      </button>
-                    </div>
-                  ))}
-                  {!loading && currentConversations.length === 0 && (
-                    <p className="px-2.5 py-2 text-xs leading-5 text-white/35">No conversations yet.</p>
-                  )}
-                </div>
+                {!loading && conversationQuery && visibleConversations.length === 0 && (
+                  <p className="mt-5 px-2 text-xs text-white/30">No matching chats.</p>
+                )}
               </div>
             </div>
 
-            <div className="flex min-w-0 flex-1 flex-col">
-              <header className="flex h-16 shrink-0 items-center gap-3 border-b border-hairline px-4 sm:px-5">
+            <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden rounded-tl-2xl bg-[rgba(14,16,17,0.68)] backdrop-blur-[38px] backdrop-saturate-150 md:z-20">
+              <header className="flex h-13 shrink-0 items-center gap-3 border-b border-white/[0.065] bg-white/[0.01] px-4 backdrop-blur-xl sm:px-5">
                 <button
                   type="button"
                   onClick={() => setRailOpen(true)}
-                  className="flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-soft hover:text-ink md:hidden"
+                  className="flex h-9 w-9 items-center justify-center rounded-md text-white/45 hover:bg-white/[0.07] hover:text-white md:hidden"
                   aria-label="Open project navigation"
                 >
                   <PanelLeft size={18} aria-hidden />
                 </button>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-ink">{activeTitle}</p>
-                  <p className="truncate text-xs text-muted">{scopeName}</p>
-                </div>
-                <div className="relative md:hidden">
-                  <select
-                    value={scopeId ?? "__portfolio__"}
-                    onChange={(event) => selectScope(event.target.value === "__portfolio__" ? null : event.target.value)}
-                    className="h-9 max-w-36 appearance-none rounded-md border border-hairline bg-canvas py-0 pl-3 pr-8 text-xs font-medium text-body"
-                    aria-label="Choose project scope"
-                  >
-                    <option value="__portfolio__">Portfolio</option>
-                    {bootstrap?.projects.map((project) => (
-                      <option key={project.id} value={project.id}>{project.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-3 text-muted" aria-hidden />
-                </div>
+                <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white/88">
+                  {activeTitle}
+                </p>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-soft hover:text-ink"
+                  className="flex h-9 w-9 items-center justify-center rounded-md text-white/45 hover:bg-white/[0.07] hover:text-white md:hidden"
                   aria-label="Close BuilderBridge AI"
-                  title="Close"
+                  title="Return to dashboard"
                 >
-                  <X size={19} aria-hidden />
+                  <LayoutDashboard size={18} aria-hidden />
                 </button>
               </header>
 
@@ -655,13 +681,13 @@ export function GlobalAssistant() {
                 <div className="flex flex-1 items-center justify-center px-6 text-center">
                   <div>
                     <p className="text-sm text-error" role="alert">{error}</p>
-                    <button type="button" onClick={() => void loadWorkspace()} className="mt-4 text-sm font-semibold text-ink underline underline-offset-4">
+                    <button type="button" onClick={() => void loadWorkspace()} className="mt-4 text-sm font-semibold text-white underline underline-offset-4">
                       Try again
                     </button>
                   </div>
                 </div>
               ) : loading && !active ? (
-                <div className="flex flex-1 items-center justify-center text-sm text-muted">Loading conversations...</div>
+                <div className="flex flex-1 items-center justify-center text-sm text-white/35">Loading conversations...</div>
               ) : active ? (
                 <ChatWorkspace
                   key={`${active.conversation.id}:${active.conversation.messageCount}:${draftVersion}`}
@@ -677,16 +703,16 @@ export function GlobalAssistant() {
               ) : (
                 <div className="flex flex-1 items-center justify-center px-6">
                   <div className="max-w-sm text-center">
-                    <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-md bg-ink text-white">
+                    <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-md bg-white text-[#111211]">
                       <Sparkles size={19} aria-hidden />
                     </span>
-                    <h3 className="mt-5 font-display text-xl text-ink">Start with {scopeName}</h3>
-                    <p className="mt-2 text-sm leading-6 text-muted">Create a conversation to explore the live project data in this scope.</p>
+                    <h3 className="mt-5 font-display text-xl text-white">Start with {scopeName}</h3>
+                    <p className="mt-2 text-sm leading-6 text-white/40">Create a conversation to explore the live project data in this scope.</p>
                     <button
                       type="button"
                       onClick={() => void createConversation()}
                       disabled={loading}
-                      className="mt-5 inline-flex h-10 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-primary-active"
+                      className="mt-5 inline-flex h-10 items-center gap-2 rounded-md bg-white px-4 text-sm font-semibold text-[#111211] hover:bg-white/90"
                     >
                       <Plus size={16} aria-hidden />
                       New conversation

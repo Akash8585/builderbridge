@@ -45,8 +45,6 @@ AGENTS.md
 CLAUDE.md
 DESIGN.md
 
-# editor/agent tooling
-.cursor/
 
 # Field Tracking photo uploads (local disk storage — dev only, not durable storage)
 /public/uploads/
@@ -57,4 +55,3 @@ DESIGN.md
 # Playwright artifacts
 /test-results/
 /playwright-report/
-

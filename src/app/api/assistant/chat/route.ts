@@ -64,6 +64,21 @@ function streamErrorMessage(error: unknown): string {
   return "OpenRouter could not complete this response. Please try again.";
 }
 
+function assistantMessageIdFor(userMessageId: string) {
+  return `assistant_${userMessageId}`;
+}
+
+function assistantTraceLog(
+  event: "start" | "deterministic-tool" | "stream-start" | "finish" | "error" | "replay" | "in-flight",
+  metadata: Record<string, unknown>
+) {
+  console.info("[assistant-chat]", {
+    event,
+    at: new Date().toISOString(),
+    ...metadata,
+  });
+}
+
 function deterministicOutputText(output: unknown): string {
   if (!output || typeof output !== "object" || !("kind" in output)) return "";
   if (output.kind === "action-proposal") {
@@ -150,6 +165,7 @@ export async function POST(request: Request) {
   const { organizationId } = await requireActiveOrganization();
   const conversation = await requireAssistantConversation(parsed.data.conversationId, user.id, organizationId);
   const existingMessage = await prisma.assistantMessage.findUnique({ where: { id: latestMessage.id } });
+  const assistantMessageId = assistantMessageIdFor(latestMessage.id);
 
   const fileParts = assistantFileParts(latestMessage);
   if (fileParts.length > MAX_ASSISTANT_ATTACHMENTS) {
@@ -221,7 +237,56 @@ export async function POST(request: Request) {
     ]);
   }
 
-  const assistantMessageId = randomUUID();
+  const existingAssistantMessage = await prisma.assistantMessage.findUnique({
+    where: { id: assistantMessageId },
+  });
+  if (existingAssistantMessage) {
+    if (existingAssistantMessage.conversationId !== conversation.id) {
+      return Response.json({ error: "Assistant response already belongs to another conversation." }, { status: 409 });
+    }
+    if (existingAssistantMessage.content.trim() || existingAssistantMessage.parts) {
+      assistantTraceLog("replay", {
+        conversationId: conversation.id,
+        userMessageId: latestMessage.id,
+        assistantMessageId,
+        model: existingAssistantMessage.model,
+      });
+      return createPersistedTextResponse({
+        text: existingAssistantMessage.content,
+        originalMessages: validated.data,
+        assistantMessageId,
+        conversationId: conversation.id,
+        model: existingAssistantMessage.model ?? "assistant-replay",
+      });
+    }
+    if (Date.now() - existingAssistantMessage.createdAt.getTime() < 60_000) {
+      assistantTraceLog("in-flight", {
+        conversationId: conversation.id,
+        userMessageId: latestMessage.id,
+        assistantMessageId,
+      });
+      return Response.json({ error: "Assistant response is already in progress." }, { status: 409 });
+    }
+  } else {
+    await prisma.assistantMessage.create({
+      data: {
+        id: assistantMessageId,
+        conversationId: conversation.id,
+        role: "ASSISTANT",
+        content: "",
+        model: "pending",
+      },
+    });
+  }
+  assistantTraceLog("start", {
+    conversationId: conversation.id,
+    userMessageId: latestMessage.id,
+    assistantMessageId,
+    organizationId,
+    focusProjectId: conversation.projectId,
+    attachmentCount: attachments.length,
+  });
+
   const attachmentAcknowledgement = buildAttachmentAcknowledgement(
     question,
     attachments.map((attachment) => attachment.fileName),
@@ -238,7 +303,7 @@ export async function POST(request: Request) {
   }
 
   const recentMessages = await prisma.assistantMessage.findMany({
-    where: { conversationId: conversation.id },
+    where: { conversationId: conversation.id, id: { not: assistantMessageId } },
     orderBy: { createdAt: "desc" },
     take: 30,
   });
@@ -334,6 +399,12 @@ export async function POST(request: Request) {
           toolName: deterministicAction.toolName,
           input: deterministicAction.input,
         });
+        assistantTraceLog("deterministic-tool", {
+          conversationId: conversation.id,
+          userMessageId: latestMessage.id,
+          assistantMessageId,
+          toolName: deterministicAction.toolName,
+        });
         try {
           const toolOptions = { toolCallId, messages: [], context: {} };
           const output = deterministicAction.toolName === "proposeScheduleChange"
@@ -350,6 +421,13 @@ export async function POST(request: Request) {
           }
           writer.write({ type: "finish", finishReason: "stop" });
         } catch (error) {
+          assistantTraceLog("error", {
+            conversationId: conversation.id,
+            userMessageId: latestMessage.id,
+            assistantMessageId,
+            toolName: deterministicAction.toolName,
+            errorName: error instanceof Error ? error.name : "UnknownError",
+          });
           const errorText =
             error instanceof AssistantActionError
               ? error.message
@@ -361,6 +439,15 @@ export async function POST(request: Request) {
       onEnd: async ({ responseMessage, isAborted }) => {
         if (isAborted) return;
         const content = messageText(responseMessage).trim();
+        assistantTraceLog("finish", {
+          conversationId: conversation.id,
+          userMessageId: latestMessage.id,
+          assistantMessageId,
+          model: deterministicAction.toolName === "proposeScheduleChange"
+            ? "local-schedule-parser"
+            : "local-project-controls-parser",
+          contentLength: content.length,
+        });
         await prisma.$transaction([
           prisma.assistantMessage.upsert({
             where: { id: assistantMessageId },
@@ -386,7 +473,14 @@ export async function POST(request: Request) {
     return createUIMessageStreamResponse({ stream: directStream });
   }
 
-  const context = await buildAssistantContext(organizationId, conversation.projectId ?? undefined);
+  const context = await buildAssistantContext(organizationId, user.id, conversation.projectId ?? undefined);
+  assistantTraceLog("stream-start", {
+    conversationId: conversation.id,
+    userMessageId: latestMessage.id,
+    assistantMessageId,
+    forcedTool,
+    model: env.OPENROUTER_MODEL,
+  });
   const result = streamText({
     model: getOpenRouterModel(),
     system:
@@ -422,6 +516,14 @@ export async function POST(request: Request) {
     onEnd: async ({ responseMessage, isAborted }) => {
       const content = messageText(responseMessage).trim();
       if (isAborted) return;
+      assistantTraceLog("finish", {
+        conversationId: conversation.id,
+        userMessageId: latestMessage.id,
+        assistantMessageId,
+        forcedTool,
+        model: env.OPENROUTER_MODEL,
+        contentLength: content.length,
+      });
       await prisma.$transaction([
         prisma.assistantMessage.upsert({
           where: { id: assistantMessageId },

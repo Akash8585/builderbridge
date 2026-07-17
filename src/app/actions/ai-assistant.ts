@@ -41,6 +41,7 @@ export async function askAssistant(input: unknown): Promise<ActionResult<string>
     }
 
     const answer = await answerAssistantQuestion(organizationId, parsed.data.question, {
+      userId: user.id,
       focusProjectId: parsed.data.focusProjectId,
       history: parsed.data.history,
     });

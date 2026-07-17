@@ -40,12 +40,21 @@ describe("Global AI assistant (org-wide context + NLP)", () => {
       },
     });
     secondProjectId = secondProject.id;
+    await prisma.projectMember.createMany({
+      data: [
+        { projectId: secondProjectId, userId: fixture.pm.user.id, role: "PROJECT_MANAGER" },
+        { projectId: secondProjectId, userId: fixture.trade.user.id, role: "TRADE" },
+      ],
+    });
+    const secondTrade = await prisma.projectMember.findUniqueOrThrow({
+      where: { projectId_userId: { projectId: secondProjectId, userId: fixture.trade.user.id } },
+    });
 
     await prisma.task.create({
       data: {
         projectId: secondProjectId,
         name: "Foundation complete",
-        assignedToId: fixture.trade.member.id,
+        assignedToId: secondTrade.id,
         startDate: new Date("2026-02-01"),
         endDate: new Date("2026-02-15"),
         status: "DONE",
@@ -54,13 +63,16 @@ describe("Global AI assistant (org-wide context + NLP)", () => {
   });
 
   afterAll(async () => {
+    if (!fixture) return;
     await prisma.project.deleteMany({ where: { id: secondProjectId } }).catch(() => {});
     await cleanupFixture(fixture);
   });
 
   it("throws when OpenRouter is not configured", async () => {
     if (hasApiKey) return;
-    await expect(answerAssistantQuestion(fixture.organization.id, "Hello?")).rejects.toBeInstanceOf(
+    await expect(
+      answerAssistantQuestion(fixture.organization.id, "Hello?", { userId: fixture.pm.user.id })
+    ).rejects.toBeInstanceOf(
       AssistantNotConfiguredError
     );
   });
@@ -70,7 +82,8 @@ describe("Global AI assistant (org-wide context + NLP)", () => {
     async () => {
       const answer = await answerAssistantQuestion(
         fixture.organization.id,
-        "Which projects have open roadblocks? List project names."
+        "Which projects have open roadblocks? List project names.",
+        { userId: fixture.pm.user.id }
       );
 
       expect(answer.length).toBeGreaterThan(5);
@@ -87,7 +100,7 @@ describe("Global AI assistant (org-wide context + NLP)", () => {
       const answer = await answerAssistantQuestion(
         fixture.organization.id,
         "What exactly is blocking the schedule on this project?",
-        { focusProjectId: fixture.project.id }
+        { userId: fixture.pm.user.id, focusProjectId: fixture.project.id }
       );
 
       const lower = answer.toLowerCase();
@@ -101,7 +114,8 @@ describe("Global AI assistant (org-wide context + NLP)", () => {
     async () => {
       const answer = await answerAssistantQuestion(
         fixture.organization.id,
-        "In lean construction, what does PPC (Percent Plan Complete) measure?"
+        "In lean construction, what does PPC (Percent Plan Complete) measure?",
+        { userId: fixture.pm.user.id }
       );
 
       const lower = answer.toLowerCase();
@@ -114,10 +128,15 @@ describe("Global AI assistant (org-wide context + NLP)", () => {
   live(
     "supports multi-turn follow-up questions",
     async () => {
-      const first = await answerAssistantQuestion(fixture.organization.id, "How many active projects are in my portfolio?");
+      const first = await answerAssistantQuestion(
+        fixture.organization.id,
+        "How many active projects are in my portfolio?",
+        { userId: fixture.pm.user.id }
+      );
       expect(first).toMatch(/2|two/i);
 
       const followUp = await answerAssistantQuestion(fixture.organization.id, "Which of those has open roadblocks?", {
+        userId: fixture.pm.user.id,
         history: [
           { role: "user", content: "How many active projects are in my portfolio?" },
           { role: "assistant", content: first },

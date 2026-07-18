@@ -5,6 +5,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { LayoutDashboard } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const subscribeToHydration = () => () => undefined;
 
@@ -45,7 +46,7 @@ export function UserMenu() {
         className="group flex h-8 items-center gap-2 rounded-pill px-1 pr-2 text-xs font-semibold text-body transition-colors hover:bg-surface-soft hover:text-ink"
         title="Account settings"
       >
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-strong text-[9px] font-bold text-body group-hover:bg-ink group-hover:text-white">
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-strong text-[9px] font-bold text-body group-hover:bg-ink group-hover:text-canvas">
           {initials}
         </span>
         <span className="hidden max-w-28 truncate lg:inline">{session.user.name}</span>
@@ -57,6 +58,7 @@ export function UserMenu() {
       >
         Sign out
       </button>
+      <ThemeToggle />
       <button
         type="button"
         onClick={() => {
@@ -71,7 +73,7 @@ export function UserMenu() {
         title={assistantOpen ? "Return to dashboard" : "Open Agent"}
         className={`inline-flex h-8 items-center gap-2 rounded-pill px-2.5 text-xs font-semibold transition-colors ${
           assistantOpen
-            ? "bg-ink text-white hover:bg-primary-active"
+            ? "bg-ink text-canvas hover:bg-primary-active"
             : "border border-hairline-soft bg-canvas text-body hover:border-hairline hover:bg-surface-soft hover:text-ink"
         }`}
       >

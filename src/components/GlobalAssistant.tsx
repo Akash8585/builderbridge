@@ -571,7 +571,7 @@ export function GlobalAssistant() {
   return (
     <>
       {open && (
-        <div className="assistant-theme assistant-theme-light fixed inset-0 z-50 h-dvh min-h-0 overflow-hidden bg-[var(--assistant-overlay)] backdrop-blur-[18px] backdrop-saturate-150">
+        <div className="assistant-theme fixed inset-0 z-50 h-dvh min-h-0 overflow-hidden bg-[var(--assistant-overlay)] backdrop-blur-[18px] backdrop-saturate-150">
           <aside
             role="dialog"
             aria-label="Agent"

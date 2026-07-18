@@ -71,7 +71,7 @@ export default async function ProjectLookaheadPage({
                 key={w}
                 href={`/projects/${projectId}/lookahead?weeks=${w}`}
                 className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                  w === windowWeeks ? "bg-ink text-white" : "text-muted hover:bg-canvas hover:text-ink"
+                  w === windowWeeks ? "bg-ink text-canvas" : "text-muted hover:bg-canvas hover:text-ink"
                 }`}
               >
                 {w}-week

@@ -98,7 +98,7 @@ export function ProjectSubNav({ projectId, active }: { projectId: string; active
   return (
     <nav
       aria-label="Project workspace"
-      className="fixed bottom-3 left-[84px] right-3 z-30 rounded-xl border border-hairline bg-canvas/95 p-2 shadow-[0_16px_40px_rgba(17,17,17,0.14)] ring-1 ring-white/70 backdrop-blur-xl md:bottom-auto md:left-4 md:right-auto md:top-[88px] md:w-[58px] md:rounded-xl md:p-1.5"
+      className="fixed bottom-3 left-[84px] right-3 z-30 rounded-xl border border-hairline bg-canvas/95 p-2 shadow-[0_16px_40px_rgba(17,17,17,0.14)] ring-1 ring-hairline-soft backdrop-blur-xl md:bottom-auto md:left-4 md:right-auto md:top-[88px] md:w-[58px] md:rounded-xl md:p-1.5"
     >
       <div className="flex items-center gap-1 overflow-x-auto md:flex-col md:overflow-visible">
         {PROJECT_TABS.map((tab) => (
@@ -139,7 +139,7 @@ function ProjectRailLink({
       onPointerEnter={() => onIntent(href)}
       className={`group relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors ${
         active
-          ? "bg-ink text-white shadow-[0_4px_12px_rgba(17,17,17,0.16)]"
+          ? "bg-ink text-canvas shadow-[0_4px_12px_rgba(17,17,17,0.16)]"
           : "text-body hover:bg-surface-soft hover:text-ink"
       }`}
     >

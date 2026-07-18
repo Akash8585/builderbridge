@@ -320,7 +320,7 @@ export function ProjectFilesBrowser({
               aria-pressed={filter === item.value}
               className={`h-9 shrink-0 border px-3 text-xs font-semibold transition-colors first:rounded-l-md last:rounded-r-md ${
                 filter === item.value
-                  ? "border-ink bg-ink text-white"
+                  ? "border-ink bg-ink text-canvas"
                   : "-ml-px border-hairline bg-canvas text-muted hover:bg-surface-soft hover:text-ink first:ml-0"
               }`}
             >
@@ -353,7 +353,7 @@ export function ProjectFilesBrowser({
             type="button"
             onClick={() => uploadInputRef.current?.click()}
             disabled={uploading}
-            className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md bg-ink px-3.5 text-xs font-semibold text-white transition-colors hover:bg-ink/90 disabled:cursor-wait disabled:opacity-60"
+            className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md bg-ink px-3.5 text-xs font-semibold text-canvas transition-colors hover:bg-ink/90 disabled:cursor-wait disabled:opacity-60"
           >
             {uploading ? <LoaderCircle size={14} className="animate-spin" aria-hidden /> : <Upload size={14} aria-hidden />}
             {uploading ? "Indexing" : "Upload"}

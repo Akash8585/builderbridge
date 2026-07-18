@@ -70,7 +70,7 @@ export default async function ProjectRoadblocksPage({
               key={s}
               href={`/projects/${projectId}/roadblocks?status=${s}`}
               className={`px-3.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                statusFilter === s ? "bg-ink text-white" : "text-muted hover:bg-surface-soft hover:text-ink"
+                statusFilter === s ? "bg-ink text-canvas" : "text-muted hover:bg-surface-soft hover:text-ink"
               }`}
             >
               {s === "OPEN" ? "Open" : s === "RESOLVED" ? "Resolved" : "All"}

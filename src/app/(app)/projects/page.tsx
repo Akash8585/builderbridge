@@ -41,7 +41,7 @@ export default async function ProjectsPage({
         <Link
           href="/projects"
           className={`rounded-sm px-3.5 py-1.5 text-sm font-medium transition-colors ${
-            !showArchived ? "bg-ink text-white" : "text-muted hover:bg-surface-soft hover:text-ink"
+            !showArchived ? "bg-ink text-canvas" : "text-muted hover:bg-surface-soft hover:text-ink"
           }`}
         >
           Active
@@ -49,7 +49,7 @@ export default async function ProjectsPage({
         <Link
           href="/projects?archived=true"
           className={`rounded-sm px-3.5 py-1.5 text-sm font-medium transition-colors ${
-            showArchived ? "bg-ink text-white" : "text-muted hover:bg-surface-soft hover:text-ink"
+            showArchived ? "bg-ink text-canvas" : "text-muted hover:bg-surface-soft hover:text-ink"
           }`}
         >
           Archived
@@ -85,7 +85,7 @@ export default async function ProjectsPage({
               <Link key={project.id} href={`/projects/${project.id}`} className="group">
                 <Card className="flex h-full min-h-44 flex-col p-5 transition-all group-hover:-translate-y-0.5 group-hover:border-muted-soft group-hover:shadow-[0_8px_24px_rgba(17,17,17,0.08)]">
                   <div className="mb-5 flex items-start justify-between gap-3">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-md bg-ink text-sm font-bold text-white">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-md bg-ink text-sm font-bold text-canvas">
                       {project.name.charAt(0).toUpperCase()}
                     </span>
                     <span className="text-xs font-medium text-muted transition-colors group-hover:text-ink">Open</span>

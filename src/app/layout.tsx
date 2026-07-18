@@ -3,6 +3,16 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import "./globals.css";
 
+const themeInitializer = `
+try {
+  var theme = window.localStorage.getItem("builderbridge:theme");
+  if (theme === "light" || theme === "dark") {
+    document.documentElement.dataset.appTheme = theme;
+    document.documentElement.style.colorScheme = theme;
+  }
+} catch (_) {}
+`;
+
 const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
@@ -39,7 +49,11 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitializer }} />
+      </head>
       <body className="min-h-full flex flex-col bg-canvas text-ink">
         {children}
         <ServiceWorkerRegistrar />

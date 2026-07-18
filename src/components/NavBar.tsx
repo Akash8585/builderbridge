@@ -6,7 +6,7 @@ import { UserMenu } from "@/components/UserMenu";
 export function NavBar() {
   return (
     <header className="sticky top-0 z-40 bg-app-bg/85 px-3 pb-2 pt-3 backdrop-blur-xl sm:px-4">
-      <div className="mx-auto flex min-h-14 max-w-[1440px] items-center gap-3 rounded-xl border border-hairline bg-canvas/95 px-3 shadow-[0_10px_30px_rgba(17,17,17,0.08)] ring-1 ring-white/70 sm:gap-5 sm:px-4">
+      <div className="mx-auto flex min-h-14 max-w-[1440px] items-center gap-3 rounded-xl border border-hairline bg-canvas/95 px-3 shadow-[0_10px_30px_rgba(17,17,17,0.08)] ring-1 ring-hairline-soft sm:gap-5 sm:px-4">
         <Link
           href="/projects"
           className="group inline-flex min-w-0 shrink-0 items-center"

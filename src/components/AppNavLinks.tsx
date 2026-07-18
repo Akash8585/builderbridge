@@ -31,7 +31,7 @@ export function AppNavLinks({ mobile = false }: { mobile?: boolean }) {
             aria-current={active ? "page" : undefined}
             className={`inline-flex h-8 items-center rounded-pill border px-3 text-xs font-semibold transition-colors sm:px-3.5 ${
               active
-                ? "border-ink bg-ink text-white shadow-[0_1px_3px_rgba(17,17,17,0.14)]"
+                ? "border-ink bg-ink text-canvas shadow-[0_1px_3px_rgba(17,17,17,0.14)]"
                 : "border-hairline-soft bg-canvas text-muted hover:border-hairline hover:bg-surface-soft hover:text-ink"
             }`}
           >

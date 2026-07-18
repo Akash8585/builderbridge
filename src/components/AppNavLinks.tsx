@@ -20,7 +20,7 @@ export function AppNavLinks({ mobile = false }: { mobile?: boolean }) {
   return (
     <nav
       aria-label={mobile ? "Mobile navigation" : "Primary navigation"}
-      className={mobile ? "flex min-w-max items-center gap-1 px-3" : "hidden items-center gap-1 md:flex"}
+      className={mobile ? "flex min-w-max items-center gap-1 px-2" : "hidden items-center gap-1 md:flex"}
     >
       {LINKS.map((link) => {
         const active = link.match(pathname);
@@ -29,8 +29,10 @@ export function AppNavLinks({ mobile = false }: { mobile?: boolean }) {
             key={link.href}
             href={link.href}
             aria-current={active ? "page" : undefined}
-            className={`inline-flex h-9 items-center rounded-md px-3 text-sm font-medium transition-colors ${
-              active ? "bg-ink text-white" : "text-muted hover:bg-surface-soft hover:text-ink"
+            className={`inline-flex h-8 items-center rounded-pill border px-3 text-xs font-semibold transition-colors sm:px-3.5 ${
+              active
+                ? "border-ink bg-ink text-white shadow-[0_1px_3px_rgba(17,17,17,0.14)]"
+                : "border-hairline-soft bg-canvas text-muted hover:border-hairline hover:bg-surface-soft hover:text-ink"
             }`}
           >
             {link.label}

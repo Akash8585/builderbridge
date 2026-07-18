@@ -1,6 +1,5 @@
 import { ProjectFilesBrowser, type ProjectFileRecord } from "@/components/ProjectFilesBrowser";
 import { ProjectPageHeader } from "@/components/PageHeader";
-import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { getProjectPageContext } from "@/lib/project-context";
 import { prisma } from "@/lib/prisma";
 import { privateStoredFileUrl } from "@/lib/storage";
@@ -160,7 +159,6 @@ export default async function ProjectFilesPage({
         title="Files"
         description="Find every project attachment, drawing, and field photo in one place."
       />
-      <ProjectSubNav projectId={projectId} active="Files" />
       <div className="mt-6">
         <ProjectFilesBrowser projectId={projectId} files={files} />
       </div>

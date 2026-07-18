@@ -48,7 +48,7 @@ export function ProcoreIntegrationPanel({
   if (!isConfigured) {
     return (
       <Card className="p-6">
-        <h2 className="text-sm font-semibold mb-2">Procore</h2>
+        <h2 className="app-card-title mb-2">Procore</h2>
         <p className="text-sm text-muted">
           Procore isn&apos;t configured on this server yet. Add{" "}
           <code className="text-xs">PROCORE_CLIENT_ID</code> and{" "}
@@ -65,7 +65,7 @@ export function ProcoreIntegrationPanel({
   if (!isProPlan) {
     return (
       <Card className="p-6">
-        <h2 className="text-sm font-semibold mb-2">Procore</h2>
+        <h2 className="app-card-title mb-2">Procore</h2>
         <p className="text-sm text-muted mb-4">
           Pull RFIs and Submittals from Procore into your projects. This integration is included on the{" "}
           <strong>Pro</strong> plan.
@@ -84,7 +84,7 @@ export function ProcoreIntegrationPanel({
   if (!isOwner) {
     return (
       <Card className="p-6">
-        <h2 className="text-sm font-semibold mb-2">Procore</h2>
+        <h2 className="app-card-title mb-2">Procore</h2>
         <p className="text-sm text-muted">Only the organization owner can connect or sync Procore.</p>
         {isConnected && companyName && (
           <p className="text-xs text-muted-soft mt-2">Connected to {companyName}</p>
@@ -127,7 +127,7 @@ export function ProcoreIntegrationPanel({
     <Card className="p-6">
       <div className="flex items-start justify-between gap-4 mb-4">
         <div>
-          <h2 className="text-sm font-semibold mb-1">Procore</h2>
+          <h2 className="app-card-title mb-1">Procore</h2>
           <p className="text-sm text-muted">
             Connect your Procore sandbox account, map projects, then pull RFIs and Submittals into BuilderBridge.
           </p>
@@ -151,7 +151,7 @@ export function ProcoreIntegrationPanel({
 
       {isConnected && projects.length > 0 && (
         <div className="space-y-4 border-t border-hairline pt-4">
-          <p className="text-xs font-semibold text-muted uppercase tracking-wide">Project mapping</p>
+          <p className="app-table-heading">Project mapping</p>
           {projects.map((project) => (
             <ProjectMappingRow
               key={project.id}

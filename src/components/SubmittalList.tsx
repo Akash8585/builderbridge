@@ -46,7 +46,7 @@ export function SubmittalList({
       <NewSubmittalForm projectId={projectId} tasks={tasks} />
 
       {submittals.length === 0 ? (
-        <p className="text-sm text-muted text-center py-6">No submittals match this filter.</p>
+        <p className="app-empty-title py-6 text-center">No submittals match this filter</p>
       ) : (
         <ul className="space-y-3">
           {submittals.map((s) => (
@@ -90,7 +90,7 @@ function NewSubmittalForm({ projectId, tasks }: { projectId: string; tasks: Task
 
   return (
     <form onSubmit={handleSubmit} className="border border-hairline rounded-lg p-4 bg-surface-soft">
-      <h3 className="text-sm font-semibold mb-3">New Submittal</h3>
+      <h3 className="app-card-title mb-3">New Submittal</h3>
       <div className="flex flex-wrap items-center gap-3">
         <input
           value={title}
@@ -147,7 +147,7 @@ function SubmittalCard({ submittal, canDecide }: { submittal: SubmittalRow; canD
   return (
     <li className="border border-hairline rounded-lg p-4">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-medium text-ink">{submittal.title}</span>
+        <span className="app-card-title">{submittal.title}</span>
         <span className={`text-xs font-medium ${STATUS_COLORS[submittal.status]}`}>
           {SUBMITTAL_STATUS_LABELS[submittal.status]}
         </span>

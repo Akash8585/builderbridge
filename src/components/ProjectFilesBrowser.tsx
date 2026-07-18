@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Bot,
   Camera,
   ExternalLink,
   FileImage,
@@ -17,6 +16,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import { AgentIcon } from "@/components/AgentIcon";
 
 export type ProjectFileKind = "PROJECT_DOCUMENT" | "AI_UPLOAD" | "DRAWING" | "FIELD_PHOTO";
 export type DocumentProcessingState = "PENDING" | "PROCESSING" | "READY" | "FAILED" | "UNSUPPORTED";
@@ -137,7 +137,7 @@ function SourceAction({ file }: { file: ProjectFileRecord }) {
         }
         className="inline-flex items-center gap-1.5 text-xs font-medium text-body transition-colors hover:text-ink"
       >
-        <Bot size={13} aria-hidden />
+        <AgentIcon size={14} />
         {file.sourceActionLabel}
       </button>
     );
@@ -170,10 +170,10 @@ function AskAiAction({ file, projectId }: { file: ProjectFileRecord; projectId: 
           )
         }
         className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-canvas hover:text-ink"
-        aria-label={`Ask AI about ${file.name}`}
-        title="Ask AI about this file"
+        aria-label={`Ask Agent about ${file.name}`}
+        title="Ask Agent about this file"
       >
-        <Bot size={15} aria-hidden />
+        <AgentIcon size={17} />
       </button>
       <button
         type="button"
@@ -304,8 +304,8 @@ export function ProjectFilesBrowser({
             key={label}
             className={`px-4 py-3 ${index % 2 === 1 ? "border-l border-hairline" : ""} ${index > 1 ? "border-t border-hairline md:border-t-0" : ""} ${index > 0 ? "md:border-l md:border-hairline" : ""}`}
           >
-            <p className="text-[11px] font-medium text-muted">{label}</p>
-            <p className="mt-0.5 font-display text-xl text-ink">{value}</p>
+            <p className="app-metric-label text-xs">{label}</p>
+            <p className="app-metric-value text-xl">{value}</p>
           </div>
         ))}
       </div>
@@ -366,7 +366,7 @@ export function ProjectFilesBrowser({
       {filteredFiles.length === 0 ? (
         <div className="flex min-h-56 flex-col items-center justify-center border-b border-hairline text-center">
           <FolderOpen size={24} className="text-muted-soft" aria-hidden />
-          <p className="mt-3 text-sm font-medium text-ink">No matching files</p>
+          <p className="app-empty-title mt-3">No matching files</p>
           <p className="mt-1 text-xs text-muted">
             {files.length === 0 ? "Files uploaded in chats, drawings, and field updates will appear here." : "Try another search or file type."}
           </p>
@@ -375,13 +375,13 @@ export function ProjectFilesBrowser({
         <>
           <div className="hidden overflow-hidden rounded-md border border-hairline md:block">
             <table className="w-full table-fixed text-left text-sm">
-              <thead className="border-b border-hairline bg-surface-soft text-[10px] uppercase text-muted-soft">
+              <thead className="border-b border-hairline bg-surface-soft">
                 <tr>
-                  <th className="w-[38%] px-4 py-2.5 font-semibold">File</th>
-                  <th className="w-[18%] px-4 py-2.5 font-semibold">Source</th>
-                  <th className="w-[15%] px-4 py-2.5 font-semibold">Uploaded by</th>
-                  <th className="w-[17%] px-4 py-2.5 font-semibold">Added</th>
-                  <th className="w-[12%] px-4 py-2.5 text-right font-semibold">Open</th>
+                  <th className="app-table-heading w-[38%] px-4 py-2.5">File</th>
+                  <th className="app-table-heading w-[18%] px-4 py-2.5">Source</th>
+                  <th className="app-table-heading w-[15%] px-4 py-2.5">Uploaded by</th>
+                  <th className="app-table-heading w-[17%] px-4 py-2.5">Added</th>
+                  <th className="app-table-heading w-[12%] px-4 py-2.5 text-right">Open</th>
                 </tr>
               </thead>
               <tbody>

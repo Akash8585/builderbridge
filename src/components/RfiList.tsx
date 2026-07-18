@@ -49,7 +49,7 @@ export function RfiList({
       <NewRfiForm projectId={projectId} tasks={tasks} files={files} />
 
       {rfis.length === 0 ? (
-        <p className="text-sm text-muted text-center py-6">No RFIs match this filter.</p>
+        <p className="app-empty-title py-6 text-center">No RFIs match this filter</p>
       ) : (
         <ul className="space-y-3">
           {rfis.map((r) => (
@@ -104,7 +104,7 @@ function NewRfiForm({
 
   return (
     <form onSubmit={handleSubmit} className="border border-hairline rounded-lg p-4 bg-surface-soft">
-      <h3 className="text-sm font-semibold mb-3">Raise an RFI</h3>
+      <h3 className="app-card-title mb-3">Raise an RFI</h3>
       <textarea
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
@@ -193,7 +193,7 @@ function RfiCard({ rfi, canAnswer }: { rfi: RfiRow; canAnswer: boolean }) {
   return (
     <li className="border border-hairline rounded-lg p-4">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-medium text-ink">{rfi.question}</span>
+        <span className="app-card-title">{rfi.question}</span>
         <span className={`text-xs font-medium ${STATUS_COLORS[rfi.status]}`}>{RFI_STATUS_LABELS[rfi.status]}</span>
       </div>
       <div className="flex flex-wrap gap-3 text-xs text-muted mb-2">

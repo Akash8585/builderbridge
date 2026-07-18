@@ -1,6 +1,14 @@
 import type { UIMessage } from "ai";
 import type { AssistantActionStatus } from "@prisma/client";
 
+export type AssistantMessageMetadata = {
+  createdAt: string;
+  completedAt?: string | null;
+  durationMs?: number | null;
+};
+
+export type AssistantUIMessage = UIMessage<AssistantMessageMetadata>;
+
 export type AssistantProject = {
   id: string;
   name: string;
@@ -21,7 +29,7 @@ export type AssistantBootstrap = {
 
 export type AssistantConversationDetail = {
   conversation: AssistantConversationSummary;
-  messages: UIMessage[];
+  messages: AssistantUIMessage[];
 };
 
 export type AssistantAttachmentView = {

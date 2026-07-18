@@ -80,11 +80,11 @@ export default async function TaskDetailPage({
 
       {hasRelatedItems && (
         <Card className="p-6 mb-6">
-          <h2 className="text-sm font-semibold mb-4">Related Items</h2>
+          <h2 className="app-section-title mb-4">Related Items</h2>
           <div className="space-y-4">
             {submittals.length > 0 && (
               <div>
-                <p className="text-xs uppercase text-muted-soft mb-1.5">Submittals</p>
+                <p className="app-table-heading mb-1.5">Submittals</p>
                 <ul className="space-y-1">
                   {submittals.map((s) => {
                     const overdue = s.status === "PENDING" && s.dueDate && new Date(s.dueDate) < new Date();
@@ -105,7 +105,7 @@ export default async function TaskDetailPage({
             )}
             {rfis.length > 0 && (
               <div>
-                <p className="text-xs uppercase text-muted-soft mb-1.5">RFIs</p>
+                <p className="app-table-heading mb-1.5">RFIs</p>
                 <ul className="space-y-1">
                   {rfis.map((r) => {
                     const overdue = r.status === "OPEN" && r.dueDate && new Date(r.dueDate) < new Date();
@@ -126,7 +126,7 @@ export default async function TaskDetailPage({
             )}
             {drawings.length > 0 && (
               <div>
-                <p className="text-xs uppercase text-muted-soft mb-1.5">Drawings</p>
+                <p className="app-table-heading mb-1.5">Drawings</p>
                 <ul className="space-y-1">
                   {drawings.map((d) => (
                     <li key={d.id} className="text-sm">
@@ -141,7 +141,7 @@ export default async function TaskDetailPage({
             )}
             {sirs.length > 0 && (
               <div>
-                <p className="text-xs uppercase text-muted-soft mb-1.5">Schedule Impact Requests</p>
+                <p className="app-table-heading mb-1.5">Schedule Impact Requests</p>
                 <ul className="space-y-1">
                   {sirs.map((sir) => (
                     <li key={sir.id} className="text-sm">
@@ -159,7 +159,7 @@ export default async function TaskDetailPage({
       )}
 
       <Card className="p-6">
-        <h2 className="text-sm font-semibold mb-4">Field Tracking</h2>
+        <h2 className="app-section-title mb-4">Field Tracking</h2>
         <TaskUpdateFeed taskId={task.id} updates={securedUpdates} />
       </Card>
     </div>

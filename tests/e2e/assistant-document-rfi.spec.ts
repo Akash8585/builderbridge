@@ -60,8 +60,8 @@ test("AI raises an RFI linked to an uploaded project document", async ({ page })
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
     const prompt = `Raise an RFI from ${fileName} page 1: ${question}`;
     await dialog.getByLabel("Message Agent").fill(prompt);
-    await expect(dialog.getByRole("button", { name: "Send message" })).toBeEnabled();
-    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+    await expect(dialog.getByRole("button", { name: "Send" })).toBeEnabled();
+    await dialog.getByRole("button", { name: "Send" }).dispatchEvent("click");
 
     const proposal = dialog
       .locator('section[aria-label="Action proposal"]')

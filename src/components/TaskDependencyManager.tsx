@@ -52,8 +52,8 @@ export function TaskDependencyManager({
 
   return (
     <div className="border border-hairline rounded-lg p-5">
-      <h3 className="text-sm font-semibold mb-1">Dependencies</h3>
-      <p className="text-xs text-muted mb-4">
+      <h3 className="app-card-title mb-1">Dependencies</h3>
+      <p className="app-card-description mb-4">
         Mark which tasks must finish before another can start. Tasks with zero slack are highlighted on the chart above.
       </p>
       <div className="space-y-3">

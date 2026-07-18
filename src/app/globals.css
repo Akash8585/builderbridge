@@ -183,6 +183,10 @@ textarea:focus-visible {
   min-height: calc(100vh - 64px);
 }
 
+body.has-project-rail .app-page {
+  padding-bottom: 112px;
+}
+
 .app-page {
   width: 100%;
   max-width: 1440px;
@@ -206,7 +210,7 @@ textarea:focus-visible {
   font-size: 1.75rem;
   line-height: 1.2;
   font-weight: 650;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   color: var(--color-ink);
 }
 
@@ -216,6 +220,86 @@ textarea:focus-visible {
   font-size: 0.875rem;
   line-height: 1.5;
   color: var(--color-muted);
+}
+
+.app-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.app-section-title {
+  font-size: 1rem;
+  line-height: 1.4;
+  font-weight: 650;
+  letter-spacing: 0;
+  color: var(--color-ink);
+}
+
+.app-section-description {
+  margin-top: 3px;
+  max-width: 620px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+.app-card-title {
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  font-weight: 650;
+  letter-spacing: 0;
+  color: var(--color-ink);
+}
+
+.app-card-description {
+  margin-top: 3px;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+.app-metric-label {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  font-weight: 550;
+  letter-spacing: 0;
+  color: var(--color-muted);
+}
+
+.app-metric-value {
+  margin-top: 8px;
+  font-size: 1.875rem;
+  line-height: 1;
+  font-weight: 650;
+  letter-spacing: 0;
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.app-metric-helper {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--color-muted-soft);
+}
+
+.app-table-heading {
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted-soft);
+}
+
+.app-empty-title {
+  font-size: 1.125rem;
+  line-height: 1.35;
+  font-weight: 650;
+  letter-spacing: 0;
+  color: var(--color-ink);
 }
 
 .app-toolbar {
@@ -250,7 +334,7 @@ textarea:focus-visible {
 .app-kicker {
   font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-muted-soft);
 }
@@ -298,10 +382,17 @@ textarea:focus-visible {
   }
 }
 
+@media (min-width: 768px) {
+  body.has-project-rail .app-page {
+    padding-left: 104px;
+    padding-bottom: 56px;
+  }
+}
+
 .font-display {
   font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 @keyframes landing-panel-in {

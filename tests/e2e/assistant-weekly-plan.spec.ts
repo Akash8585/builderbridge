@@ -24,7 +24,7 @@ test("AI weekly commitments apply to the requested week and retain variance reas
     let dialog = page.getByRole("dialog", { name: "Agent" });
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
     await dialog.getByLabel("Message Agent").fill(`Commit ${taskName} for week of ${week}`);
-    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+    await dialog.getByRole("button", { name: "Send" }).dispatchEvent("click");
 
     let proposal = dialog
       .locator('section[aria-label="Action proposal"]')
@@ -50,7 +50,7 @@ test("AI weekly commitments apply to the requested week and retain variance reas
     await dialog
       .getByLabel("Message Agent")
       .fill(`Mark ${taskName} not completed for ${week} because material delivery delayed`);
-    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+    await dialog.getByRole("button", { name: "Send" }).dispatchEvent("click");
 
     proposal = dialog
       .locator('section[aria-label="Action proposal"]')

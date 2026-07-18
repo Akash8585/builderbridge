@@ -25,7 +25,7 @@ export function BaselineCreateForm({ projectId }: { projectId: string }) {
 
   return (
     <form onSubmit={handleSubmit} className="border border-hairline rounded-lg p-4 bg-surface-soft">
-      <h3 className="text-sm font-semibold mb-3">Save a new baseline</h3>
+      <h3 className="app-card-title mb-3">Save a new baseline</h3>
       <div className="flex flex-wrap items-center gap-3">
         <input
           value={name}

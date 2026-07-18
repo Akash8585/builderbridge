@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { Bot, LayoutDashboard } from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
 const subscribeToHydration = () => () => undefined;
@@ -42,10 +42,10 @@ export function UserMenu() {
     <div className="flex items-center gap-1.5">
       <Link
         href="/settings"
-        className="group flex h-9 items-center gap-2 rounded-md px-1.5 pr-2 text-sm text-body transition-colors hover:bg-surface-soft hover:text-ink"
+        className="group flex h-8 items-center gap-2 rounded-pill px-1 pr-2 text-xs font-semibold text-body transition-colors hover:bg-surface-soft hover:text-ink"
         title="Account settings"
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-strong text-[10px] font-bold text-body group-hover:bg-ink group-hover:text-white">
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-strong text-[9px] font-bold text-body group-hover:bg-ink group-hover:text-white">
           {initials}
         </span>
         <span className="hidden max-w-28 truncate lg:inline">{session.user.name}</span>
@@ -53,7 +53,7 @@ export function UserMenu() {
       <button
         type="button"
         onClick={handleSignOut}
-        className="hidden h-9 rounded-md px-2 text-xs font-medium text-muted transition-colors hover:bg-surface-soft hover:text-ink sm:inline-flex sm:items-center"
+        className="hidden h-8 rounded-pill px-2.5 text-xs font-semibold text-muted transition-colors hover:bg-surface-soft hover:text-ink sm:inline-flex sm:items-center"
       >
         Sign out
       </button>
@@ -69,14 +69,14 @@ export function UserMenu() {
         aria-pressed={assistantOpen}
         aria-label={assistantOpen ? "Close Agent" : "Open Agent"}
         title={assistantOpen ? "Return to dashboard" : "Open Agent"}
-        className={`inline-flex h-9 items-center gap-2 rounded-md px-2.5 text-xs font-semibold transition-colors ${
+        className={`inline-flex h-8 items-center gap-2 rounded-pill px-2.5 text-xs font-semibold transition-colors ${
           assistantOpen
             ? "bg-ink text-white hover:bg-primary-active"
-            : "border border-hairline bg-canvas text-body hover:bg-surface-soft hover:text-ink"
+            : "border border-hairline-soft bg-canvas text-body hover:border-hairline hover:bg-surface-soft hover:text-ink"
         }`}
       >
-        {assistantOpen ? <LayoutDashboard size={15} aria-hidden /> : <Bot size={15} aria-hidden />}
-        <span className="hidden xl:inline">{assistantOpen ? "Dashboard" : "Agent"}</span>
+        {assistantOpen && <LayoutDashboard size={15} aria-hidden />}
+        <span>{assistantOpen ? "Dashboard" : "Agent"}</span>
       </button>
     </div>
   );

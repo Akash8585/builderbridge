@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
-import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { TaskTable } from "@/components/TaskTable";
 import { formatDate } from "@/lib/utils";
 import { ProjectPageHeader } from "@/components/PageHeader";
@@ -60,8 +59,6 @@ export default async function ProjectLookaheadPage({
         title="Lookahead"
         description={`Coordinate the next ${windowWeeks} weeks of field-ready work from the live master schedule.`}
       />
-
-      <ProjectSubNav projectId={projectId} active="Lookahead" />
 
       <div className="mt-6 space-y-4">
         <div className="app-toolbar flex-row items-center">

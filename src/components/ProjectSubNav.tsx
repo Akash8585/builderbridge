@@ -1,77 +1,152 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Activity,
+  CalendarCheck,
+  CalendarClock,
+  ChartGantt,
+  CircleHelp,
+  DraftingCompass,
+  FileText,
+  FolderOpen,
+  Gauge,
+  GitCompareArrows,
+  ListTodo,
+  OctagonAlert,
+  TriangleAlert,
+  Users,
+  Waypoints,
+} from "lucide-react";
 
 // Grouped so a 15-tab nav still scans cleanly as a single scrollable line.
 const TAB_GROUPS = [
   {
     label: "Plan",
     tabs: [
-      { href: "", label: "Tasks" },
-      { href: "/lookahead", label: "Lookahead" },
-      { href: "/pull-planning", label: "Pull Planning" },
-      { href: "/weekly-plan", label: "Weekly Plan" },
-      { href: "/gantt", label: "Gantt" },
+      { href: "", label: "Tasks", icon: ListTodo },
+      { href: "/lookahead", label: "Lookahead", icon: CalendarClock },
+      { href: "/pull-planning", label: "Pull Planning", icon: Waypoints },
+      { href: "/weekly-plan", label: "Weekly Plan", icon: CalendarCheck },
+      { href: "/gantt", label: "Gantt", icon: ChartGantt },
     ],
   },
   {
     label: "Control",
     tabs: [
-      { href: "/roadblocks", label: "Roadblocks" },
-      { href: "/impacts", label: "Impacts" },
-      { href: "/submittals", label: "Submittals" },
-      { href: "/rfis", label: "RFIs" },
-      { href: "/drawings", label: "Drawings" },
-      { href: "/files", label: "Files" },
+      { href: "/roadblocks", label: "Roadblocks", icon: OctagonAlert },
+      { href: "/impacts", label: "Impacts", icon: TriangleAlert },
+      { href: "/submittals", label: "Submittals", icon: FileText },
+      { href: "/rfis", label: "RFIs", icon: CircleHelp },
+      { href: "/drawings", label: "Drawings", icon: DraftingCompass },
+      { href: "/files", label: "Files", icon: FolderOpen },
     ],
   },
   {
     label: "Review",
     tabs: [
-      { href: "/baselines", label: "Baselines" },
-      { href: "/activity", label: "Activity" },
-      { href: "/dashboard", label: "Dashboard" },
+      { href: "/baselines", label: "Baselines", icon: GitCompareArrows },
+      { href: "/activity", label: "Activity", icon: Activity },
+      { href: "/dashboard", label: "Dashboard", icon: Gauge },
     ],
   },
   {
     label: "Team",
-    tabs: [{ href: "/members", label: "Members" }],
+    tabs: [{ href: "/members", label: "Members", icon: Users }],
   },
 ];
 
+type ProjectTab = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+};
+
 export function ProjectSubNav({ projectId, active }: { projectId: string; active: string }) {
+  const tabs = TAB_GROUPS.flatMap((group) => group.tabs);
+
   return (
     <nav
       aria-label="Project workspace"
-      className="sticky top-16 z-20 w-full overflow-x-auto rounded-md border border-hairline bg-canvas/95 shadow-[0_1px_3px_rgba(17,17,17,0.04)] backdrop-blur-xl max-md:top-[104px]"
+      className="fixed bottom-3 left-[84px] right-3 z-30 rounded-xl border border-hairline bg-canvas/95 p-2 shadow-[0_16px_40px_rgba(17,17,17,0.14)] ring-1 ring-white/70 backdrop-blur-xl md:bottom-auto md:left-4 md:right-auto md:top-[88px] md:w-[58px] md:rounded-xl md:p-1.5"
     >
-      <div className="flex w-max min-w-full items-stretch px-2">
-        {TAB_GROUPS.map((group, groupIndex) => (
-          <div key={group.label} className="flex shrink-0 items-stretch">
-            {groupIndex > 0 && <span className="my-2.5 w-px bg-hairline" aria-hidden />}
-            <div className="px-2.5 py-2">
-              <span className="mb-0.5 block px-2 text-[9px] font-bold uppercase tracking-[0.1em] text-muted-soft">
-                {group.label}
-              </span>
-              <div className="flex items-center gap-0.5">
-                {group.tabs.map((tab) => {
-                  const isActive = tab.label === active;
-                  return (
-                    <Link
-                      key={tab.label}
-                      href={`/projects/${projectId}${tab.href}`}
-                      aria-current={isActive ? "page" : undefined}
-                      className={`shrink-0 whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
-                        isActive ? "bg-ink text-white" : "text-muted hover:bg-surface-soft hover:text-ink"
-                      }`}
-                    >
-                      {tab.label}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+      <div className="flex items-center gap-1 overflow-x-auto md:flex-col md:overflow-visible">
+        {tabs.map((tab) => (
+          <ProjectRailLink key={tab.label} projectId={projectId} tab={tab} active={tab.label === active} />
         ))}
       </div>
     </nav>
   );
+}
+
+function ProjectRailLink({
+  projectId,
+  tab,
+  active,
+}: {
+  projectId: string;
+  tab: ProjectTab;
+  active: boolean;
+}) {
+  const Icon = tab.icon;
+
+  return (
+    <Link
+      href={`/projects/${projectId}${tab.href}`}
+      aria-current={active ? "page" : undefined}
+      aria-label={tab.label}
+      title={tab.label}
+      className={`group relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors ${
+        active
+          ? "bg-ink text-white shadow-[0_4px_12px_rgba(17,17,17,0.16)]"
+          : "text-body hover:bg-surface-soft hover:text-ink"
+      }`}
+    >
+      <Icon size={19} strokeWidth={2} aria-hidden />
+      <span className="sr-only">{tab.label}</span>
+      <span className="pointer-events-none absolute left-[calc(100%+10px)] top-1/2 z-10 hidden -translate-y-1/2 whitespace-nowrap rounded-md border border-hairline bg-canvas px-2 py-1 text-xs font-semibold text-ink opacity-0 shadow-[0_8px_20px_rgba(17,17,17,0.12)] transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 md:block">
+        {tab.label}
+      </span>
+    </Link>
+  );
+}
+
+const ACTIVE_TAB_BY_SEGMENT: Record<string, string> = {
+  activity: "Activity",
+  baselines: "Baselines",
+  dashboard: "Dashboard",
+  drawings: "Drawings",
+  files: "Files",
+  gantt: "Gantt",
+  impacts: "Impacts",
+  lookahead: "Lookahead",
+  members: "Members",
+  "pull-planning": "Pull Planning",
+  rfis: "RFIs",
+  roadblocks: "Roadblocks",
+  submittals: "Submittals",
+  tasks: "Tasks",
+  "weekly-plan": "Weekly Plan",
+};
+
+export function ProjectRouteSubNav() {
+  const pathname = usePathname();
+  const match = pathname.match(/^\/projects\/([^/]+)(?:\/([^/]+))?/);
+  const hasProjectRail = Boolean(match && decodeURIComponent(match[1]) !== "new");
+
+  useEffect(() => {
+    document.body.classList.toggle("has-project-rail", hasProjectRail);
+    return () => document.body.classList.remove("has-project-rail");
+  }, [hasProjectRail]);
+
+  if (!match) return null;
+
+  const projectId = decodeURIComponent(match[1]);
+  if (projectId === "new") return null;
+  const active = ACTIVE_TAB_BY_SEGMENT[match[2] ?? ""] ?? "Tasks";
+
+  return <ProjectSubNav projectId={projectId} active={active} />;
 }

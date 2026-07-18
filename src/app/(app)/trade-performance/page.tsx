@@ -75,15 +75,19 @@ export default async function TradePerformancePage() {
           </Card>
         ) : (
           <Card className="p-0 overflow-hidden">
+            <div className="border-b border-hairline-soft px-4 py-4">
+              <h2 className="app-section-title">Commitment reliability</h2>
+              <p className="app-section-description">Completed commitments by member across active projects.</p>
+            </div>
             <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase text-muted-soft border-b border-hairline-soft bg-surface-soft">
-                  <th className="px-4 py-2.5 font-medium">Member</th>
-                  <th className="px-4 py-2.5 font-medium">Role(s)</th>
-                  <th className="px-4 py-2.5 font-medium text-right">Projects</th>
-                  <th className="px-4 py-2.5 font-medium text-right">Commitments</th>
-                  <th className="px-4 py-2.5 font-medium text-right">PRR</th>
+                <tr className="border-b border-hairline-soft bg-surface-soft text-left">
+                  <th className="app-table-heading px-4 py-2.5">Member</th>
+                  <th className="app-table-heading px-4 py-2.5">Role(s)</th>
+                  <th className="app-table-heading px-4 py-2.5 text-right">Projects</th>
+                  <th className="app-table-heading px-4 py-2.5 text-right">Commitments</th>
+                  <th className="app-table-heading px-4 py-2.5 text-right">PRR</th>
                 </tr>
               </thead>
               <tbody>

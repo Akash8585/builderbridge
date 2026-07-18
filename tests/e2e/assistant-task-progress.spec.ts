@@ -32,7 +32,7 @@ test("AI task progress records actual dates and percent complete through confirm
     await dialog
       .getByLabel("Message Agent")
       .fill(`Record ${taskName} actual started on 2026-09-14 and progress 40%`);
-    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+    await dialog.getByRole("button", { name: "Send" }).dispatchEvent("click");
 
     let proposal = dialog
       .locator('section[aria-label="Action proposal"]')
@@ -60,7 +60,7 @@ test("AI task progress records actual dates and percent complete through confirm
     await dialog
       .getByLabel("Message Agent")
       .fill(`Record ${taskName} actual finished on 2026-09-18`);
-    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+    await dialog.getByRole("button", { name: "Send" }).dispatchEvent("click");
 
     proposal = dialog
       .locator('section[aria-label="Action proposal"]')

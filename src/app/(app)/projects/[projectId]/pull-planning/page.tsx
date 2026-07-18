@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
 import { canManageSchedule } from "@/lib/permissions";
-import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { PullPlanningBoard } from "@/components/PullPlanningBoard";
 import { ProjectPageHeader } from "@/components/PageHeader";
 import { formatDate } from "@/lib/utils";
@@ -35,8 +34,6 @@ export default async function ProjectPullPlanningPage({
         title="Pull Planning"
         description="Build the work sequence backward from milestones and capture team commitments."
       />
-
-      <ProjectSubNav projectId={projectId} active="Pull Planning" />
 
       <div className="mt-6 max-w-4xl space-y-4">
         <p className="text-sm text-muted">

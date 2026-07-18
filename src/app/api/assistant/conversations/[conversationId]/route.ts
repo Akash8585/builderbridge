@@ -41,6 +41,11 @@ export async function GET(
     messages: visibleMessages.map((message) => ({
       id: message.id,
       role: message.role === "USER" ? "user" : "assistant",
+      metadata: {
+        createdAt: message.createdAt.toISOString(),
+        completedAt: (message.completedAt ?? message.createdAt).toISOString(),
+        durationMs: message.durationMs,
+      },
       parts: Array.isArray(message.parts)
         ? message.parts.map((part) => hydrateAssistantActionPart(part, proposalStates))
         : [{ type: "text", text: message.content }],

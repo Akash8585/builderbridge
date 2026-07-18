@@ -21,7 +21,7 @@ export default async function SettingsPage() {
       />
 
       <Card className="p-6">
-        <h2 className="text-sm font-semibold mb-4">Notifications</h2>
+        <h2 className="app-section-title mb-4">Notifications</h2>
         <NotificationToggle initialEnabled={dbUser.emailNotificationsEnabled} />
         {!isEmailConfigured() && (
           <p className="text-xs text-muted-soft mt-4 border-t border-hairline-soft pt-4">

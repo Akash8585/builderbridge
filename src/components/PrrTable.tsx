@@ -12,10 +12,10 @@ export function PrrTable({ prrByMember }: { prrByMember: PrrRow[] }) {
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr className="text-left text-xs uppercase text-muted-soft border-b border-hairline-soft">
-          <th className="py-2 font-medium">Member</th>
-          <th className="py-2 font-medium text-right">Commitments</th>
-          <th className="py-2 font-medium text-right">PRR</th>
+        <tr className="border-b border-hairline-soft text-left">
+          <th className="app-table-heading py-2">Member</th>
+          <th className="app-table-heading py-2 text-right">Commitments</th>
+          <th className="app-table-heading py-2 text-right">PRR</th>
         </tr>
       </thead>
       <tbody>

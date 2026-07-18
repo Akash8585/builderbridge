@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
-import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { WeeklyPlanBoard } from "@/components/WeeklyPlanBoard";
 import { Card } from "@/components/ui/Card";
 import { formatDate, getWeekStart, percentComplete } from "@/lib/utils";
@@ -72,8 +71,6 @@ export default async function ProjectWeeklyPlanPage({
         title="Weekly Work Plan"
         description="Make field commitments visible and track Percent Plan Complete week over week."
       />
-
-      <ProjectSubNav projectId={projectId} active="Weekly Plan" />
 
       <div className="mt-6 space-y-6">
         <div className="app-toolbar flex-row items-center">

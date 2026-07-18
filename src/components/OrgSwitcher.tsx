@@ -40,7 +40,7 @@ export function OrgSwitcher() {
       <select
         value={activeOrganization?.id ?? ""}
         onChange={handleChange}
-        className="h-9 max-w-[150px] appearance-none truncate rounded-md border border-hairline bg-surface-soft pl-3 pr-8 text-sm font-medium text-ink transition-colors hover:border-muted-soft focus:border-ink focus:outline-none sm:max-w-[210px]"
+        className="h-8 max-w-[132px] appearance-none truncate rounded-pill border border-hairline-soft bg-surface-soft pl-3 pr-8 text-xs font-semibold text-ink transition-colors hover:border-hairline focus:border-ink focus:outline-none sm:max-w-[190px]"
       >
         {organizations.map((org) => (
           <option key={org.id} value={org.id}>

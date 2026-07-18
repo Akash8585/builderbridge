@@ -67,7 +67,7 @@ export default async function IntegrationsPage({
 
         <Card className="p-6 opacity-90">
           <div className="flex items-start justify-between gap-4 mb-2">
-            <h2 className="text-sm font-semibold">Autodesk Construction Cloud</h2>
+            <h2 className="app-card-title">Autodesk Construction Cloud</h2>
             <span className="shrink-0 rounded-full bg-surface-soft px-2.5 py-0.5 text-xs font-medium text-muted">
               Coming soon
             </span>

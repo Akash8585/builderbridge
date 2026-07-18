@@ -37,7 +37,7 @@ export function ScheduleImpactList({
       <SubmitSirForm projectId={projectId} tasks={tasks} />
 
       {sirs.length === 0 ? (
-        <p className="text-sm text-muted text-center py-6">No Schedule Impact Requests match this filter.</p>
+        <p className="app-empty-title py-6 text-center">No schedule impact requests match this filter</p>
       ) : (
         <ul className="space-y-4">
           {sirs.map((sir) => (
@@ -78,7 +78,7 @@ function SubmitSirForm({ projectId, tasks }: { projectId: string; tasks: TaskOpt
 
   return (
     <form onSubmit={handleSubmit} className="border border-hairline rounded-lg p-4 bg-surface-soft">
-      <h3 className="text-sm font-semibold mb-3">Submit a Schedule Impact Request</h3>
+      <h3 className="app-card-title mb-3">Submit a Schedule Impact Request</h3>
       <textarea
         value={description}
         onChange={(e) => setDescription(e.target.value)}
@@ -135,7 +135,7 @@ function SirCard({ sir, canReview }: { sir: SirRow; canReview: boolean }) {
   return (
     <li className="border border-hairline rounded-lg p-4">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-medium text-ink">{sir.submittedBy.user.name}</span>
+        <span className="app-card-title">{sir.submittedBy.user.name}</span>
         <span className={`text-xs font-medium ${statusColor}`}>{SIR_STATUS_LABELS[sir.status]}</span>
       </div>
       <p className="text-sm text-body mb-2">{sir.description}</p>

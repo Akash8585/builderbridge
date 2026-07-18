@@ -55,7 +55,7 @@ export function TaskUpdateFeed({ taskId, updates }: { taskId: string; updates: T
   return (
     <div>
       <form ref={formRef} onSubmit={handleSubmit} className="border border-hairline rounded-lg p-4 bg-surface-soft mb-6">
-        <h3 className="text-sm font-semibold mb-3">Post a field update</h3>
+        <h3 className="app-card-title mb-3">Post a field update</h3>
         <textarea
           name="note"
           value={note}
@@ -86,13 +86,13 @@ export function TaskUpdateFeed({ taskId, updates }: { taskId: string; updates: T
       </form>
 
       {updates.length === 0 ? (
-        <p className="text-sm text-muted text-center py-6">No field updates yet.</p>
+        <p className="app-empty-title py-6 text-center">No field updates yet</p>
       ) : (
         <ul className="space-y-4">
           {updates.map((u) => (
             <li key={u.id} className="border-b border-hairline-soft pb-4">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-ink">{u.author.name}</span>
+                <span className="app-card-title">{u.author.name}</span>
                 <span className="text-xs text-muted-soft">{formatDateTime(u.createdAt)}</span>
               </div>
               {u.note && <p className="text-sm text-body mb-2">{u.note}</p>}

@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
 import { canManageSchedule } from "@/lib/permissions";
 import { computeCriticalPath } from "@/lib/critical-path";
-import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { GanttChart } from "@/components/GanttChart";
 import { TaskDependencyManager } from "@/components/TaskDependencyManager";
 import { ProjectPageHeader } from "@/components/PageHeader";
@@ -37,8 +36,6 @@ export default async function ProjectGanttPage({
         title="Gantt Schedule"
         description="Review timing, dependencies, and critical path movement across the master schedule."
       />
-
-      <ProjectSubNav projectId={projectId} active="Gantt" />
 
       <div className="mt-6 space-y-6">
         <GanttChart

@@ -62,7 +62,7 @@ export default async function ProjectsPage({
             <p className="text-sm text-muted">No archived projects.</p>
           ) : (
             <>
-              <h2 className="font-display text-xl mb-2">No projects yet</h2>
+              <h2 className="app-empty-title mb-2">No projects yet</h2>
               <p className="text-sm text-muted mb-6">
                 Create your first project to start scheduling tasks and inviting your team.
               </p>
@@ -90,7 +90,7 @@ export default async function ProjectsPage({
                     </span>
                     <span className="text-xs font-medium text-muted transition-colors group-hover:text-ink">Open</span>
                   </div>
-                  <h2 className="mb-1 font-semibold text-ink">{project.name}</h2>
+                  <h2 className="app-card-title mb-1">{project.name}</h2>
                   <p className="mb-5 text-xs text-muted">
                     {formatDate(project.startDate)} – {formatDate(project.endDate)}
                   </p>

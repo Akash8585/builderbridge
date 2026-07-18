@@ -1,11 +1,26 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { UIMessage } from "ai";
-import { Bot, ExternalLink, FileText, Image as ImageIcon } from "lucide-react";
+import { ExternalLink, FileText, Image as ImageIcon } from "lucide-react";
 import { isFileUIPart, isToolUIPart } from "ai";
 import type { FileUIPart } from "ai";
 import { AssistantToolResult } from "@/components/ai-elements/AssistantToolResult";
+import type { AssistantUIMessage } from "@/lib/assistant-types";
+
+function formatDuration(durationMs: number): string {
+  const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
+
+function formatMessageTime(value: string): string {
+  return new Date(value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
 
 export function getUIMessageText(message: UIMessage): string {
   return message.parts
@@ -16,7 +31,7 @@ export function getUIMessageText(message: UIMessage): string {
 }
 
 type AssistantConversationProps = {
-  messages: UIMessage[];
+  messages: AssistantUIMessage[];
   busy: boolean;
   suggestions: string[];
   onSuggestion: (suggestion: string) => void;
@@ -61,14 +76,26 @@ export function AssistantConversation({
   suggestions,
   onSuggestion,
 }: AssistantConversationProps) {
-  const endRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: busy ? "auto" : "smooth", block: "end" });
+    if (!busy) return;
+    const interval = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(interval);
+  }, [busy]);
+
+  useEffect(() => {
+    const viewport = scrollRef.current;
+    if (!viewport) return;
+    viewport.scrollTo({
+      top: viewport.scrollHeight,
+      behavior: busy ? "auto" : "smooth",
+    });
   }, [messages, busy]);
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-7 sm:px-8">
+    <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-7 sm:px-8">
       {messages.length === 0 ? (
         <div className="mx-auto flex min-h-full max-w-2xl flex-col justify-center py-10">
           <h3 className="font-display text-2xl text-[var(--assistant-text)]">What needs attention?</h3>
@@ -90,62 +117,82 @@ export function AssistantConversation({
         </div>
       ) : (
         <div className="mx-auto max-w-3xl space-y-9 pb-4">
-          {messages.map((message) => {
+          {messages.map((message, index) => {
             const text = getUIMessageText(message);
             const toolParts = message.parts.filter(isToolUIPart);
             const fileParts = message.parts.filter(isFileUIPart);
             const hasToolError = toolParts.some((part) => part.state === "output-error");
             if (!text && toolParts.length === 0 && fileParts.length === 0) return null;
             const isUser = message.role === "user";
+            const isActiveAssistant = !isUser && busy && index === messages.length - 1;
+            const startedAt = message.metadata?.createdAt;
+            const elapsedMs = isActiveAssistant && startedAt && now > 0
+              ? Math.max(0, now - new Date(startedAt).getTime())
+              : message.metadata?.durationMs;
+            const completedAt = isActiveAssistant
+              ? null
+              : message.metadata?.completedAt ?? message.metadata?.createdAt ?? null;
             return (
-              <div key={message.id} className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
-                {!isUser && (
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[var(--assistant-border)] bg-[var(--assistant-layer)] text-[var(--assistant-text-body)]">
-                    <Bot size={15} aria-hidden />
-                  </span>
-                )}
-                <div
-                  data-message-role={isUser ? "user" : "assistant"}
-                  className={
-                    isUser
-                      ? "max-w-[82%] whitespace-pre-wrap rounded-lg border border-[var(--assistant-border)] bg-[var(--assistant-layer-strong)] px-4 py-3 text-sm leading-6 text-[var(--assistant-text-strong)] shadow-sm"
-                      : "max-w-[calc(100%-40px)] space-y-3 whitespace-pre-wrap pt-0.5 text-[15px] leading-7 text-[var(--assistant-text-body)]"
-                  }
-                >
-                  {fileParts.length > 0 && (
-                    <div className="grid gap-2">
-                      {fileParts.map((part) => (
-                        <AttachmentPreview
-                          key={`${part.url}:${part.filename ?? "file"}`}
-                          part={part}
-                          userMessage={isUser}
-                        />
-                      ))}
-                    </div>
+              <div key={message.id} className={`group/message flex ${isUser ? "justify-end" : "justify-start"}`}>
+                <div className={`relative flex min-w-0 flex-col ${isUser ? "max-w-[82%] items-end" : "w-full items-start"}`}>
+                  <div
+                    data-message-role={isUser ? "user" : "assistant"}
+                    className={
+                      isUser
+                        ? "max-w-full whitespace-pre-wrap rounded-lg border border-[var(--assistant-border)] bg-[var(--assistant-layer-strong)] px-4 py-3 text-sm leading-6 text-[var(--assistant-text-strong)] shadow-sm"
+                        : "w-full space-y-3 whitespace-pre-wrap pt-0.5 text-[15px] leading-7 text-[var(--assistant-text-body)]"
+                    }
+                  >
+                    {!isUser && elapsedMs !== null && elapsedMs !== undefined && (
+                      <div className="mb-4 border-b border-[var(--assistant-border)] pb-2 text-xs leading-5 text-[var(--assistant-text-muted)]">
+                        {isActiveAssistant ? "Working" : "Worked"} for {formatDuration(elapsedMs)}
+                      </div>
+                    )}
+                    {fileParts.length > 0 && (
+                      <div className="grid gap-2">
+                        {fileParts.map((part) => (
+                          <AttachmentPreview
+                            key={`${part.url}:${part.filename ?? "file"}`}
+                            part={part}
+                            userMessage={isUser}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {toolParts.map((part) => (
+                      <AssistantToolResult key={part.toolCallId} part={part} />
+                    ))}
+                    {text && !hasToolError && <div>{text}</div>}
+                  </div>
+                  {completedAt && (
+                    <time
+                      dateTime={completedAt}
+                      title={new Date(completedAt).toLocaleString()}
+                      className={`pointer-events-none absolute top-full mt-1 whitespace-nowrap text-[11px] leading-4 text-[var(--assistant-text-faint)] opacity-0 transition-opacity group-hover/message:opacity-100 ${isUser ? "right-0" : "left-0"}`}
+                    >
+                      {formatMessageTime(completedAt)}
+                    </time>
                   )}
-                  {toolParts.map((part) => (
-                    <AssistantToolResult key={part.toolCallId} part={part} />
-                  ))}
-                  {text && !hasToolError && <div>{text}</div>}
                 </div>
               </div>
             );
           })}
           {busy && messages.at(-1)?.role === "user" && (
-            <div className="flex items-center gap-3 text-[var(--assistant-text-faint)]">
-              <span className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--assistant-border)] bg-[var(--assistant-layer)] text-[var(--assistant-text-body)]">
-                <Bot size={15} aria-hidden />
-              </span>
-              <span className="flex gap-1" aria-label="Agent is thinking">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--assistant-text-faint)]" />
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--assistant-text-faint)] [animation-delay:150ms]" />
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--assistant-text-faint)] [animation-delay:300ms]" />
-              </span>
+            <div className="text-[var(--assistant-text-faint)]">
+              <div>
+                <p className="mb-2 text-xs leading-5 text-[var(--assistant-text-muted)]">
+                  Working for {formatDuration(Math.max(0, now - new Date(messages.at(-1)?.metadata?.createdAt ?? new Date().toISOString()).getTime()))}
+                </p>
+                <span className="flex gap-1" aria-label="Agent is thinking">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--assistant-text-faint)]" />
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--assistant-text-faint)] [animation-delay:150ms]" />
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--assistant-text-faint)] [animation-delay:300ms]" />
+                </span>
+              </div>
             </div>
           )}
         </div>
       )}
-      <div ref={endRef} />
     </div>
   );
 }

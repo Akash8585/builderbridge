@@ -62,8 +62,8 @@ export function TaskTable({
   if (tasks.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-hairline bg-canvas px-6 py-12 text-center">
-        <p className="text-sm font-semibold text-ink">No schedule activities yet</p>
-        <p className="mt-1 text-xs text-muted">Add the first task to begin building the master schedule.</p>
+        <p className="app-empty-title">No schedule activities yet</p>
+        <p className="mt-2 text-sm text-muted">Add the first task to begin building the master schedule.</p>
       </div>
     );
   }
@@ -72,17 +72,17 @@ export function TaskTable({
     <div className="app-table-wrap overflow-x-auto">
       <table className="w-full min-w-[1050px] text-sm">
         <thead>
-          <tr className="border-b border-hairline bg-surface-soft text-left text-[10px] uppercase tracking-[0.08em] text-muted-soft">
-            <th className="py-2.5 pl-4 pr-3 font-medium w-10 text-center border-r border-hairline-soft">#</th>
-            <th className="py-2.5 px-3 font-medium">Task</th>
-            <th className="py-2.5 px-3 font-medium">Responsible</th>
-            <th className="py-2.5 px-3 font-medium whitespace-nowrap">Start</th>
-            <th className="py-2.5 px-3 font-medium whitespace-nowrap">End</th>
-            <th className="py-2.5 px-3 font-medium whitespace-nowrap text-right">Duration</th>
-            <th className="py-2.5 px-3 font-medium">Progress</th>
-            <th className="py-2.5 px-3 font-medium">Status</th>
-            <th className="py-2.5 px-3 font-medium">Roadblock</th>
-            {canManage && <th className="py-2.5 pl-3 pr-4 font-medium text-right">Actions</th>}
+          <tr className="border-b border-hairline bg-surface-soft text-left">
+            <th className="app-table-heading w-10 border-r border-hairline-soft py-2.5 pl-4 pr-3 text-center">#</th>
+            <th className="app-table-heading px-3 py-2.5">Task</th>
+            <th className="app-table-heading px-3 py-2.5">Responsible</th>
+            <th className="app-table-heading whitespace-nowrap px-3 py-2.5">Start</th>
+            <th className="app-table-heading whitespace-nowrap px-3 py-2.5">End</th>
+            <th className="app-table-heading whitespace-nowrap px-3 py-2.5 text-right">Duration</th>
+            <th className="app-table-heading px-3 py-2.5">Progress</th>
+            <th className="app-table-heading px-3 py-2.5">Status</th>
+            <th className="app-table-heading px-3 py-2.5">Roadblock</th>
+            {canManage && <th className="app-table-heading py-2.5 pl-3 pr-4 text-right">Actions</th>}
           </tr>
         </thead>
         <tbody>

@@ -22,7 +22,7 @@ test("AI baseline create and compare proposals confirm without OpenRouter", asyn
       .click();
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
     await dialog.getByLabel("Message Agent").fill(`Create a baseline named ${baselineName}`);
-    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+    await dialog.getByRole("button", { name: "Send" }).dispatchEvent("click");
 
     let proposal = dialog
       .locator('section[aria-label="Action proposal"]')
@@ -39,7 +39,7 @@ test("AI baseline create and compare proposals confirm without OpenRouter", asyn
     await dialog
       .getByLabel("Message Agent")
       .fill(`Compare current schedule to the baseline named ${baselineName}`);
-    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+    await dialog.getByRole("button", { name: "Send" }).dispatchEvent("click");
 
     proposal = dialog
       .locator('section[aria-label="Action proposal"]')

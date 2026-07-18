@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
 import { canManageSchedule } from "@/lib/permissions";
-import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { DrawingList } from "@/components/DrawingList";
 import { ProjectPageHeader } from "@/components/PageHeader";
 import { privateStoredFileUrl } from "@/lib/storage";
@@ -38,8 +37,6 @@ export default async function ProjectDrawingsPage({
         title="Drawings"
         description="Keep current revisions linked to the scheduled work they affect."
       />
-
-      <ProjectSubNav projectId={projectId} active="Drawings" />
 
       <div className="mt-6">
         <DrawingList projectId={projectId} drawings={securedDrawings} tasks={tasks} canUpload={canManageSchedule(role)} />

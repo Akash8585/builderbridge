@@ -23,7 +23,7 @@ test("conversational RFI submit asks for the question then creates a proposal ca
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
 
     await dialog.getByLabel("Message Agent").fill("i want to submit an RFI");
-    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+    await dialog.getByRole("button", { name: "Send" }).dispatchEvent("click");
     await expect(dialog.getByText(/What question should I put on the new RFI/i)).toBeVisible({
       timeout: 30_000,
     });
@@ -33,8 +33,8 @@ test("conversational RFI submit asks for the question then creates a proposal ca
     await dialog
       .getByLabel("Message Agent")
       .fill(`my question for new RFI is ${question}`);
-    await expect(dialog.getByRole("button", { name: "Send message" })).toBeEnabled();
-    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+    await expect(dialog.getByRole("button", { name: "Send" })).toBeEnabled();
+    await dialog.getByRole("button", { name: "Send" }).dispatchEvent("click");
 
     const proposal = dialog
       .locator('section[aria-label="Action proposal"]')
@@ -44,8 +44,8 @@ test("conversational RFI submit asks for the question then creates a proposal ca
     await expect(dialog.getByText(/OpenRouter could not complete/)).toHaveCount(0);
 
     await dialog.getByLabel("Message Agent").fill("give me all the task options");
-    await expect(dialog.getByRole("button", { name: "Send message" })).toBeEnabled();
-    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+    await expect(dialog.getByRole("button", { name: "Send" })).toBeEnabled();
+    await dialog.getByRole("button", { name: "Send" }).dispatchEvent("click");
     await expect(dialog.getByText(/Here are the project tasks you can link/i)).toBeVisible({
       timeout: 30_000,
     });

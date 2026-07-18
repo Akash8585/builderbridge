@@ -2,7 +2,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
 import { canManageSchedule } from "@/lib/permissions";
-import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { SubmittalList } from "@/components/SubmittalList";
 import type { SubmittalStatus } from "@prisma/client";
 import { ProjectPageHeader } from "@/components/PageHeader";
@@ -41,8 +40,6 @@ export default async function ProjectSubmittalsPage({
         title="Submittals Log"
         description="Track decisions and due dates that can affect scheduled work."
       />
-
-      <ProjectSubNav projectId={projectId} active="Submittals" />
 
       <div className="mt-6 space-y-4">
         <div className="inline-flex flex-wrap items-center gap-1 rounded-md border border-hairline bg-canvas p-1">

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
 import { canManageSchedule } from "@/lib/permissions";
-import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { BaselineCreateForm } from "@/components/BaselineCreateForm";
 import { Card } from "@/components/ui/Card";
 import { formatDate, daysBetween, TASK_STATUS_LABELS } from "@/lib/utils";
@@ -52,13 +51,11 @@ export default async function ProjectBaselinesPage({
         description="Save approved schedule states and compare current dates against the plan of record."
       />
 
-      <ProjectSubNav projectId={projectId} active="Baselines" />
-
       <div className="mt-6 space-y-6">
         {canManageSchedule(role) && <BaselineCreateForm projectId={projectId} />}
 
         {baselines.length === 0 ? (
-          <p className="text-sm text-muted text-center py-6">No baselines saved yet.</p>
+          <p className="app-empty-title py-6 text-center">No baselines saved yet</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {baselines.map((b) => (
@@ -86,12 +83,12 @@ export default async function ProjectBaselinesPage({
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs uppercase text-muted-soft border-b border-hairline-soft">
-                    <th className="px-4 py-2 font-medium">Task</th>
-                    <th className="px-4 py-2 font-medium">Baseline Dates</th>
-                    <th className="px-4 py-2 font-medium">Current Dates</th>
-                    <th className="px-4 py-2 font-medium">Variance</th>
-                    <th className="px-4 py-2 font-medium">Status</th>
+                  <tr className="border-b border-hairline-soft text-left">
+                    <th className="app-table-heading px-4 py-2">Task</th>
+                    <th className="app-table-heading px-4 py-2">Baseline Dates</th>
+                    <th className="app-table-heading px-4 py-2">Current Dates</th>
+                    <th className="app-table-heading px-4 py-2">Variance</th>
+                    <th className="app-table-heading px-4 py-2">Status</th>
                   </tr>
                 </thead>
                 <tbody>

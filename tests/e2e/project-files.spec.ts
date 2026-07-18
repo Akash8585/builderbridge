@@ -64,7 +64,7 @@ test("project files upload, index, open, filter, and delete securely", async ({ 
     expect(rangeResponse.status()).toBe(206);
     expect((await rangeResponse.body()).toString()).toBe("%PDF-1.4");
 
-    await row.getByRole("button", { name: `Ask AI about ${fileName}` }).click();
+    await row.getByRole("button", { name: `Ask Agent about ${fileName}` }).click();
     const assistantDialog = page.getByRole("dialog", { name: "Agent" });
     await expect(assistantDialog).toBeVisible();
     await expect(assistantDialog.getByLabel("Message Agent")).toHaveValue(

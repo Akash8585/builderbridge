@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
 import { canManageSchedule } from "@/lib/permissions";
 import { syncOverdueRfiFlags } from "@/app/actions/rfis";
-import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { RfiList } from "@/components/RfiList";
 import { privateStoredFileUrl } from "@/lib/storage";
 import type { RfiStatus } from "@prisma/client";
@@ -52,8 +51,6 @@ export default async function ProjectRfisPage({
         title="Requests for Information"
         description="Connect RFIs to scheduled work so overdue answers remain visible as delivery risk."
       />
-
-      <ProjectSubNav projectId={projectId} active="RFIs" />
 
       <div className="mt-6 space-y-4">
         <div className="inline-flex flex-wrap items-center gap-1 rounded-md border border-hairline bg-canvas p-1">

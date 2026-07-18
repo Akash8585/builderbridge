@@ -44,47 +44,63 @@ export default async function ExecutiveDashboardPage() {
       <div className="mt-8 space-y-6">
         {projects.length === 0 ? (
           <Card className="p-14 text-center">
-            <p className="text-sm text-muted">No active projects yet.</p>
+            <p className="app-empty-title">No active projects yet</p>
+            <p className="mt-2 text-sm text-muted">Create a project to start tracking portfolio health.</p>
           </Card>
         ) : (
           <>
+            <div className="app-section-heading">
+              <div>
+                <h2 className="app-section-title">Portfolio health</h2>
+                <p className="app-section-description">The current operating picture across active projects.</p>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <Card className="relative overflow-hidden p-5">
                 <span className="absolute inset-x-0 top-0 h-0.5 bg-ink" />
-                <p className="app-kicker mb-3">Active projects</p>
-                <p className="font-display text-3xl">{projects.length}</p>
+                <p className="app-metric-label">Active projects</p>
+                <p className="app-metric-value">{projects.length}</p>
+                <p className="app-metric-helper">Currently in delivery</p>
               </Card>
               <Card className="relative overflow-hidden p-5">
                 <span className="absolute inset-x-0 top-0 h-0.5 bg-brand-accent" />
-                <p className="app-kicker mb-3">Total tasks</p>
-                <p className="font-display text-3xl">{orgTotals.totalTasks}</p>
+                <p className="app-metric-label">Total tasks</p>
+                <p className="app-metric-value">{orgTotals.totalTasks}</p>
+                <p className="app-metric-helper">Across active schedules</p>
               </Card>
               <Card className="relative overflow-hidden p-5">
                 <span className={`absolute inset-x-0 top-0 h-0.5 ${orgTotals.openRoadblocks > 0 ? "bg-error" : "bg-success"}`} />
-                <p className="app-kicker mb-3">Open roadblocks</p>
-                <p className={`font-display text-3xl ${orgTotals.openRoadblocks > 0 ? "text-error" : ""}`}>
+                <p className="app-metric-label">Open roadblocks</p>
+                <p className={`app-metric-value ${orgTotals.openRoadblocks > 0 ? "text-error" : ""}`}>
                   {orgTotals.openRoadblocks}
                 </p>
+                <p className="app-metric-helper">Needs owner attention</p>
               </Card>
               <Card className="relative overflow-hidden p-5">
                 <span className="absolute inset-x-0 top-0 h-0.5 bg-success" />
-                <p className="app-kicker mb-3">Average health</p>
-                <p className={`font-display text-3xl ${healthColor(avgHealthScore)}`}>{avgHealthScore ?? "—"}</p>
+                <p className="app-metric-label">Average health</p>
+                <p className={`app-metric-value ${healthColor(avgHealthScore)}`}>{avgHealthScore ?? "-"}</p>
+                <p className="app-metric-helper">Portfolio score</p>
               </Card>
             </div>
 
             <Card className="p-0 overflow-hidden">
+              <div className="border-b border-hairline-soft px-4 py-4">
+                <h2 className="app-section-title">Active project performance</h2>
+                <p className="app-section-description">Schedule, reliability, variance, and constraints by project.</p>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left text-xs uppercase text-muted-soft border-b border-hairline-soft bg-surface-soft">
-                      <th className="px-4 py-2.5 font-medium">Project</th>
-                      <th className="px-4 py-2.5 font-medium text-right">% Complete</th>
-                      <th className="px-4 py-2.5 font-medium text-right">PPC</th>
-                      <th className="px-4 py-2.5 font-medium text-right">PRR</th>
-                      <th className="px-4 py-2.5 font-medium text-right">Variance</th>
-                      <th className="px-4 py-2.5 font-medium text-right">Roadblocks</th>
-                      <th className="px-4 py-2.5 font-medium text-right">Health Score</th>
+                    <tr className="border-b border-hairline-soft bg-surface-soft text-left">
+                      <th className="app-table-heading px-4 py-2.5">Project</th>
+                      <th className="app-table-heading px-4 py-2.5 text-right">% Complete</th>
+                      <th className="app-table-heading px-4 py-2.5 text-right">PPC</th>
+                      <th className="app-table-heading px-4 py-2.5 text-right">PRR</th>
+                      <th className="app-table-heading px-4 py-2.5 text-right">Variance</th>
+                      <th className="app-table-heading px-4 py-2.5 text-right">Roadblocks</th>
+                      <th className="app-table-heading px-4 py-2.5 text-right">Health Score</th>
                     </tr>
                   </thead>
                   <tbody>

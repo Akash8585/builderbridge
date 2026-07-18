@@ -35,18 +35,18 @@ export function WeeklyPlanBoard({
     <div className="space-y-4">
       {commitments.length === 0 ? (
         <div className="rounded-md border border-dashed border-hairline px-6 py-10 text-center">
-          <p className="text-sm font-semibold text-ink">No commitments for this week</p>
-          <p className="mt-1 text-xs text-muted">Commit field-ready tasks below to build the weekly plan.</p>
+          <p className="app-empty-title">No commitments for this week</p>
+          <p className="mt-2 text-sm text-muted">Commit field-ready tasks below to build the weekly plan.</p>
         </div>
       ) : (
         <div className="app-table-wrap overflow-x-auto">
           <table className="w-full min-w-[680px] text-sm">
             <thead>
-              <tr className="border-b border-hairline bg-surface-soft text-left text-[10px] uppercase tracking-[0.08em] text-muted-soft">
-                <th className="px-4 py-2.5 font-medium">Task</th>
-                <th className="px-4 py-2.5 font-medium">Committed by</th>
-                <th className="px-4 py-2.5 font-medium">Status</th>
-                <th className="w-32 px-4 py-2.5 font-medium">Actions</th>
+              <tr className="border-b border-hairline bg-surface-soft text-left">
+                <th className="app-table-heading px-4 py-2.5">Task</th>
+                <th className="app-table-heading px-4 py-2.5">Committed by</th>
+                <th className="app-table-heading px-4 py-2.5">Status</th>
+                <th className="app-table-heading w-32 px-4 py-2.5">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -195,7 +195,7 @@ function CommitForm({ weekStartDate, tasks }: { weekStartDate: string; tasks: Co
   return (
     <div className="rounded-md border border-hairline bg-surface-soft p-4">
       <p className="app-kicker mb-1">Weekly commitment</p>
-      <h3 className="mb-3 text-sm font-semibold">Add work to this week</h3>
+      <h3 className="app-card-title mb-3">Add work to this week</h3>
       <div className="flex flex-wrap items-center gap-3">
         <select
           value={taskId}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { FileText, Image as ImageIcon, LoaderCircle, Paperclip, Send, Square, X } from "lucide-react";
+import { ArrowUp, FileText, Image as ImageIcon, LoaderCircle, Paperclip, Square, X } from "lucide-react";
 import {
   formatAttachmentBytes,
   MAX_ASSISTANT_ATTACHMENTS,
@@ -153,10 +153,10 @@ export function AssistantPromptInput({
             type="submit"
             disabled={disabled || !value.trim()}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--assistant-accent)] text-[var(--assistant-on-accent)] transition-opacity hover:opacity-85 disabled:bg-[var(--assistant-layer-strong)] disabled:text-[var(--assistant-text-faint)]"
-            aria-label="Send message"
-            title="Send message"
+            aria-label="Send"
+            title="Send"
           >
-            <Send size={16} aria-hidden />
+            <ArrowUp size={17} strokeWidth={2.2} aria-hidden />
           </button>
         )}
       </div>

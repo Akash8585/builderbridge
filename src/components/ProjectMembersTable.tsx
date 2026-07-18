@@ -40,11 +40,11 @@ export function ProjectMembersTable({
     <div className="overflow-x-auto">
       <table className="w-full min-w-[620px] text-sm">
         <thead>
-          <tr className="border-b border-hairline text-left text-muted">
-            <th className="py-2 font-medium">Name</th>
-            <th className="py-2 font-medium">Email</th>
-            <th className="py-2 font-medium">Role</th>
-            {canManage && <th className="py-2 font-medium text-right">Actions</th>}
+          <tr className="border-b border-hairline text-left">
+            <th className="app-table-heading py-2">Name</th>
+            <th className="app-table-heading py-2">Email</th>
+            <th className="app-table-heading py-2">Role</th>
+            {canManage && <th className="app-table-heading py-2 text-right">Actions</th>}
           </tr>
         </thead>
         <tbody>

@@ -34,7 +34,7 @@ export async function createRfi(input: unknown): Promise<ActionResult<RFI>> {
       where: { projectId_userId: { projectId: parsed.data.projectId, userId: user.id } },
     });
 
-    let attachmentId: string | null = parsed.data.attachmentId ?? null;
+    const attachmentId: string | null = parsed.data.attachmentId ?? null;
     let pageNumber: number | null = parsed.data.pageNumber ?? null;
     let citationExcerpt: string | null = parsed.data.citationExcerpt?.trim() || null;
     if (attachmentId) {

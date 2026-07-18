@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
 import { canManageSchedule } from "@/lib/permissions";
 import { syncOverdueRfiFlags } from "@/app/actions/rfis";
-import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { RoadblockLogTable } from "@/components/RoadblockLogTable";
 import { ProjectPageHeader } from "@/components/PageHeader";
 import type { RoadblockStatus } from "@prisma/client";
@@ -63,8 +62,6 @@ export default async function ProjectRoadblocksPage({
         title="Roadblocks & Constraints"
         description="Surface constraints early, assign ownership, and keep unresolved risk visible."
       />
-
-      <ProjectSubNav projectId={projectId} active="Roadblocks" />
 
       <div className="mt-6 space-y-4">
         <div className="inline-flex items-center gap-1 rounded-md border border-hairline bg-canvas p-1">

@@ -51,8 +51,8 @@ export function PullPlanningBoard({
 
       {tasks.length === 0 ? (
         <div className="rounded-md border border-dashed border-hairline bg-canvas px-6 py-10 text-center">
-          <p className="text-sm font-semibold text-ink">The pull plan is ready for its first task</p>
-          <p className="mt-1 text-xs text-muted">Trade partners can add their own work using the form above.</p>
+          <p className="app-empty-title">The pull plan is ready for its first task</p>
+          <p className="mt-2 text-sm text-muted">Trade partners can add their own work using the form above.</p>
         </div>
       ) : (
         <ol className="space-y-2">
@@ -126,7 +126,7 @@ function AddPullPlanTaskForm({ projectId, onAdded }: { projectId: string; onAdde
   return (
     <form onSubmit={handleSubmit} className="rounded-md border border-hairline bg-surface-soft p-4">
       <p className="app-kicker mb-1">Team input</p>
-      <h3 className="mb-1 text-sm font-semibold">Add your task to the board</h3>
+      <h3 className="app-card-title mb-1">Add your task to the board</h3>
       <p className="text-xs text-muted-soft mb-3">
         Any team member can add a task here — it&apos;ll be assigned to you. The session lead sequences the work below.
       </p>

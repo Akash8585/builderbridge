@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
 import { isProjectManager } from "@/lib/permissions";
-import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { InviteLinkGenerator } from "@/components/InviteLinkGenerator";
 import { ProjectMembersTable } from "@/components/ProjectMembersTable";
 import { Card } from "@/components/ui/Card";
@@ -31,8 +30,6 @@ export default async function ProjectMembersPage({
         title="Project Team"
         description="Manage project access, responsibilities, and field collaboration roles."
       />
-
-      <ProjectSubNav projectId={projectId} active="Members" />
 
       <div className="mt-6 space-y-6">
         {canManage && <InviteLinkGenerator projectId={projectId} />}

@@ -38,7 +38,7 @@ export function InviteLinkGenerator({ projectId }: { projectId: string }) {
 
   return (
     <div className="border border-hairline rounded-lg p-5 bg-surface-soft">
-      <h3 className="text-sm font-semibold mb-3">Invite a teammate</h3>
+      <h3 className="app-card-title mb-3">Invite a teammate</h3>
       <div className="flex flex-wrap items-center gap-3">
         <select
           value={role}

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
 import { canResolveRoadblocks } from "@/lib/permissions";
-import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { ScheduleImpactList } from "@/components/ScheduleImpactList";
 import type { SirStatus } from "@prisma/client";
 import { ProjectPageHeader } from "@/components/PageHeader";
@@ -42,8 +41,6 @@ export default async function ProjectImpactsPage({
         title="Schedule Impact Requests"
         description="Review requested schedule changes and preserve a clear approval trail."
       />
-
-      <ProjectSubNav projectId={projectId} active="Impacts" />
 
       <div className="mt-6 space-y-4">
         <div className="inline-flex items-center gap-1 rounded-md border border-hairline bg-canvas p-1">

@@ -19,7 +19,12 @@ function barColor(healthScore: number | null): string {
 
 export function PortfolioTimelineChart({ projects }: { projects: PortfolioTimelineProject[] }) {
   if (projects.length === 0) {
-    return <p className="text-sm text-muted py-8 text-center">No active projects to display yet.</p>;
+    return (
+      <div className="border border-dashed border-hairline p-10 text-center">
+        <p className="app-empty-title">No active projects to display yet</p>
+        <p className="mt-2 text-sm text-muted">Active project timelines will appear here once projects are created.</p>
+      </div>
+    );
   }
 
   const rangeStart = new Date(Math.min(...projects.map((p) => p.startDate.getTime())));
@@ -31,9 +36,9 @@ export function PortfolioTimelineChart({ projects }: { projects: PortfolioTimeli
 
   return (
     <div className="app-table-wrap overflow-x-auto">
-      <div className="flex border-b border-hairline bg-surface-soft text-xs text-muted">
-        <div className="w-56 shrink-0 px-3 py-2 font-medium">Project</div>
-        <div className="flex-1 px-3 py-2 flex justify-between font-medium">
+      <div className="flex border-b border-hairline bg-surface-soft">
+        <div className="app-table-heading w-56 shrink-0 px-3 py-2">Project</div>
+        <div className="app-table-heading flex flex-1 justify-between px-3 py-2">
           <span>{formatDate(rangeStart)}</span>
           <span>{formatDate(rangeEnd)}</span>
         </div>

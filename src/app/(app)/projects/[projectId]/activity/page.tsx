@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
-import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { Card } from "@/components/ui/Card";
 import { ProjectPageHeader } from "@/components/PageHeader";
 
@@ -38,8 +37,6 @@ export default async function ProjectActivityPage({
         title="Activity Log"
         description="A chronological record of project changes, decisions, and schedule updates."
       />
-
-      <ProjectSubNav projectId={projectId} active="Activity" />
 
       <div className="mt-6">
         <Card className="p-6">

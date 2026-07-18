@@ -39,12 +39,12 @@ export default async function BillingPage({
       <Card className="p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-sm text-muted mb-1">Current plan</p>
-            <p className="font-display text-2xl">{limits.label}</p>
+            <p className="app-metric-label">Current plan</p>
+            <p className="app-metric-value text-2xl">{limits.label}</p>
           </div>
           <div className="text-right">
-            <p className="text-sm text-muted mb-1">Active projects</p>
-            <p className="font-display text-2xl">
+            <p className="app-metric-label">Active projects</p>
+            <p className="app-metric-value text-2xl">
               {activeProjects}
               <span className="text-sm text-muted-soft font-normal">
                 {" "}/ {limits.activeProjects ?? "∞"}
@@ -59,7 +59,7 @@ export default async function BillingPage({
 
       {isBillingConfigured() ? (
         <Card className="p-6">
-          <h2 className="text-sm font-semibold mb-4">Change plan</h2>
+          <h2 className="app-section-title mb-4">Change plan</h2>
           <BillingActions
             organizationId={organizationId}
             currentTier={org.planTier}
@@ -76,7 +76,7 @@ export default async function BillingPage({
         </Card>
       ) : (
         <Card className="p-6">
-          <h2 className="text-sm font-semibold mb-2">Change plan</h2>
+          <h2 className="app-section-title mb-2">Change plan</h2>
           <p className="text-sm text-muted">
             Billing isn&apos;t configured on this server yet (no Stripe keys). Every organization runs on the{" "}
             <strong>Free</strong> plan — see the{" "}

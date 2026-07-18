@@ -5,25 +5,28 @@ import { UserMenu } from "@/components/UserMenu";
 
 export function NavBar() {
   return (
-    <header className="sticky top-0 z-40 border-b border-hairline bg-canvas/95 shadow-[0_1px_0_rgba(17,17,17,0.02)] backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-[1440px] items-center gap-5 px-4 sm:px-6">
-        <Link href="/projects" className="group flex shrink-0 items-center gap-2.5" aria-label="BuilderBridge projects">
-          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-ink text-[11px] font-bold text-white transition-transform group-hover:scale-[1.04]">
-            BB
+    <header className="sticky top-0 z-40 bg-app-bg/85 px-3 pb-2 pt-3 backdrop-blur-xl sm:px-4">
+      <div className="mx-auto flex min-h-14 max-w-[1440px] items-center gap-3 rounded-xl border border-hairline bg-canvas/95 px-3 shadow-[0_10px_30px_rgba(17,17,17,0.08)] ring-1 ring-white/70 sm:gap-5 sm:px-4">
+        <Link
+          href="/projects"
+          className="group inline-flex min-w-0 shrink-0 items-center"
+          aria-label="BuilderBridge projects"
+        >
+          <span className="hidden min-w-0 font-display text-sm font-semibold text-ink transition-opacity group-hover:opacity-75 sm:block">
+            BuilderBridge
           </span>
-          <span className="font-display hidden text-base sm:inline">BuilderBridge</span>
         </Link>
 
         <AppNavLinks />
 
         <div className="min-w-0 flex-1" />
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2.5">
           <OrgSwitcher />
-          <span className="hidden h-6 w-px bg-hairline lg:block" aria-hidden />
+          <span className="hidden h-7 w-px bg-hairline-soft lg:block" aria-hidden />
           <UserMenu />
         </div>
       </div>
-      <div className="overflow-x-auto border-t border-hairline-soft py-1.5 md:hidden">
+      <div className="mx-auto mt-2 max-w-[1440px] overflow-x-auto rounded-xl border border-hairline bg-canvas/95 py-1.5 shadow-[0_8px_22px_rgba(17,17,17,0.06)] md:hidden">
         <AppNavLinks mobile />
       </div>
     </header>

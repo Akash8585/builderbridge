@@ -55,7 +55,7 @@ test("project assistant attachments upload securely and persist across reloads",
     await expect(dialog.getByText(fileName, { exact: true })).toBeVisible({ timeout: 30_000 });
 
     await dialog.getByLabel("Message Agent").fill(prompt);
-    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+    await dialog.getByRole("button", { name: "Send" }).dispatchEvent("click");
     const userMessage = dialog.locator('[data-message-role="user"]');
     const attachmentLink = userMessage.getByRole("link", { name: fileName });
     await expect(attachmentLink).toBeVisible({ timeout: 30_000 });

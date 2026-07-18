@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
-import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { DashboardStats } from "@/components/DashboardStats";
 import { PpcTrendChart } from "@/components/PpcTrendChart";
 import { PrrTable } from "@/components/PrrTable";
@@ -54,8 +53,6 @@ export default async function ProjectDashboardPage({
         description="Monitor schedule progress, commitment reliability, and current delivery risk."
       />
 
-      <ProjectSubNav projectId={projectId} active="Dashboard" />
-
       <div className="mt-6 space-y-6">
         <DashboardStats
           totalTasks={totalTasks}
@@ -65,22 +62,29 @@ export default async function ProjectDashboardPage({
 
         {totalTasks > 0 && (
           <>
+            <div className="app-section-heading">
+              <div>
+                <h2 className="app-section-title">Schedule analytics</h2>
+                <p className="app-section-description">Progress and commitment signals from the live project plan.</p>
+              </div>
+            </div>
+
             <Card className="p-6">
-              <h2 className="text-sm font-semibold mb-1">Schedule Progress (S-Curve)</h2>
-              <p className="text-xs text-muted-soft mb-4">Planned vs. actual cumulative task completion</p>
+              <h3 className="app-card-title">Schedule Progress (S-Curve)</h3>
+              <p className="app-card-description mb-4">Planned vs. actual cumulative task completion</p>
               <SCurveChart sCurve={sCurve} />
             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Card className="p-6">
-                <h2 className="text-sm font-semibold mb-1">PPC Trend</h2>
-                <p className="text-xs text-muted-soft mb-4">Percent Plan Complete, by committed week</p>
+                <h3 className="app-card-title">PPC Trend</h3>
+                <p className="app-card-description mb-4">Percent Plan Complete, by committed week</p>
                 <PpcTrendChart ppcTrend={ppcTrend} />
               </Card>
 
               <Card className="p-6">
-                <h2 className="text-sm font-semibold mb-1">Promise Reliability Rate (PRR)</h2>
-                <p className="text-xs text-muted-soft mb-4">Commitment completion rate by trade/member</p>
+                <h3 className="app-card-title">Promise Reliability Rate (PRR)</h3>
+                <p className="app-card-description mb-4">Commitment completion rate by trade/member</p>
                 <PrrTable prrByMember={prrByMember} />
               </Card>
             </div>

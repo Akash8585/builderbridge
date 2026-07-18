@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import type { UIMessage } from "ai";
 import {
   Building2,
   FolderKanban,
@@ -22,6 +21,7 @@ import type {
   AssistantBootstrap,
   AssistantConversationDetail,
   AssistantConversationSummary,
+  AssistantUIMessage,
 } from "@/lib/assistant-types";
 import {
   isAllowedAssistantAttachmentType,
@@ -97,7 +97,7 @@ function ChatWorkspace({
       }),
     [detail.conversation.id]
   );
-  const { messages, sendMessage, status, error, stop } = useChat<UIMessage>({
+  const { messages, sendMessage, status, error, stop } = useChat<AssistantUIMessage>({
     id: detail.conversation.id,
     messages: detail.messages,
     transport,
@@ -170,6 +170,7 @@ function ChatWorkspace({
         mediaType: attachment.mediaType,
         url: attachment.url,
       }));
+      const sentAt = new Date().toISOString();
       onSent(trimmed);
       setInput("");
       setAttachments([]);
@@ -196,7 +197,11 @@ function ChatWorkspace({
         }
       };
       void adoptPersistedResponse();
-      void sendMessage({ text: trimmed, files });
+      void sendMessage({
+        text: trimmed,
+        files,
+        metadata: { createdAt: sentAt, completedAt: sentAt, durationMs: 0 },
+      });
     },
     [attachments, busy, detail.conversation.id, messages.length, onRecovered, onSent, sendMessage, stop]
   );
@@ -209,7 +214,7 @@ function ChatWorkspace({
   }, [onPromptConsumed, pendingPrompt, send, status]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-transparent text-[var(--assistant-text)]">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-transparent text-[var(--assistant-text)]">
       <AssistantConversation
         messages={messages}
         busy={busy}
@@ -566,14 +571,14 @@ export function GlobalAssistant() {
   return (
     <>
       {open && (
-        <div className="assistant-theme assistant-theme-light fixed inset-0 z-50 bg-[var(--assistant-overlay)] backdrop-blur-[18px] backdrop-saturate-150">
+        <div className="assistant-theme assistant-theme-light fixed inset-0 z-50 h-dvh min-h-0 overflow-hidden bg-[var(--assistant-overlay)] backdrop-blur-[18px] backdrop-saturate-150">
           <aside
             role="dialog"
             aria-label="Agent"
-            className="relative flex h-full w-full overflow-hidden bg-transparent before:pointer-events-none before:absolute before:left-0 before:top-0 before:z-0 before:h-4 before:w-4 before:bg-[var(--assistant-rail)] before:backdrop-blur-[38px] before:backdrop-saturate-150 before:content-[''] md:grid md:grid-cols-[280px_minmax(0,1fr)] md:before:left-[280px] lg:grid-cols-[296px_minmax(0,1fr)] lg:before:left-[296px]"
+            className="relative flex h-full min-h-0 w-full overflow-hidden bg-transparent before:pointer-events-none before:absolute before:left-0 before:top-0 before:z-0 before:h-4 before:w-4 before:bg-[var(--assistant-rail)] before:backdrop-blur-[38px] before:backdrop-saturate-150 before:content-[''] md:grid md:grid-cols-[280px_minmax(0,1fr)] md:before:left-[280px] lg:grid-cols-[296px_minmax(0,1fr)] lg:before:left-[296px]"
           >
             <div
-              className={`${railOpen ? "flex" : "hidden"} absolute inset-y-0 left-0 z-30 w-[280px] shrink-0 flex-col bg-[var(--assistant-rail)] text-[var(--assistant-rail-text)] shadow-[24px_0_60px_var(--assistant-rail-shadow)] backdrop-blur-[38px] backdrop-saturate-150 md:relative md:inset-auto md:z-10 md:flex md:w-full md:shadow-none`}
+              className={`${railOpen ? "flex" : "hidden"} absolute inset-y-0 left-0 z-30 h-full min-h-0 w-[280px] shrink-0 flex-col overflow-hidden bg-[var(--assistant-rail)] text-[var(--assistant-rail-text)] shadow-[24px_0_60px_var(--assistant-rail-shadow)] backdrop-blur-[38px] backdrop-saturate-150 md:relative md:inset-auto md:z-10 md:flex md:w-full md:shadow-none`}
             >
               <div className="shrink-0 px-3 pb-1 pt-3">
                 <div className="flex items-center gap-2">
@@ -699,7 +704,7 @@ export function GlobalAssistant() {
               </div>
             </div>
 
-            <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden rounded-tl-2xl bg-[var(--assistant-panel)] backdrop-blur-[38px] backdrop-saturate-150 md:z-20">
+            <div className="relative z-10 flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-tl-2xl bg-[var(--assistant-panel)] backdrop-blur-[38px] backdrop-saturate-150 md:z-20">
               <header className="flex h-13 shrink-0 items-center gap-3 border-b border-[var(--assistant-border)] bg-[var(--assistant-layer)] px-4 backdrop-blur-xl sm:px-5">
                 <button
                   type="button"

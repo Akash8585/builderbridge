@@ -329,6 +329,8 @@ model AssistantMessage {
   parts          Json?
   model          String?
   createdAt      DateTime              @default(now())
+  completedAt    DateTime?
+  durationMs     Int?
   attachments    AssistantAttachment[]
 
   @@index([conversationId, createdAt])

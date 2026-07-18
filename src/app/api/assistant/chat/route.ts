@@ -113,29 +113,60 @@ function createPersistedTextResponse({
   assistantMessageId,
   conversationId,
   model,
+  responseStartedAt,
+  persistedCompletedAt,
+  persistedDurationMs,
 }: {
   text: string;
   originalMessages: UIMessage[];
   assistantMessageId: string;
   conversationId: string;
   model: string;
+  responseStartedAt: Date;
+  persistedCompletedAt?: Date | null;
+  persistedDurationMs?: number | null;
 }) {
   const textId = randomUUID();
+  let completedAt = persistedCompletedAt ?? null;
+  let durationMs = persistedDurationMs ?? null;
   const stream = createUIMessageStream({
     originalMessages,
     execute: async ({ writer }) => {
-      writer.write({ type: "start", messageId: assistantMessageId });
+      writer.write({
+        type: "start",
+        messageId: assistantMessageId,
+        messageMetadata: { createdAt: responseStartedAt.toISOString() },
+      });
       writer.write({ type: "text-start", id: textId });
       writer.write({ type: "text-delta", id: textId, delta: text });
       writer.write({ type: "text-end", id: textId });
-      writer.write({ type: "finish", finishReason: "stop" });
+      if (!completedAt) {
+        completedAt = new Date();
+        durationMs = Math.max(0, completedAt.getTime() - responseStartedAt.getTime());
+      }
+      writer.write({
+        type: "finish",
+        finishReason: "stop",
+        messageMetadata: {
+          createdAt: responseStartedAt.toISOString(),
+          completedAt: completedAt.toISOString(),
+          durationMs,
+        },
+      });
     },
     onEnd: async ({ responseMessage, isAborted }) => {
       if (isAborted) return;
+      const finalCompletedAt = completedAt ?? new Date();
+      const finalDurationMs = durationMs ?? Math.max(0, finalCompletedAt.getTime() - responseStartedAt.getTime());
       await prisma.$transaction([
         prisma.assistantMessage.upsert({
           where: { id: assistantMessageId },
-          update: { content: text, parts: serializeParts(responseMessage.parts) },
+          update: {
+            content: text,
+            parts: serializeParts(responseMessage.parts),
+            completedAt: finalCompletedAt,
+            durationMs: finalDurationMs,
+          },
           create: {
             id: assistantMessageId,
             conversationId,
@@ -143,6 +174,9 @@ function createPersistedTextResponse({
             content: text,
             parts: serializeParts(responseMessage.parts),
             model,
+            createdAt: responseStartedAt,
+            completedAt: finalCompletedAt,
+            durationMs: finalDurationMs,
           },
         }),
         prisma.assistantConversation.update({
@@ -251,6 +285,7 @@ export async function POST(request: Request) {
   const existingAssistantMessage = await prisma.assistantMessage.findUnique({
     where: { id: assistantMessageId },
   });
+  const responseStartedAt = existingAssistantMessage?.createdAt ?? new Date();
   if (existingAssistantMessage) {
     if (existingAssistantMessage.conversationId !== conversation.id) {
       return Response.json({ error: "Assistant response already belongs to another conversation." }, { status: 409 });
@@ -268,6 +303,9 @@ export async function POST(request: Request) {
         assistantMessageId,
         conversationId: conversation.id,
         model: existingAssistantMessage.model ?? "assistant-replay",
+        responseStartedAt,
+        persistedCompletedAt: existingAssistantMessage.completedAt ?? existingAssistantMessage.createdAt,
+        persistedDurationMs: existingAssistantMessage.durationMs,
       });
     }
     if (Date.now() - existingAssistantMessage.createdAt.getTime() < 60_000) {
@@ -286,6 +324,7 @@ export async function POST(request: Request) {
         role: "ASSISTANT",
         content: "",
         model: "pending",
+        createdAt: responseStartedAt,
       },
     });
   }
@@ -310,6 +349,7 @@ export async function POST(request: Request) {
       assistantMessageId,
       conversationId: conversation.id,
       model: "local-attachment-handler",
+      responseStartedAt,
     });
   }
 
@@ -483,6 +523,7 @@ export async function POST(request: Request) {
         assistantMessageId,
         conversationId: conversation.id,
         model: "local-rfi-helper",
+        responseStartedAt,
       });
     }
     const tasks = await prisma.task.findMany({
@@ -507,6 +548,7 @@ export async function POST(request: Request) {
       assistantMessageId,
       conversationId: conversation.id,
       model: "local-rfi-helper",
+      responseStartedAt,
     });
   }
 
@@ -524,16 +566,30 @@ export async function POST(request: Request) {
       assistantMessageId,
       conversationId: conversation.id,
       model: "local-rfi-helper",
+      responseStartedAt,
     });
   }
 
   if (deterministicAction) {
     const toolCallId = randomUUID();
     const textId = randomUUID();
+    let directCompletedAt: Date | null = null;
+    const directTiming = () => {
+      directCompletedAt ??= new Date();
+      return {
+        createdAt: responseStartedAt.toISOString(),
+        completedAt: directCompletedAt.toISOString(),
+        durationMs: Math.max(0, directCompletedAt.getTime() - responseStartedAt.getTime()),
+      };
+    };
     const directStream = createUIMessageStream({
       originalMessages: validated.data,
       execute: async ({ writer }) => {
-        writer.write({ type: "start", messageId: assistantMessageId });
+        writer.write({
+          type: "start",
+          messageId: assistantMessageId,
+          messageMetadata: { createdAt: responseStartedAt.toISOString() },
+        });
         writer.write({
           type: "tool-input-available",
           toolCallId,
@@ -568,7 +624,7 @@ export async function POST(request: Request) {
             writer.write({ type: "text-delta", id: textId, delta: text });
             writer.write({ type: "text-end", id: textId });
           }
-          writer.write({ type: "finish", finishReason: "stop" });
+          writer.write({ type: "finish", finishReason: "stop", messageMetadata: directTiming() });
         } catch (error) {
           assistantTraceLog("error", {
             conversationId: conversation.id,
@@ -582,12 +638,14 @@ export async function POST(request: Request) {
               ? error.message
               : "The proposal could not be prepared. Please try again.";
           writer.write({ type: "tool-output-error", toolCallId, errorText });
-          writer.write({ type: "finish", finishReason: "error" });
+          writer.write({ type: "finish", finishReason: "error", messageMetadata: directTiming() });
         }
       },
       onEnd: async ({ responseMessage, isAborted }) => {
         if (isAborted) return;
         const content = messageText(responseMessage).trim();
+        const finalCompletedAt = directCompletedAt ?? new Date();
+        const finalDurationMs = Math.max(0, finalCompletedAt.getTime() - responseStartedAt.getTime());
         assistantTraceLog("finish", {
           conversationId: conversation.id,
           userMessageId: latestMessage.id,
@@ -602,13 +660,21 @@ export async function POST(request: Request) {
         await prisma.$transaction([
           prisma.assistantMessage.upsert({
             where: { id: assistantMessageId },
-            update: { content, parts: serializeParts(responseMessage.parts) },
+            update: {
+              content,
+              parts: serializeParts(responseMessage.parts),
+              completedAt: finalCompletedAt,
+              durationMs: finalDurationMs,
+            },
             create: {
               id: assistantMessageId,
               conversationId: conversation.id,
               role: "ASSISTANT",
               content,
               parts: serializeParts(responseMessage.parts),
+              createdAt: responseStartedAt,
+              completedAt: finalCompletedAt,
+              durationMs: finalDurationMs,
               model: deterministicAction.toolName === "proposeScheduleChange"
                 ? "local-schedule-parser"
                 : deterministicAction.toolName === "proposeRfiChange" || deterministicAction.toolName === "proposeSubmittalChange"
@@ -659,16 +725,33 @@ export async function POST(request: Request) {
     abortSignal: request.signal,
   });
 
+  let streamedCompletedAt: Date | null = null;
   const stream = toUIMessageStream({
     stream: result.stream,
     tools,
     originalMessages: validated.data,
     generateMessageId: () => assistantMessageId,
     sendReasoning: false,
+    messageMetadata: ({ part }) => {
+      if (part.type === "start") {
+        return { createdAt: responseStartedAt.toISOString() };
+      }
+      if (part.type === "finish") {
+        streamedCompletedAt ??= new Date();
+        return {
+          createdAt: responseStartedAt.toISOString(),
+          completedAt: streamedCompletedAt.toISOString(),
+          durationMs: Math.max(0, streamedCompletedAt.getTime() - responseStartedAt.getTime()),
+        };
+      }
+      return undefined;
+    },
     onError: streamErrorMessage,
     onEnd: async ({ responseMessage, isAborted }) => {
       const content = messageText(responseMessage).trim();
       if (isAborted) return;
+      const finalCompletedAt = streamedCompletedAt ?? new Date();
+      const finalDurationMs = Math.max(0, finalCompletedAt.getTime() - responseStartedAt.getTime());
       assistantTraceLog("finish", {
         conversationId: conversation.id,
         userMessageId: latestMessage.id,
@@ -680,7 +763,12 @@ export async function POST(request: Request) {
       await prisma.$transaction([
         prisma.assistantMessage.upsert({
           where: { id: assistantMessageId },
-          update: { content, parts: serializeParts(responseMessage.parts) },
+          update: {
+            content,
+            parts: serializeParts(responseMessage.parts),
+            completedAt: finalCompletedAt,
+            durationMs: finalDurationMs,
+          },
           create: {
             id: assistantMessageId,
             conversationId: conversation.id,
@@ -688,6 +776,9 @@ export async function POST(request: Request) {
             content,
             parts: serializeParts(responseMessage.parts),
             model: env.OPENROUTER_MODEL,
+            createdAt: responseStartedAt,
+            completedAt: finalCompletedAt,
+            durationMs: finalDurationMs,
           },
         }),
         prisma.assistantConversation.update({

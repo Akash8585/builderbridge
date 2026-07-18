@@ -39,13 +39,13 @@ export function DrawingList({
       {canUpload && <UploadDrawingForm projectId={projectId} tasks={tasks} />}
 
       {drawings.length === 0 ? (
-        <p className="text-sm text-muted text-center py-6">No drawings uploaded yet.</p>
+        <p className="app-empty-title py-6 text-center">No drawings uploaded yet</p>
       ) : (
         <ul className="space-y-3">
           {drawings.map((d) => (
             <li key={d.id} className={`border rounded-lg p-4 ${d.isSuperseded ? "border-hairline-soft opacity-60" : "border-hairline"}`}>
               <div className="flex items-center justify-between mb-1">
-                <a href={d.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-ink hover:underline">
+                <a href={d.fileUrl} target="_blank" rel="noopener noreferrer" className="app-card-title hover:underline">
                   {d.title}
                 </a>
                 <span className="text-xs text-muted">
@@ -98,7 +98,7 @@ function UploadDrawingForm({ projectId, tasks }: { projectId: string; tasks: Tas
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="border border-hairline rounded-lg p-4 bg-surface-soft">
-      <h3 className="text-sm font-semibold mb-3">Upload a Drawing</h3>
+      <h3 className="app-card-title mb-3">Upload a Drawing</h3>
       <div className="flex flex-wrap items-center gap-3">
         <input
           name="title"

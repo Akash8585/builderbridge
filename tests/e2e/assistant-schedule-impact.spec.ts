@@ -25,7 +25,7 @@ test("AI schedule impact requests create and approve through confirmation cards"
     await dialog
       .getByLabel("Message Agent")
       .fill(`Create a schedule impact request for ${taskName}: ${description}`);
-    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+    await dialog.getByRole("button", { name: "Send" }).dispatchEvent("click");
 
     let proposal = dialog
       .locator('section[aria-label="Action proposal"]')
@@ -44,8 +44,8 @@ test("AI schedule impact requests create and approve through confirmation cards"
 
     const approvePrompt = `Approve the schedule impact request ${description} because weather log confirms`;
     await dialog.getByLabel("Message Agent").fill(approvePrompt);
-    await expect(dialog.getByRole("button", { name: "Send message" })).toBeEnabled();
-    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+    await expect(dialog.getByRole("button", { name: "Send" })).toBeEnabled();
+    await dialog.getByRole("button", { name: "Send" }).dispatchEvent("click");
 
     proposal = dialog
       .locator('section[aria-label="Action proposal"]')

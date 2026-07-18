@@ -22,7 +22,7 @@ test("RFI commands create proposal cards without OpenRouter", async ({ page }) =
       .click();
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
     await dialog.getByLabel("Message Agent").fill(prompt);
-    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+    await dialog.getByRole("button", { name: "Send" }).dispatchEvent("click");
 
     const proposal = dialog
       .locator('section[aria-label="Action proposal"]')
@@ -77,7 +77,7 @@ test("what-if schedule prompts create proposal cards without OpenRouter", async 
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
     await expect(dialog.locator("header").getByText("New conversation", { exact: true })).toBeVisible();
     await dialog.getByLabel("Message Agent").fill(prompt);
-    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+    await dialog.getByRole("button", { name: "Send" }).dispatchEvent("click");
 
     const proposal = dialog
       .locator('section[aria-label="Action proposal"]')
@@ -122,11 +122,11 @@ test("project conversations stream and persist across reloads", async ({ page })
 
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
     await dialog.getByLabel("Message Agent").fill(prompt);
-    await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
+    await dialog.getByRole("button", { name: "Send" }).dispatchEvent("click");
     await expect(dialog.locator('[data-message-role="user"]').getByText(prompt, { exact: true })).toBeVisible();
     await expect(dialog.locator('[data-message-role="assistant"]')).toBeVisible({ timeout: 60_000 });
     await expect.poll(() => dialog.locator('[aria-label="Sources"]').count(), { timeout: 60_000 }).toBeGreaterThan(0);
-    await expect(dialog.getByRole("button", { name: "Send message" })).toBeVisible({ timeout: 60_000 });
+    await expect(dialog.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 60_000 });
 
     await page.reload();
     await page.getByRole("button", { name: "Open Agent" }).click();

@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
 import { isProjectManager, canManageSchedule } from "@/lib/permissions";
-import { ProjectSubNav } from "@/components/ProjectSubNav";
 import { TaskTable } from "@/components/TaskTable";
 import { TaskForm } from "@/components/TaskForm";
 import { ArchiveProjectButton } from "@/components/ArchiveProjectButton";
@@ -50,14 +49,12 @@ export default async function ProjectDetailPage({
         }
       />
 
-      <ProjectSubNav projectId={projectId} active="Tasks" />
-
       <div className="mt-6 space-y-4">
         {canManage && (
           <div className="app-toolbar">
             <div>
-              <p className="text-sm font-semibold text-ink">Schedule activities</p>
-              <p className="text-xs text-muted">{tasks.length} tasks in the current master schedule</p>
+              <p className="app-section-title">Schedule activities</p>
+              <p className="app-section-description">{tasks.length} tasks in the current master schedule</p>
             </div>
             <TaskForm projectId={projectId} members={memberOptions} />
           </div>

@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/prisma";
-import {
-  isAllowedAssistantAttachmentType,
-  MAX_ASSISTANT_ATTACHMENT_BYTES,
-} from "@/lib/assistant-attachments";
 import { processProjectDocument } from "@/lib/document-extraction";
 import { buildStorageKey, deleteStoredFile, uploadFile } from "@/lib/storage";
 import { requireActiveOrganization, requireUser } from "@/lib/session";
+import {
+  enforceUploadQuota,
+  UploadPolicyError,
+  validateUploadedFile,
+} from "@/lib/file-uploads";
 
 export const runtime = "nodejs";
 
@@ -14,21 +15,6 @@ export async function POST(
   { params }: { params: Promise<{ projectId: string }> }
 ) {
   const { projectId } = await params;
-  const formData = await request.formData().catch(() => null);
-  const file = formData?.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return Response.json({ error: "Choose a file to upload." }, { status: 400 });
-  }
-  if (file.size > MAX_ASSISTANT_ATTACHMENT_BYTES) {
-    return Response.json({ error: "Project files must be under 20 MB." }, { status: 413 });
-  }
-  if (!isAllowedAssistantAttachmentType(file.type)) {
-    return Response.json(
-      { error: "Only PDF, PNG, JPEG, and WebP files are supported." },
-      { status: 415 }
-    );
-  }
-
   const user = await requireUser();
   const { organizationId } = await requireActiveOrganization();
   const project = await prisma.project.findFirst({
@@ -43,26 +29,43 @@ export async function POST(
     return Response.json({ error: "Project not found or unavailable." }, { status: 404 });
   }
 
-  const fileName = file.name.trim().slice(0, 255) || "project-file";
+  const formData = await request.formData().catch(() => null);
+  const file = formData?.get("file");
+  if (!(file instanceof File)) {
+    return Response.json({ error: "Choose a file to upload." }, { status: 400 });
+  }
+
+  let upload: Awaited<ReturnType<typeof validateUploadedFile>>;
+  try {
+    upload = await validateUploadedFile(file, "document");
+    await enforceUploadQuota({ organizationId, projectId, upload });
+  } catch (error) {
+    if (error instanceof UploadPolicyError) {
+      return Response.json({ error: error.message }, { status: error.status });
+    }
+    throw error;
+  }
+
+  const fileName = upload.fileName;
   const storageKey = buildStorageKey(`documents/${projectId}/files`, fileName);
   try {
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const fileUrl = await uploadFile(storageKey, bytes, file.type);
+    const fileUrl = await uploadFile(storageKey, upload.bytes, upload.mediaType);
     try {
       const document = await prisma.assistantAttachment.create({
         data: {
           projectId,
           uploadedById: user.id,
           fileName,
-          mediaType: file.type,
-          sizeBytes: file.size,
+          mediaType: upload.mediaType,
+          sizeBytes: upload.sizeBytes,
+          contentHash: upload.contentHash,
           storageKey,
           fileUrl,
           source: "DIRECT_UPLOAD",
           extractionStatus: "PENDING",
         },
       });
-      const processed = await processProjectDocument(document, bytes);
+      const processed = await processProjectDocument(document, upload.bytes);
       return Response.json(
         {
           id: processed.id,

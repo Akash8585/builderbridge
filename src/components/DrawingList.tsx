@@ -123,7 +123,12 @@ function UploadDrawingForm({ projectId, tasks }: { projectId: string; tasks: Tas
             </option>
           ))}
         </select>
-        <input name="file" type="file" accept=".pdf,image/*" className="text-xs text-muted" />
+        <input
+          name="file"
+          type="file"
+          accept="application/pdf,image/png,image/jpeg,image/webp"
+          className="text-xs text-muted"
+        />
         <Button type="submit" variant="secondary" disabled={loading || !title.trim()}>
           {loading ? "Uploading…" : "Upload"}
         </Button>

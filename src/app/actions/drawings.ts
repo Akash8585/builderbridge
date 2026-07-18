@@ -6,12 +6,10 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { requireScheduleEditAccess } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-log";
-import { uploadFile, buildStorageKey } from "@/lib/storage";
+import { uploadFile, buildStorageKey, deleteStoredFile } from "@/lib/storage";
+import { enforceUploadQuota, validateUploadedFile } from "@/lib/file-uploads";
 import { ok, fail, type ActionResult } from "./schemas";
 import type { Drawing } from "@prisma/client";
-
-const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB
-const ALLOWED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
 
 const uploadDrawingSchema = z.object({
   projectId: z.string().min(1, "projectId is required"),
@@ -38,14 +36,8 @@ export async function uploadDrawing(formData: FormData): Promise<ActionResult<Dr
   }
 
   const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
+  if (!(file instanceof File)) {
     return { success: false, error: "Please choose a file to upload" };
-  }
-  if (file.size > MAX_FILE_BYTES) {
-    return { success: false, error: "File must be under 20MB" };
-  }
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    return { success: false, error: "Only PDF, PNG, JPEG, or WEBP files are supported" };
   }
 
   try {
@@ -54,6 +46,13 @@ export async function uploadDrawing(formData: FormData): Promise<ActionResult<Dr
 
     const uploader = await prisma.projectMember.findUniqueOrThrow({
       where: { projectId_userId: { projectId: parsed.data.projectId, userId: user.id } },
+      include: { project: { select: { organizationId: true } } },
+    });
+    const validated = await validateUploadedFile(file, "drawing");
+    await enforceUploadQuota({
+      organizationId: uploader.project.organizationId,
+      projectId: parsed.data.projectId,
+      upload: validated,
     });
 
     const priorRevision = await prisma.drawing.findFirst({
@@ -61,26 +60,36 @@ export async function uploadDrawing(formData: FormData): Promise<ActionResult<Dr
       orderBy: { revision: "desc" },
     });
 
-    const key = buildStorageKey(`drawings/${parsed.data.projectId}`, file.name);
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const fileUrl = await uploadFile(key, bytes, file.type);
+    const key = buildStorageKey(`drawings/${parsed.data.projectId}`, validated.fileName);
+    const fileUrl = await uploadFile(key, validated.bytes, validated.mediaType);
 
-    const drawing = await prisma.$transaction(async (tx) => {
-      if (priorRevision) {
-        await tx.drawing.update({ where: { id: priorRevision.id }, data: { isSuperseded: true } });
-      }
-      return tx.drawing.create({
-        data: {
-          projectId: parsed.data.projectId,
-          taskId: parsed.data.taskId ?? null,
-          title: parsed.data.title,
-          discipline: parsed.data.discipline ?? null,
-          fileUrl,
-          revision: (priorRevision?.revision ?? 0) + 1,
-          uploadedById: uploader.id,
-        },
+    let drawing: Drawing;
+    try {
+      drawing = await prisma.$transaction(async (tx) => {
+        if (priorRevision) {
+          await tx.drawing.update({ where: { id: priorRevision.id }, data: { isSuperseded: true } });
+        }
+        return tx.drawing.create({
+          data: {
+            projectId: parsed.data.projectId,
+            taskId: parsed.data.taskId ?? null,
+            title: parsed.data.title,
+            discipline: parsed.data.discipline ?? null,
+            fileUrl,
+            storageKey: key,
+            fileName: validated.fileName,
+            mediaType: validated.mediaType,
+            sizeBytes: validated.sizeBytes,
+            contentHash: validated.contentHash,
+            revision: (priorRevision?.revision ?? 0) + 1,
+            uploadedById: uploader.id,
+          },
+        });
       });
-    });
+    } catch (error) {
+      await deleteStoredFile(key).catch(() => undefined);
+      throw error;
+    }
 
     await logActivity({
       projectId: parsed.data.projectId,

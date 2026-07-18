@@ -120,9 +120,9 @@ export function AssistantConversation({
     <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-7 sm:px-8">
       {messages.length === 0 ? (
         <div className="mx-auto flex min-h-full max-w-2xl flex-col justify-center py-10">
-          <h3 className="font-display text-2xl text-[var(--assistant-text)]">What needs attention?</h3>
+          <h3 className="font-display text-2xl text-[var(--assistant-text)]">What would you like to do?</h3>
           <p className="mt-2 max-w-md text-sm leading-6 text-[var(--assistant-text-muted)]">
-            Ask about schedule risk, roadblocks, commitments, RFIs, submittals, or portfolio health.
+            Start with an action below, or ask Agent anything about this workspace.
           </p>
           <div className="mt-7 grid gap-2 sm:grid-cols-2">
             {suggestions.map((suggestion) => (

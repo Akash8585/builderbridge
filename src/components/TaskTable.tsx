@@ -61,9 +61,13 @@ export function TaskTable({
 
   if (tasks.length === 0) {
     return (
-      <div className="rounded-md border border-dashed border-hairline bg-canvas px-6 py-12 text-center">
-        <p className="app-empty-title">No schedule activities yet</p>
-        <p className="mt-2 text-sm text-muted">Add the first task to begin building the master schedule.</p>
+      <div className="rounded-md border border-dashed border-hairline bg-canvas px-6 py-14 text-center">
+        <p className="app-empty-title">{canManage ? "Build the first schedule" : "No schedule activities yet"}</p>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted">
+          {canManage
+            ? "Add the first activity, assign ownership, and give the project team one shared plan to work from."
+            : "The project schedule will appear here once activities are added."}
+        </p>
       </div>
     );
   }

@@ -43,10 +43,10 @@ const PORTFOLIO_SUGGESTIONS = [
 ];
 
 const PROJECT_SUGGESTIONS = [
-  "What is most likely to delay this project?",
-  "Summarize the open roadblocks.",
-  "Which tasks need attention this week?",
-  "Review current RFIs and submittals.",
+  "Help me create my first schedule task.",
+  "Help me create my first RFI.",
+  "Help me upload and review a project file.",
+  "Help me set up this project step by step.",
 ];
 
 function fileSuggestions(fileName: string): string[] {
@@ -565,11 +565,6 @@ export function GlobalAssistant() {
     ],
     [bootstrap?.projects]
   );
-  const scopeName =
-    scopeId === null
-      ? "Portfolio"
-      : bootstrap?.projects.find((project) => project.id === scopeId)?.name ?? "Project";
-
   const selectScope = useCallback(
     (projectId: string | null) => {
       setScopeId(projectId);
@@ -649,6 +644,8 @@ export function GlobalAssistant() {
     bootstrap?.conversations.find((conversation) => conversation.id === active?.conversation.id)?.title ??
     active?.conversation.title ??
     "New conversation";
+  const activeSuggestions =
+    suggestions ?? (scopeId !== null ? PROJECT_SUGGESTIONS : PORTFOLIO_SUGGESTIONS);
 
   const refreshSummaries = useCallback(async () => {
     try {
@@ -846,27 +843,18 @@ export function GlobalAssistant() {
                   pendingPrompt={pendingPrompt}
                   onPromptConsumed={() => setPendingPrompt(null)}
                   draftPrompt={draftPrompt}
-                  suggestions={suggestions ?? (scopeId !== null ? PROJECT_SUGGESTIONS : PORTFOLIO_SUGGESTIONS)}
+                  suggestions={activeSuggestions}
                   onSent={handleSent}
                   onUpdated={refreshSummaries}
                   onRecovered={setActive}
                 />
               ) : (
-                <div className="flex flex-1 items-center justify-center px-6">
-                  <div className="max-w-sm text-center">
-                    <h3 className="font-display text-xl text-[var(--assistant-text)]">Start with {scopeName}</h3>
-                    <p className="mt-2 text-sm leading-6 text-[var(--assistant-text-muted)]">Create a conversation to explore the live project data in this scope.</p>
-                    <button
-                      type="button"
-                      onClick={() => void createConversation()}
-                      disabled={loading}
-                      className="mt-5 inline-flex h-10 items-center gap-2 rounded-md bg-[var(--assistant-accent)] px-4 text-sm font-semibold text-[var(--assistant-on-accent)] opacity-100 hover:opacity-90"
-                    >
-                      <Plus size={16} aria-hidden />
-                      New conversation
-                    </button>
-                  </div>
-                </div>
+                <AssistantConversation
+                  messages={[]}
+                  busy={false}
+                  suggestions={activeSuggestions}
+                  onSuggestion={(suggestion) => void createConversation(suggestion)}
+                />
               )}
                 </div>
                 {pdfDocument && (

@@ -32,6 +32,19 @@ export function TaskUpdateFeed({ taskId, updates }: { taskId: string; updates: T
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    if (file && !["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      setError("Choose a PNG, JPEG, or WebP photo.");
+      e.target.value = "";
+      setPreview(null);
+      return;
+    }
+    if (file && file.size > 5 * 1024 * 1024) {
+      setError(`${file.name} is larger than 5 MB.`);
+      e.target.value = "";
+      setPreview(null);
+      return;
+    }
+    setError(null);
     setPreview(file ? URL.createObjectURL(file) : null);
   }
 
@@ -70,7 +83,7 @@ export function TaskUpdateFeed({ taskId, updates }: { taskId: string; updates: T
             ref={fileInputRef}
             type="file"
             name="photo"
-            accept="image/*"
+            accept="image/png,image/jpeg,image/webp"
             onChange={handleFileChange}
             className="text-xs text-muted"
           />

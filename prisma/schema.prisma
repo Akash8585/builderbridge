@@ -28,6 +28,7 @@ model User {
   projectMembers           ProjectMember[]
   taskUpdates              TaskUpdate[]
   activityLogEntries       ActivityLogEntry[]
+  fileAccessAuditEntries   FileAccessAuditEntry[]
   assistantConversations   AssistantConversation[]
   assistantAttachments     AssistantAttachment[]
   removedWeeklyCommitments WeeklyCommitment[]      @relation("WeeklyCommitmentRemovedBy")
@@ -116,6 +117,7 @@ model Organization {
   procoreConnection      ProcoreConnection?
   autodeskConnection     AutodeskConnection?
   assistantConversations AssistantConversation[]
+  fileAccessAuditEntries FileAccessAuditEntry[]
 
   @@map("organization")
 }
@@ -213,6 +215,16 @@ enum IntegrationSource {
   AUTODESK
 }
 
+enum FileAccessAction {
+  VIEW
+  DOWNLOAD
+}
+
+enum FileAccessOutcome {
+  ALLOWED
+  DENIED
+}
+
 model Project {
   id                String       @id @default(cuid())
   organizationId    String
@@ -237,6 +249,7 @@ model Project {
   drawings               Drawing[]
   baselines              Baseline[]
   activityLogEntries     ActivityLogEntry[]
+  fileAccessAuditEntries FileAccessAuditEntry[]
   assistantConversations AssistantConversation[]
   assistantAttachments   AssistantAttachment[]
 
@@ -367,6 +380,7 @@ model AssistantAttachment {
   fileName         String
   mediaType        String
   sizeBytes        Int
+  contentHash      String?
   storageKey       String                   @unique
   fileUrl          String
   source           ProjectFileSource        @default(AI_UPLOAD)
@@ -386,6 +400,7 @@ model AssistantAttachment {
   @@index([messageId])
   @@index([projectId])
   @@index([projectId, extractionStatus])
+  @@index([projectId, contentHash])
   @@map("assistant_attachment")
 }
 
@@ -511,16 +526,22 @@ model WeeklyCommitment {
 
 // Field Tracking: a running progress log on a task (note + optional photo), from any project member.
 model TaskUpdate {
-  id        String   @id @default(cuid())
-  taskId    String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  note      String?
-  photoUrl  String?
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  taskId      String
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  note        String?
+  photoUrl    String?
+  storageKey  String?  @unique
+  fileName    String?
+  mediaType   String?
+  sizeBytes   Int?
+  contentHash String?
+  createdAt   DateTime @default(now())
 
   @@index([taskId])
+  @@index([contentHash])
   @@map("task_update")
 }
 
@@ -649,6 +670,11 @@ model Drawing {
   title        String
   discipline   String?
   fileUrl      String
+  storageKey   String?           @unique
+  fileName     String?
+  mediaType    String?
+  sizeBytes    Int?
+  contentHash  String?
   revision     Int               @default(1)
   isSuperseded Boolean           @default(false)
   uploadedById String
@@ -660,6 +686,7 @@ model Drawing {
 
   @@unique([projectId, source, externalId])
   @@index([projectId])
+  @@index([projectId, contentHash])
   @@map("drawing")
 }
 
@@ -712,6 +739,34 @@ model ActivityLogEntry {
 
   @@index([projectId, createdAt])
   @@map("activity_log_entry")
+}
+
+// Append-only security trail for project-file views, downloads, and denied access.
+// Names are denormalized so an audit record remains meaningful after deletion.
+model FileAccessAuditEntry {
+  id             String            @id @default(cuid())
+  organizationId String
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projectId      String?
+  project        Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectName    String
+  userId         String?
+  user           User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userName       String?
+  storageKey     String
+  fileName       String
+  action         FileAccessAction
+  outcome        FileAccessOutcome
+  rangeRequested Boolean           @default(false)
+  userAgent      String?
+  denialReason   String?
+  dedupeKey      String?           @unique
+  createdAt      DateTime          @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([userId, createdAt])
+  @@map("file_access_audit_entry")
 }
 
 model Invitation {

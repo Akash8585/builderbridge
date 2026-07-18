@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, ExternalLink, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, ExternalLink, X } from "lucide-react";
 import {
+  fileDownloadUrl,
   PDF_VIEWER_EVENT,
   pdfPageUrl,
   type PdfViewerDocument,
@@ -92,6 +93,14 @@ export function PdfViewerPanel({
             title="Open in new tab"
           >
             <ExternalLink size={15} aria-hidden />
+          </a>
+          <a
+            href={fileDownloadUrl(document.url)}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-current opacity-65 transition-opacity hover:opacity-100"
+            aria-label="Download PDF"
+            title="Download PDF"
+          >
+            <Download size={15} aria-hidden />
           </a>
           <button
             type="button"

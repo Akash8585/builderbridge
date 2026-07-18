@@ -20,7 +20,8 @@ import {
 } from "@/lib/autodesk";
 import { autodeskDrawingTitle, autodeskDisciplineFromName } from "@/lib/autodesk-sync";
 import { logActivity } from "@/lib/activity-log";
-import { uploadFile, buildStorageKey } from "@/lib/storage";
+import { uploadFile, buildStorageKey, deleteStoredFile } from "@/lib/storage";
+import { enforceUploadQuota, validateUploadBytes } from "@/lib/file-uploads";
 import { ok, fail, type ActionResult } from "./schemas";
 
 const OAUTH_STATE_COOKIE = "autodesk_oauth_state";
@@ -204,10 +205,21 @@ export async function syncAutodeskProject(input: unknown): Promise<ActionResult<
           project.autodeskProjectId,
           file.id
         );
-        const title = autodeskDrawingTitle(fileName);
+        const validated = validateUploadBytes({
+          bytes,
+          fileName,
+          declaredMediaType: contentType,
+          kind: "drawing",
+        });
+        await enforceUploadQuota({
+          organizationId,
+          projectId: project.id,
+          upload: validated,
+        });
+        const title = autodeskDrawingTitle(validated.fileName);
         const externalId = file.id;
-        const key = buildStorageKey(`drawings/${project.id}/acc`, fileName);
-        const fileUrl = await uploadFile(key, bytes, contentType);
+        const key = buildStorageKey(`drawings/${project.id}/acc`, validated.fileName);
+        const fileUrl = await uploadFile(key, validated.bytes, validated.mediaType);
 
         const existing = await prisma.drawing.findUnique({
           where: {
@@ -219,41 +231,56 @@ export async function syncAutodeskProject(input: unknown): Promise<ActionResult<
           },
         });
 
-        if (existing) {
-          await prisma.$transaction(async (tx) => {
-            await tx.drawing.update({
-              where: { id: existing.id },
-              data: { isSuperseded: true },
+        try {
+          if (existing) {
+            await prisma.$transaction(async (tx) => {
+              await tx.drawing.update({
+                where: { id: existing.id },
+                data: { isSuperseded: true },
+              });
+              await tx.drawing.create({
+                data: {
+                  projectId: project.id,
+                  title,
+                  discipline: autodeskDisciplineFromName(validated.fileName),
+                  fileUrl,
+                  storageKey: key,
+                  fileName: validated.fileName,
+                  mediaType: validated.mediaType,
+                  sizeBytes: validated.sizeBytes,
+                  contentHash: validated.contentHash,
+                  revision: existing.revision + 1,
+                  uploadedById: memberId,
+                  source: "AUTODESK",
+                  externalId,
+                  lastSyncedAt: now,
+                },
+              });
             });
-            await tx.drawing.create({
+            summary.updated++;
+          } else {
+            await prisma.drawing.create({
               data: {
                 projectId: project.id,
                 title,
-                discipline: autodeskDisciplineFromName(fileName),
+                discipline: autodeskDisciplineFromName(validated.fileName),
                 fileUrl,
-                revision: existing.revision + 1,
+                storageKey: key,
+                fileName: validated.fileName,
+                mediaType: validated.mediaType,
+                sizeBytes: validated.sizeBytes,
+                contentHash: validated.contentHash,
                 uploadedById: memberId,
                 source: "AUTODESK",
                 externalId,
                 lastSyncedAt: now,
               },
             });
-          });
-          summary.updated++;
-        } else {
-          await prisma.drawing.create({
-            data: {
-              projectId: project.id,
-              title,
-              discipline: autodeskDisciplineFromName(fileName),
-              fileUrl,
-              uploadedById: memberId,
-              source: "AUTODESK",
-              externalId,
-              lastSyncedAt: now,
-            },
-          });
-          summary.created++;
+            summary.created++;
+          }
+        } catch (error) {
+          await deleteStoredFile(key).catch(() => undefined);
+          throw error;
         }
       } catch {
         summary.skipped++;

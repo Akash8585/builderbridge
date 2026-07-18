@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { pdfPageUrl, pdfViewerDocument } from "@/lib/pdf-viewer";
+import { fileDownloadUrl, pdfPageUrl, pdfViewerDocument } from "@/lib/pdf-viewer";
 
 describe("PDF viewer navigation", () => {
+  it("builds audited download URLs without carrying page fragments", () => {
+    expect(fileDownloadUrl("/api/files/project/report.pdf#page=7")).toBe(
+      "/api/files/project/report.pdf?download=1"
+    );
+    expect(fileDownloadUrl("/api/files/project/report.pdf?token=one#page=2")).toBe(
+      "/api/files/project/report.pdf?token=one&download=1"
+    );
+  });
+
   it("reads an exact page from a citation URL", () => {
     expect(pdfViewerDocument("/api/files/project/report.pdf#page=7", "Report")).toEqual({
       url: "/api/files/project/report.pdf",

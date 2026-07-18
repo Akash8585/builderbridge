@@ -5,6 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Camera,
+  Download,
   FileImage,
   FileText,
   FolderOpen,
@@ -15,7 +16,11 @@ import {
   Upload,
 } from "lucide-react";
 import { AgentIcon } from "@/components/AgentIcon";
-import { openPdfViewer } from "@/lib/pdf-viewer";
+import { fileDownloadUrl, openPdfViewer } from "@/lib/pdf-viewer";
+import {
+  isAllowedAssistantAttachmentType,
+  MAX_ASSISTANT_ATTACHMENT_BYTES,
+} from "@/lib/assistant-attachments";
 
 export type ProjectFileKind = "PROJECT_DOCUMENT" | "AI_UPLOAD" | "DRAWING" | "FIELD_PHOTO";
 export type DocumentProcessingState = "PENDING" | "PROCESSING" | "READY" | "FAILED" | "UNSUPPORTED";
@@ -205,6 +210,19 @@ function OpenInAgentAction({ file, projectId }: { file: ProjectFileRecord; proje
   );
 }
 
+function DownloadFileAction({ file }: { file: ProjectFileRecord }) {
+  return (
+    <a
+      href={fileDownloadUrl(file.url)}
+      aria-label={`Download ${file.name}`}
+      title="Download file"
+      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-soft hover:text-ink"
+    >
+      <Download size={15} aria-hidden />
+    </a>
+  );
+}
+
 function DeleteFileAction({
   file,
   deleting,
@@ -279,10 +297,27 @@ export function ProjectFilesBrowser({
 
   async function uploadFiles(fileList: FileList | null) {
     if (!fileList?.length) return;
+    if (fileList.length > 4) {
+      setUploadError("Upload up to four files at a time.");
+      return;
+    }
+    const invalid = Array.from(fileList).find(
+      (file) =>
+        file.size > MAX_ASSISTANT_ATTACHMENT_BYTES ||
+        !isAllowedAssistantAttachmentType(file.type)
+    );
+    if (invalid) {
+      setUploadError(
+        invalid.size > MAX_ASSISTANT_ATTACHMENT_BYTES
+          ? `${invalid.name} is larger than 20 MB.`
+          : `${invalid.name} must be a PDF, PNG, JPEG, or WebP file.`
+      );
+      return;
+    }
     setUploading(true);
     setUploadError(null);
     try {
-      for (const file of Array.from(fileList).slice(0, 4)) {
+      for (const file of Array.from(fileList)) {
         const formData = new FormData();
         formData.set("file", file);
         const response = await fetch(`/api/projects/${projectId}/files`, {
@@ -404,12 +439,25 @@ export function ProjectFilesBrowser({
       {uploadError && <p className="text-sm text-error" role="alert">{uploadError}</p>}
 
       {filteredFiles.length === 0 ? (
-        <div className="flex min-h-56 flex-col items-center justify-center border-b border-hairline text-center">
+        <div className="flex min-h-64 flex-col items-center justify-center border-b border-hairline px-6 text-center">
           <FolderOpen size={24} className="text-muted-soft" aria-hidden />
-          <p className="app-empty-title mt-3">No matching files</p>
-          <p className="mt-1 text-xs text-muted">
-            {files.length === 0 ? "Files uploaded in chats, drawings, and field updates will appear here." : "Try another search or file type."}
+          <p className="app-empty-title mt-3">{files.length === 0 ? "Add the first project file" : "No matching files"}</p>
+          <p className="mt-1 max-w-md text-sm leading-6 text-muted">
+            {files.length === 0
+              ? "Upload a drawing, field photo, or PDF so the team and Agent can work from the same source."
+              : "Try another search term or file type."}
           </p>
+          {files.length === 0 && (
+            <button
+              type="button"
+              onClick={() => uploadInputRef.current?.click()}
+              disabled={uploading}
+              className="mt-5 inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-on-primary transition-colors hover:bg-primary-active disabled:opacity-60"
+            >
+              <Upload size={15} aria-hidden />
+              Upload first file
+            </button>
+          )}
         </div>
       ) : (
         <>
@@ -455,6 +503,7 @@ export function ProjectFilesBrowser({
                     <td className="px-4 py-3 text-right">
                       <div className="inline-flex items-center justify-end gap-1.5">
                         <OpenInAgentAction file={file} projectId={projectId} />
+                        <DownloadFileAction file={file} />
                         <DeleteFileAction
                           file={file}
                           deleting={deletingId === file.id}
@@ -491,6 +540,7 @@ export function ProjectFilesBrowser({
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1.5">
                     <OpenInAgentAction file={file} projectId={projectId} />
+                    <DownloadFileAction file={file} />
                     <DeleteFileAction
                       file={file}
                       deleting={deletingId === file.id}

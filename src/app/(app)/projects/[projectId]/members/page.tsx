@@ -32,7 +32,7 @@ export default async function ProjectMembersPage({
       />
 
       <div className="mt-6 space-y-6">
-        {canManage && <InviteLinkGenerator projectId={projectId} />}
+        {canManage && <InviteLinkGenerator projectId={projectId} firstInvite={members.length === 1} />}
 
         <Card className="p-6">
           <ProjectMembersTable projectId={projectId} members={members} canManage={canManage} />

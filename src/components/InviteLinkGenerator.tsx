@@ -9,7 +9,13 @@ import type { ProjectRole } from "@prisma/client";
 
 const INVITABLE_ROLES: ProjectRole[] = ["TRADE", "SUPERINTENDENT", "SCHEDULER", "PROJECT_MANAGER"];
 
-export function InviteLinkGenerator({ projectId }: { projectId: string }) {
+export function InviteLinkGenerator({
+  projectId,
+  firstInvite = false,
+}: {
+  projectId: string;
+  firstInvite?: boolean;
+}) {
   const [role, setRole] = useState<ProjectRole>("TRADE");
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -38,7 +44,12 @@ export function InviteLinkGenerator({ projectId }: { projectId: string }) {
 
   return (
     <div className="border border-hairline rounded-lg p-5 bg-surface-soft">
-      <h3 className="app-card-title mb-3">Invite a teammate</h3>
+      <h3 className="app-card-title">{firstInvite ? "Bring your team into the project" : "Invite a teammate"}</h3>
+      <p className="app-card-description mb-3">
+        {firstInvite
+          ? "Choose the right project role and share a secure invitation link."
+          : "Create a role-specific invitation link for another project member."}
+      </p>
       <div className="flex flex-wrap items-center gap-3">
         <select
           value={role}

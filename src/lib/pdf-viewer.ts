@@ -39,6 +39,11 @@ export function pdfPageUrl(document: PdfViewerDocument): string {
   return `${document.url}#page=${page}&zoom=page-width`;
 }
 
+export function fileDownloadUrl(url: string): string {
+  const [baseUrl] = url.split("#", 1);
+  return `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}download=1`;
+}
+
 export function openPdfViewer(
   url: string,
   title: string,

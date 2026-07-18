@@ -5,11 +5,10 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { requireProjectMember } from "@/lib/permissions";
-import { uploadFile, buildStorageKey } from "@/lib/storage";
+import { uploadFile, buildStorageKey, deleteStoredFile } from "@/lib/storage";
+import { enforceUploadQuota, validateUploadedFile } from "@/lib/file-uploads";
 import { ok, fail, type ActionResult } from "./schemas";
 import type { TaskUpdate } from "@prisma/client";
-
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5MB
 
 const addTaskUpdateSchema = z.object({
   taskId: z.string().min(1, "taskId is required"),
@@ -41,31 +40,53 @@ export async function addTaskUpdate(formData: FormData): Promise<ActionResult<Ta
 
   try {
     const user = await requireUser();
-    const task = await prisma.task.findUnique({ where: { id: parsed.data.taskId } });
+    const task = await prisma.task.findUnique({
+      where: { id: parsed.data.taskId },
+      include: { project: { select: { organizationId: true } } },
+    });
     if (!task) throw new Error("Task not found");
 
     // Any project member can post a field update (view access is enough).
     await requireProjectMember(user.id, task.projectId);
 
     let photoUrl: string | null = null;
+    let photoStorageKey: string | null = null;
+    let validatedPhoto: Awaited<ReturnType<typeof validateUploadedFile>> | null = null;
     if (hasPhoto) {
       const file = photo as File;
-      if (file.size > MAX_PHOTO_BYTES) throw new Error("Photo must be under 5MB");
-      if (!file.type.startsWith("image/")) throw new Error("Only image files are supported");
-
-      const key = buildStorageKey(`tasks/${task.id}`, file.name);
-      const bytes = Buffer.from(await file.arrayBuffer());
-      photoUrl = await uploadFile(key, bytes, file.type);
+      validatedPhoto = await validateUploadedFile(file, "photo");
+      await enforceUploadQuota({
+        organizationId: task.project.organizationId,
+        projectId: task.projectId,
+        upload: validatedPhoto,
+      });
+      photoStorageKey = buildStorageKey(`tasks/${task.id}`, validatedPhoto.fileName);
+      photoUrl = await uploadFile(
+        photoStorageKey,
+        validatedPhoto.bytes,
+        validatedPhoto.mediaType
+      );
     }
 
-    const update = await prisma.taskUpdate.create({
-      data: {
-        taskId: task.id,
-        authorId: user.id,
-        note: parsed.data.note?.trim() || null,
-        photoUrl,
-      },
-    });
+    let update: TaskUpdate;
+    try {
+      update = await prisma.taskUpdate.create({
+        data: {
+          taskId: task.id,
+          authorId: user.id,
+          note: parsed.data.note?.trim() || null,
+          photoUrl,
+          storageKey: photoStorageKey,
+          fileName: validatedPhoto?.fileName,
+          mediaType: validatedPhoto?.mediaType,
+          sizeBytes: validatedPhoto?.sizeBytes,
+          contentHash: validatedPhoto?.contentHash,
+        },
+      });
+    } catch (error) {
+      if (photoStorageKey) await deleteStoredFile(photoStorageKey).catch(() => undefined);
+      throw error;
+    }
 
     revalidatePath(`/projects/${task.projectId}/tasks/${task.id}`);
     return ok(update);

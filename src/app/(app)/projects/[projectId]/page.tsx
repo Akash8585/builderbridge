@@ -6,6 +6,7 @@ import { TaskForm } from "@/components/TaskForm";
 import { ArchiveProjectButton } from "@/components/ArchiveProjectButton";
 import { formatDate } from "@/lib/utils";
 import { ProjectPageHeader } from "@/components/PageHeader";
+import { ProjectSetupChecklist } from "@/components/ProjectSetupChecklist";
 
 export default async function ProjectDetailPage({
   params,
@@ -15,7 +16,7 @@ export default async function ProjectDetailPage({
   const { projectId } = await params;
   const { project, role, user } = await getProjectPageContext(projectId);
 
-  const [tasks, members] = await Promise.all([
+  const [tasks, members, attachmentCount, drawingCount, fieldPhotoCount, agentQuestionCount] = await Promise.all([
     prisma.task.findMany({
       where: { projectId },
       include: { assignedTo: { include: { user: { select: { name: true } } } } },
@@ -24,6 +25,12 @@ export default async function ProjectDetailPage({
     prisma.projectMember.findMany({
       where: { projectId },
       include: { user: { select: { name: true } } },
+    }),
+    prisma.assistantAttachment.count({ where: { projectId } }),
+    prisma.drawing.count({ where: { projectId } }),
+    prisma.taskUpdate.count({ where: { photoUrl: { not: null }, task: { projectId } } }),
+    prisma.assistantMessage.count({
+      where: { role: "USER", conversation: { projectId } },
     }),
   ]);
 
@@ -49,7 +56,19 @@ export default async function ProjectDetailPage({
         }
       />
 
-      <div className="mt-6 space-y-4">
+      {isProjectManager(role) && !project.isArchived && (
+        <ProjectSetupChecklist
+          projectId={projectId}
+          signals={{
+            taskCount: tasks.length,
+            memberCount: members.length,
+            fileCount: attachmentCount + drawingCount + fieldPhotoCount,
+            agentQuestionCount,
+          }}
+        />
+      )}
+
+      <div className="space-y-4">
         {canManage && (
           <div className="app-toolbar">
             <div>

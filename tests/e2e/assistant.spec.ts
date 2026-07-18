@@ -14,14 +14,14 @@ test("RFI commands create proposal cards without OpenRouter", async ({ page }) =
   );
 
   try {
-    await page.getByRole("button", { name: "Open BuilderBridge AI" }).click();
-    const dialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
+    await page.getByRole("button", { name: "Open Agent" }).click();
+    const dialog = page.getByRole("dialog", { name: "Agent" });
     await dialog
       .getByRole("navigation", { name: "Project chats" })
       .getByRole("button", { name: /Riverside Apartments/ })
       .click();
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
-    await dialog.getByLabel("Message BuilderBridge AI").fill(prompt);
+    await dialog.getByLabel("Message Agent").fill(prompt);
     await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
 
     const proposal = dialog
@@ -68,15 +68,15 @@ test("what-if schedule prompts create proposal cards without OpenRouter", async 
   );
 
   try {
-    await page.getByRole("button", { name: "Open BuilderBridge AI" }).click();
-    const dialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
+    await page.getByRole("button", { name: "Open Agent" }).click();
+    const dialog = page.getByRole("dialog", { name: "Agent" });
     await dialog
       .getByRole("navigation", { name: "Project chats" })
       .getByRole("button", { name: /Riverside Apartments/ })
       .click();
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
     await expect(dialog.locator("header").getByText("New conversation", { exact: true })).toBeVisible();
-    await dialog.getByLabel("Message BuilderBridge AI").fill(prompt);
+    await dialog.getByLabel("Message Agent").fill(prompt);
     await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
 
     const proposal = dialog
@@ -115,13 +115,13 @@ test("project conversations stream and persist across reloads", async ({ page })
   await page.reload();
 
   try {
-    await page.getByRole("button", { name: "Open BuilderBridge AI" }).click();
-    const dialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
+    await page.getByRole("button", { name: "Open Agent" }).click();
+    const dialog = page.getByRole("dialog", { name: "Agent" });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText("Powered by OpenRouter")).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Agent" })).toBeVisible();
 
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
-    await dialog.getByLabel("Message BuilderBridge AI").fill(prompt);
+    await dialog.getByLabel("Message Agent").fill(prompt);
     await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
     await expect(dialog.locator('[data-message-role="user"]').getByText(prompt, { exact: true })).toBeVisible();
     await expect(dialog.locator('[data-message-role="assistant"]')).toBeVisible({ timeout: 60_000 });
@@ -129,8 +129,8 @@ test("project conversations stream and persist across reloads", async ({ page })
     await expect(dialog.getByRole("button", { name: "Send message" })).toBeVisible({ timeout: 60_000 });
 
     await page.reload();
-    await page.getByRole("button", { name: "Open BuilderBridge AI" }).click();
-    const reloadedDialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
+    await page.getByRole("button", { name: "Open Agent" }).click();
+    const reloadedDialog = page.getByRole("dialog", { name: "Agent" });
     await reloadedDialog.getByRole("button", { name: title }).click();
     await expect.poll(() => reloadedDialog.locator('[aria-label="Sources"]').count()).toBeGreaterThan(0);
   } finally {

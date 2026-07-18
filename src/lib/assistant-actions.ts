@@ -364,6 +364,8 @@ const scheduleImpactSnapshotSchema = z.object({
   exists: z.boolean(),
   taskId: z.string().nullable(),
   taskName: z.string().nullable(),
+  taskStartDate: z.string().datetime().nullable().optional(),
+  taskEndDate: z.string().datetime().nullable().optional(),
   description: z.string().nullable(),
   proposedNewEndDate: z.string().datetime().nullable(),
   status: sirStatusSchema.nullable(),
@@ -424,9 +426,7 @@ type ActionContext = {
 function parseDueDate(value: string | null | undefined): Date | null | undefined {
   if (value === undefined) return undefined;
   if (value === null) return null;
-  const date = new Date(`${value}T12:00:00.000Z`);
-  if (Number.isNaN(date.getTime())) throw new AssistantActionError("Use a valid due date.");
-  return date;
+  return parseTaskDate(value, "due date");
 }
 
 function dateSnapshot(value: Date | null): string | null {
@@ -1826,11 +1826,11 @@ export async function createScheduleImpactActionProposal(
   });
   if (!project) throw new AssistantActionError("Project not found.", 404);
 
-  let task: { id: string; name: string; endDate?: Date } | null = null;
+  let task: { id: string; name: string; startDate: Date; endDate: Date } | null = null;
   if (parsed.taskId) {
     task = await prisma.task.findFirst({
       where: { id: parsed.taskId, projectId: project.id },
-      select: { id: true, name: true, endDate: true },
+      select: { id: true, name: true, startDate: true, endDate: true },
     });
     if (!task) throw new AssistantActionError("The linked task is no longer available.", 409);
   }
@@ -1838,7 +1838,7 @@ export async function createScheduleImpactActionProposal(
   const existing = parsed.operation === "REVIEW"
     ? await prisma.scheduleImpactRequest.findFirst({
         where: { id: parsed.sirId, projectId: project.id },
-        include: { task: { select: { id: true, name: true } } },
+        include: { task: { select: { id: true, name: true, startDate: true, endDate: true } } },
       })
     : null;
   if (parsed.operation === "REVIEW" && !existing) {
@@ -1855,11 +1855,23 @@ export async function createScheduleImpactActionProposal(
     if (!parsed.status || parsed.status === "PENDING") {
       throw new AssistantActionError("Choose whether to approve or reject this request.");
     }
+    if (existing!.status !== "PENDING") {
+      throw new AssistantActionError("This schedule impact request has already been reviewed.", 409);
+    }
   }
 
   const proposedNewEndDate = parsed.operation === "CREATE"
     ? parseDueDate(parsed.proposedNewEndDate) ?? null
     : existing!.proposedNewEndDate;
+  const linkedTask = parsed.operation === "CREATE" ? task : existing!.task;
+  if (
+    proposedNewEndDate &&
+    linkedTask &&
+    proposedNewEndDate < linkedTask.startDate &&
+    (parsed.operation === "CREATE" || parsed.status === "APPROVED")
+  ) {
+    throw new AssistantActionError("The proposed finish must be on or after the linked task start.");
+  }
   const payload = scheduleImpactPayloadSchema.parse({
     operation: parsed.operation,
     sirId: existing?.id ?? null,
@@ -1875,6 +1887,8 @@ export async function createScheduleImpactActionProposal(
     exists: Boolean(existing),
     taskId: existing?.taskId ?? null,
     taskName: existing?.task?.name ?? null,
+    taskStartDate: dateSnapshot(existing?.task?.startDate ?? task?.startDate ?? null),
+    taskEndDate: dateSnapshot(existing?.task?.endDate ?? task?.endDate ?? null),
     description: existing?.description ?? null,
     proposedNewEndDate: dateSnapshot(existing?.proposedNewEndDate ?? null),
     status: existing?.status ?? null,
@@ -2644,7 +2658,7 @@ async function confirmRoadblockAction(
       if (!currentTask) throw new AssistantActionError("Task not found.", 404);
       if (!sameRoadblockSnapshot(currentTask, snapshot)) {
         throw new AssistantActionError(
-          "This roadblock changed after the proposal was created. Ask BuilderBridge AI to prepare a fresh proposal.",
+          "This roadblock changed after the proposal was created. Ask Agent to prepare a fresh proposal.",
           409
         );
       }
@@ -2680,7 +2694,7 @@ async function confirmRoadblockAction(
           taskName: currentTask.name,
           userId: context.userId,
           action: snapshot.isRoadblock ? "assistant_roadblock_updated" : "assistant_roadblock_flagged",
-          detail: `${snapshot.isRoadblock ? "Updated" : "Flagged"} roadblock via BuilderBridge AI confirmation: ${payload.note}`,
+          detail: `${snapshot.isRoadblock ? "Updated" : "Flagged"} roadblock via Agent confirmation: ${payload.note}`,
         },
       });
     });
@@ -2731,7 +2745,7 @@ async function confirmTaskChangeAction(
       if (payload.operation === "UPDATE") {
         if (!currentTask || !sameTaskSnapshot(currentTask, snapshot)) {
           throw new AssistantActionError(
-            "This task changed after the proposal was created. Ask BuilderBridge AI to prepare a fresh proposal.",
+            "This task changed after the proposal was created. Ask Agent to prepare a fresh proposal.",
             409
           );
         }
@@ -2787,7 +2801,7 @@ async function confirmTaskChangeAction(
           taskName: task.name,
           userId: context.userId,
           action: payload.operation === "CREATE" ? "assistant_task_created" : "assistant_task_updated",
-          detail: `${payload.operation === "CREATE" ? "Created" : "Updated"} task via BuilderBridge AI confirmation: ${task.name}`,
+          detail: `${payload.operation === "CREATE" ? "Created" : "Updated"} task via Agent confirmation: ${task.name}`,
         },
       });
 
@@ -2861,7 +2875,7 @@ async function confirmTaskProgressAction(
       const currentTask = await tx.task.findUnique({ where: { id: taskId } });
       if (!currentTask || currentTask.projectId !== proposal.projectId || !sameTaskProgressSnapshot(currentTask, snapshot)) {
         throw new AssistantActionError(
-          "This task progress changed after the proposal was created. Ask BuilderBridge AI to prepare a fresh proposal.",
+          "This task progress changed after the proposal was created. Ask Agent to prepare a fresh proposal.",
           409
         );
       }
@@ -2901,7 +2915,7 @@ async function confirmTaskProgressAction(
           taskName: task.name,
           userId: context.userId,
           action: "assistant_task_progress_updated",
-          detail: `Updated task progress via BuilderBridge AI confirmation: ${task.name}`,
+          detail: `Updated task progress via Agent confirmation: ${task.name}`,
         },
       });
 
@@ -2978,7 +2992,7 @@ async function confirmWeeklyCommitmentAction(
             current.removalReason !== snapshot.removalReason)
         ) {
           throw new AssistantActionError(
-            "This removed commitment changed after the proposal was created. Ask BuilderBridge AI to prepare a fresh proposal.",
+            "This removed commitment changed after the proposal was created. Ask Agent to prepare a fresh proposal.",
             409
           );
         }
@@ -2995,7 +3009,7 @@ async function confirmWeeklyCommitmentAction(
         current.removalReason !== snapshot.removalReason
       ) {
         throw new AssistantActionError(
-          "This weekly commitment changed after the proposal was created. Ask BuilderBridge AI to prepare a fresh proposal.",
+          "This weekly commitment changed after the proposal was created. Ask Agent to prepare a fresh proposal.",
           409
         );
       }
@@ -3064,10 +3078,10 @@ async function confirmWeeklyCommitmentAction(
                 : "assistant_commitment_status_changed",
           detail:
             payload.operation === "CREATE"
-              ? `${snapshot.removedAt ? "Restored" : "Committed"} "${task.name}" for the week of ${new Date(payload.weekStartDate).toDateString()} via BuilderBridge AI confirmation`
+              ? `${snapshot.removedAt ? "Restored" : "Committed"} "${task.name}" for the week of ${new Date(payload.weekStartDate).toDateString()} via Agent confirmation`
               : payload.operation === "REMOVE"
-                ? `Removed "${task.name}" from the week of ${new Date(payload.weekStartDate).toDateString()} via BuilderBridge AI confirmation: ${payload.removalReason}`
-              : `Marked "${task.name}" commitment ${COMMITMENT_STATUS_LABELS[payload.status]} via BuilderBridge AI confirmation${
+                ? `Removed "${task.name}" from the week of ${new Date(payload.weekStartDate).toDateString()} via Agent confirmation: ${payload.removalReason}`
+              : `Marked "${task.name}" commitment ${COMMITMENT_STATUS_LABELS[payload.status]} via Agent confirmation${
                   payload.reasonForVariance ? `: ${payload.reasonForVariance}` : ""
                 }`,
         },
@@ -3126,6 +3140,12 @@ async function confirmScheduleImpactAction(
       const current = payload.operation === "REVIEW" && payload.sirId
         ? await tx.scheduleImpactRequest.findUnique({ where: { id: payload.sirId } })
         : null;
+      const currentTask = current?.taskId
+        ? await tx.task.findFirst({
+            where: { id: current.taskId, projectId: proposal.projectId },
+            select: { id: true, startDate: true, endDate: true },
+          })
+        : null;
       if (payload.operation === "REVIEW") {
         if (
           !current ||
@@ -3135,10 +3155,26 @@ async function confirmScheduleImpactAction(
           dateSnapshot(current.proposedNewEndDate) !== snapshot.proposedNewEndDate ||
           current.status !== snapshot.status ||
           current.reviewNote !== snapshot.reviewNote ||
-          current.reviewedById !== snapshot.reviewedById
+          current.reviewedById !== snapshot.reviewedById ||
+          current.status !== "PENDING" ||
+          (snapshot.taskStartDate !== undefined &&
+            dateSnapshot(currentTask?.startDate ?? null) !== snapshot.taskStartDate) ||
+          (snapshot.taskEndDate !== undefined &&
+            dateSnapshot(currentTask?.endDate ?? null) !== snapshot.taskEndDate)
         ) {
           throw new AssistantActionError(
-            "This schedule impact request changed after the proposal was created. Ask BuilderBridge AI to prepare a fresh proposal.",
+            "This schedule impact request changed after the proposal was created. Ask Agent to prepare a fresh proposal.",
+            409
+          );
+        }
+        if (
+          payload.status === "APPROVED" &&
+          current.proposedNewEndDate &&
+          currentTask &&
+          current.proposedNewEndDate < currentTask.startDate
+        ) {
+          throw new AssistantActionError(
+            "The proposed finish is before the linked task start. Update the impact request before approving it.",
             409
           );
         }
@@ -3191,8 +3227,8 @@ async function confirmScheduleImpactAction(
           action: payload.operation === "CREATE" ? "assistant_sir_submitted" : "assistant_sir_reviewed",
           detail:
             payload.operation === "CREATE"
-              ? `Submitted a Schedule Impact Request via BuilderBridge AI confirmation: ${payload.description}`
-              : `${payload.status === "APPROVED" ? "Approved" : "Rejected"} a Schedule Impact Request via BuilderBridge AI confirmation${
+              ? `Submitted a Schedule Impact Request via Agent confirmation: ${payload.description}`
+              : `${payload.status === "APPROVED" ? "Approved" : "Rejected"} a Schedule Impact Request via Agent confirmation${
                   payload.reviewNote ? `: ${payload.reviewNote}` : ""
                 }`,
         },
@@ -3275,7 +3311,7 @@ async function confirmBaselineAction(
           : null;
         if (!baseline || baseline.name !== payload.name) {
           throw new AssistantActionError(
-            "This baseline changed after the comparison proposal was created. Ask BuilderBridge AI to prepare a fresh proposal.",
+            "This baseline changed after the comparison proposal was created. Ask Agent to prepare a fresh proposal.",
             409
           );
         }
@@ -3287,7 +3323,7 @@ async function confirmBaselineAction(
         const comparison = buildBaselineComparison({ baseline, currentTasks });
         if (comparison.comparisonFingerprint !== snapshot.comparisonFingerprint) {
           throw new AssistantActionError(
-            "The schedule changed after this baseline comparison was prepared. Ask BuilderBridge AI to prepare a fresh proposal.",
+            "The schedule changed after this baseline comparison was prepared. Ask Agent to prepare a fresh proposal.",
             409
           );
         }
@@ -3303,7 +3339,7 @@ async function confirmBaselineAction(
             projectId: proposal.projectId,
             userId: context.userId,
             action: "assistant_baseline_compared",
-            detail: `Reviewed baseline comparison for "${baseline.name}" via BuilderBridge AI confirmation (${
+            detail: `Reviewed baseline comparison for "${baseline.name}" via Agent confirmation (${
               comparison.averageVarianceDays === null
                 ? "no overlapping tasks"
                 : comparison.averageVarianceDays === 0
@@ -3339,7 +3375,7 @@ async function confirmBaselineAction(
         currentTaskIds.some((taskId, index) => taskId !== snapshot.taskIds[index])
       ) {
         throw new AssistantActionError(
-          "The task list changed after the baseline proposal was created. Ask BuilderBridge AI to prepare a fresh proposal.",
+          "The task list changed after the baseline proposal was created. Ask Agent to prepare a fresh proposal.",
           409
         );
       }
@@ -3377,7 +3413,7 @@ async function confirmBaselineAction(
           projectId: proposal.projectId,
           userId: context.userId,
           action: "assistant_baseline_created",
-          detail: `Created baseline "${baseline.name}" with ${payload.snapshotCount} task snapshots via BuilderBridge AI confirmation`,
+          detail: `Created baseline "${baseline.name}" with ${payload.snapshotCount} task snapshots via Agent confirmation`,
         },
       });
 
@@ -3456,7 +3492,7 @@ async function confirmScheduleChangeAction(
     !sameDependencyGraph(currentEdges, snapshot.edges)
   ) {
     throw new AssistantActionError(
-      "The schedule logic changed after this proposal was created. Ask BuilderBridge AI for a fresh proposal.",
+      "The schedule logic changed after this proposal was created. Ask Agent for a fresh proposal.",
       409
     );
   }
@@ -3475,7 +3511,7 @@ async function confirmScheduleChangeAction(
       current.endDate.toISOString() !== before.endDate
     ) {
       throw new AssistantActionError(
-        "An affected task changed after this proposal was created. Ask BuilderBridge AI for a fresh proposal.",
+        "An affected task changed after this proposal was created. Ask Agent for a fresh proposal.",
         409
       );
     }
@@ -3499,7 +3535,7 @@ async function confirmScheduleChangeAction(
       });
       if (!sameDependencyGraph(transactionEdges, snapshot.edges)) {
         throw new AssistantActionError(
-          "The schedule logic changed after this proposal was created. Ask BuilderBridge AI for a fresh proposal.",
+          "The schedule logic changed after this proposal was created. Ask Agent for a fresh proposal.",
           409
         );
       }
@@ -3518,7 +3554,7 @@ async function confirmScheduleChangeAction(
           current.endDate.toISOString() !== before.endDate
         ) {
           throw new AssistantActionError(
-            "An affected task changed after this proposal was created. Ask BuilderBridge AI for a fresh proposal.",
+            "An affected task changed after this proposal was created. Ask Agent for a fresh proposal.",
             409
           );
         }
@@ -3559,7 +3595,7 @@ async function confirmScheduleChangeAction(
           });
           if (shifted.count !== 1) {
             throw new AssistantActionError(
-              "An affected task changed after this proposal was created. Ask BuilderBridge AI for a fresh proposal.",
+              "An affected task changed after this proposal was created. Ask Agent for a fresh proposal.",
               409
             );
           }
@@ -3572,8 +3608,8 @@ async function confirmScheduleChangeAction(
               action: "assistant_task_rescheduled",
               detail:
                 shift.reason === "DEPENDENCY_REFLOW"
-                  ? `Reflowed "${shift.taskName}" by ${shift.days} day${Math.abs(shift.days) === 1 ? "" : "s"} to preserve dependency logic via BuilderBridge AI confirmation`
-                  : `Shifted "${shift.taskName}" by ${shift.days} day${Math.abs(shift.days) === 1 ? "" : "s"} via BuilderBridge AI confirmation`,
+                  ? `Reflowed "${shift.taskName}" by ${shift.days} day${Math.abs(shift.days) === 1 ? "" : "s"} to preserve dependency logic via Agent confirmation`
+                  : `Shifted "${shift.taskName}" by ${shift.days} day${Math.abs(shift.days) === 1 ? "" : "s"} via Agent confirmation`,
             },
           });
         }
@@ -3608,8 +3644,8 @@ async function confirmScheduleChangeAction(
                 : "assistant_dependency_removed",
             detail:
               dependency.action === "ADD"
-                ? `"${dependency.successorName}" now depends on "${dependency.predecessorName}" via BuilderBridge AI confirmation`
-                : `Removed dependency from "${dependency.predecessorName}" to "${dependency.successorName}" via BuilderBridge AI confirmation`,
+                ? `"${dependency.successorName}" now depends on "${dependency.predecessorName}" via Agent confirmation`
+                : `Removed dependency from "${dependency.predecessorName}" to "${dependency.successorName}" via Agent confirmation`,
           },
         });
       }
@@ -3673,6 +3709,18 @@ async function confirmProjectControlAction(
         });
         if (!taskExists) throw new AssistantActionError("The linked task is no longer available.", 409);
       }
+      if (payload.entity === "RFI" && payload.operation === "CREATE" && payload.attachmentId) {
+        const attachment = await tx.assistantAttachment.findFirst({
+          where: { id: payload.attachmentId, projectId: proposal.projectId },
+          select: { fileName: true },
+        });
+        if (!attachment || attachment.fileName !== payload.fileName) {
+          throw new AssistantActionError(
+            "The cited project file changed after the proposal was created. Ask Agent to prepare a fresh proposal.",
+            409
+          );
+        }
+      }
 
       if (payload.operation === "UPDATE") {
         if (!payload.recordId) throw new AssistantActionError("Project record not found.", 404);
@@ -3681,7 +3729,7 @@ async function confirmProjectControlAction(
           : await tx.submittal.findUnique({ where: { id: payload.recordId } });
         if (!current || current.projectId !== proposal.projectId || !sameProjectControlSnapshot(current, snapshot)) {
           throw new AssistantActionError(
-            `This ${payload.entity === "RFI" ? "RFI" : "submittal"} changed after the proposal was created. Ask BuilderBridge AI to prepare a fresh proposal.`,
+            `This ${payload.entity === "RFI" ? "RFI" : "submittal"} changed after the proposal was created. Ask Agent to prepare a fresh proposal.`,
             409
           );
         }
@@ -3734,14 +3782,14 @@ async function confirmProjectControlAction(
                 ? "assistant_rfi_closed"
                 : "assistant_rfi_answered",
             detail: payload.operation === "CREATE"
-              ? `Raised RFI via BuilderBridge AI confirmation: ${payload.question}${
+              ? `Raised RFI via Agent confirmation: ${payload.question}${
                   payload.fileName
                     ? ` (from ${payload.fileName}${payload.pageNumber ? ` p.${payload.pageNumber}` : ""})`
                     : ""
                 }`
               : payload.status === "CLOSED"
-                ? `Closed RFI via BuilderBridge AI confirmation: ${payload.question}`
-                : `Answered RFI via BuilderBridge AI confirmation: ${payload.question}`,
+                ? `Closed RFI via Agent confirmation: ${payload.question}`
+                : `Answered RFI via Agent confirmation: ${payload.question}`,
           },
         });
       } else {
@@ -3771,8 +3819,8 @@ async function confirmProjectControlAction(
               ? "assistant_submittal_created"
               : "assistant_submittal_status_changed",
             detail: payload.operation === "CREATE"
-              ? `Created submittal via BuilderBridge AI confirmation: ${payload.title}`
-              : `Marked "${payload.title}" ${PROJECT_CONTROL_STATUS_LABELS[payload.status]} via BuilderBridge AI confirmation`,
+              ? `Created submittal via Agent confirmation: ${payload.title}`
+              : `Marked "${payload.title}" ${PROJECT_CONTROL_STATUS_LABELS[payload.status]} via Agent confirmation`,
           },
         });
       }

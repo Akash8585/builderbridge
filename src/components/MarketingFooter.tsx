@@ -22,7 +22,7 @@ const FOOTER_COLUMNS = [
   {
     title: "Explore",
     links: [
-      ["BuilderBridge AI", "/features/ai-assistant"],
+      ["Agent", "/features/ai-assistant"],
       ["Autodesk", "/solutions/autodesk"],
       ["Procore", "/solutions/procore"],
       ["Pricing", "/pricing"],
@@ -63,7 +63,7 @@ export function MarketingFooter() {
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
             <Link href="/#why" className="underline decoration-hairline underline-offset-4 transition-colors hover:text-ink">Why BuilderBridge</Link>
             <Link href="/pricing" className="underline decoration-hairline underline-offset-4 transition-colors hover:text-ink">Pricing</Link>
-            <Link href="/features/ai-assistant" className="underline decoration-hairline underline-offset-4 transition-colors hover:text-ink">BuilderBridge AI</Link>
+            <Link href="/features/ai-assistant" className="underline decoration-hairline underline-offset-4 transition-colors hover:text-ink">Agent</Link>
           </div>
         </div>
       </div>

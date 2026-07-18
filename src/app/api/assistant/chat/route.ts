@@ -26,6 +26,8 @@ import {
   isBaselineActionRequest,
   isRoadblockActionRequest,
   isRfiActionRequest,
+  isRfiCreateIntentWithoutQuestion,
+  isRfiTaskListRequest,
   isScheduleActionRequest,
   isScheduleImpactActionRequest,
   isTaskActionRequest,
@@ -38,6 +40,7 @@ import {
   parseDeterministicScheduleImpactAction,
   parseDeterministicTaskProgressAction,
   parseDeterministicWeeklyCommitmentAction,
+  parseRfiQuestionFollowUp,
 } from "@/lib/assistant-intent";
 import { AssistantActionError } from "@/lib/assistant-actions";
 import { env } from "@/lib/env";
@@ -337,9 +340,13 @@ export async function POST(request: Request) {
   const forceRoadblockProposal =
     isRoadblockActionRequest(question) ||
     (!pendingProposal && isMissingRoadblockProposalConfirmation(question, previousAssistantText));
+  const rfiQuestionFollowUp = parseRfiQuestionFollowUp(question, previousAssistantText);
+  const wantsRfiTaskList = isRfiTaskListRequest(question, previousAssistantText);
   const forceRfiProposal =
     !forceRoadblockProposal &&
+    !wantsRfiTaskList &&
     (isRfiActionRequest(question) ||
+      Boolean(rfiQuestionFollowUp) ||
       (!pendingProposal &&
         /\bRFI\b/i.test(previousAssistantText) &&
         isMissingProjectControlProposalConfirmation(question, previousAssistantText)));
@@ -444,7 +451,8 @@ export async function POST(request: Request) {
     ? parseDeterministicScheduleWhatIf(question)
     : null;
   const deterministicProjectControl = forceRfiProposal || forceSubmittalProposal
-    ? parseDeterministicProjectControlAction(question)
+    ? parseDeterministicProjectControlAction(question) ??
+      (forceRfiProposal ? rfiQuestionFollowUp : null)
     : null;
   const deterministicTaskProgress = forceTaskProgressProposal
     ? parseDeterministicTaskProgressAction(question)
@@ -465,6 +473,60 @@ export async function POST(request: Request) {
       deterministicWeeklyCommitment ??
       deterministicScheduleImpact ??
       deterministicBaseline;
+
+  if (wantsRfiTaskList) {
+    const projectId = conversation.projectId;
+    if (!projectId) {
+      return createPersistedTextResponse({
+        text: "Open a project conversation first, then I can list the tasks you can link to an RFI.",
+        originalMessages: validated.data,
+        assistantMessageId,
+        conversationId: conversation.id,
+        model: "local-rfi-helper",
+      });
+    }
+    const tasks = await prisma.task.findMany({
+      where: { projectId },
+      select: { name: true },
+      orderBy: [{ startDate: "asc" }, { sequenceOrder: "asc" }],
+      take: 40,
+    });
+    const text =
+      tasks.length === 0
+        ? "This project has no tasks yet. You can still raise an RFI without a linked task: Raise an RFI asking <your question>."
+        : [
+            "Here are the project tasks you can link to an RFI:",
+            ...tasks.map((task) => `- ${task.name}`),
+            "",
+            'Reply with: Raise an RFI asking <your question>',
+            "If you want it linked, include the task name in the same message.",
+          ].join("\n");
+    return createPersistedTextResponse({
+      text,
+      originalMessages: validated.data,
+      assistantMessageId,
+      conversationId: conversation.id,
+      model: "local-rfi-helper",
+    });
+  }
+
+  if (
+    forceRfiProposal &&
+    !deterministicAction &&
+    isRfiCreateIntentWithoutQuestion(question)
+  ) {
+    return createPersistedTextResponse({
+      text:
+        "What question should I put on the new RFI? Reply with the exact question text " +
+        '(for example: Raise an RFI asking What happened to the parapet detail?). ' +
+        "I will only show a proposal card after that.",
+      originalMessages: validated.data,
+      assistantMessageId,
+      conversationId: conversation.id,
+      model: "local-rfi-helper",
+    });
+  }
+
   if (deterministicAction) {
     const toolCallId = randomUUID();
     const textId = randomUUID();

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { UIMessage } from "ai";
-import { Bot, ExternalLink, FileText, Image as ImageIcon, Sparkles } from "lucide-react";
+import { Bot, ExternalLink, FileText, Image as ImageIcon } from "lucide-react";
 import { isFileUIPart, isToolUIPart } from "ai";
 import type { FileUIPart } from "ai";
 import { AssistantToolResult } from "@/components/ai-elements/AssistantToolResult";
@@ -31,8 +31,8 @@ function AttachmentPreview({ part, userMessage }: { part: FileUIPart; userMessag
       rel="noreferrer"
       className={`group block overflow-hidden rounded-md border transition-colors ${
         userMessage
-          ? "border-white/10 bg-white/[0.06] hover:bg-white/[0.09]"
-          : "border-white/[0.09] bg-white/[0.04] text-white/75 hover:border-white/15"
+          ? "border-[var(--assistant-border)] bg-[var(--assistant-layer-strong)] hover:bg-[var(--assistant-layer-hover)]"
+          : "border-[var(--assistant-border)] bg-[var(--assistant-layer)] text-[var(--assistant-text-body)] hover:border-[var(--assistant-border-strong)]"
       }`}
     >
       {isImage && (
@@ -71,11 +71,8 @@ export function AssistantConversation({
     <div className="min-h-0 flex-1 overflow-y-auto px-5 py-7 sm:px-8">
       {messages.length === 0 ? (
         <div className="mx-auto flex min-h-full max-w-2xl flex-col justify-center py-10">
-          <span className="mb-5 flex h-10 w-10 items-center justify-center rounded-md bg-white text-[#111211]">
-            <Sparkles size={18} aria-hidden />
-          </span>
-          <h3 className="font-display text-2xl text-white">What needs attention?</h3>
-          <p className="mt-2 max-w-md text-sm leading-6 text-white/40">
+          <h3 className="font-display text-2xl text-[var(--assistant-text)]">What needs attention?</h3>
+          <p className="mt-2 max-w-md text-sm leading-6 text-[var(--assistant-text-muted)]">
             Ask about schedule risk, roadblocks, commitments, RFIs, submittals, or portfolio health.
           </p>
           <div className="mt-7 grid gap-2 sm:grid-cols-2">
@@ -84,7 +81,7 @@ export function AssistantConversation({
                 key={suggestion}
                 type="button"
                 onClick={() => onSuggestion(suggestion)}
-                className="min-h-14 rounded-md border border-white/[0.08] bg-white/[0.025] px-3.5 py-3 text-left text-sm leading-5 text-white/55 transition-colors hover:border-white/15 hover:bg-white/[0.055] hover:text-white"
+                className="min-h-14 rounded-md border border-[var(--assistant-border)] bg-[var(--assistant-layer)] px-3.5 py-3 text-left text-sm leading-5 text-[var(--assistant-text-muted)] transition-colors hover:border-[var(--assistant-border-strong)] hover:bg-[var(--assistant-layer-hover)] hover:text-[var(--assistant-text)]"
               >
                 {suggestion}
               </button>
@@ -103,7 +100,7 @@ export function AssistantConversation({
             return (
               <div key={message.id} className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
                 {!isUser && (
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.05] text-white/65">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[var(--assistant-border)] bg-[var(--assistant-layer)] text-[var(--assistant-text-body)]">
                     <Bot size={15} aria-hidden />
                   </span>
                 )}
@@ -111,8 +108,8 @@ export function AssistantConversation({
                   data-message-role={isUser ? "user" : "assistant"}
                   className={
                     isUser
-                      ? "max-w-[82%] whitespace-pre-wrap rounded-lg border border-white/[0.08] bg-white/[0.08] px-4 py-3 text-sm leading-6 text-white/90"
-                      : "max-w-[calc(100%-40px)] space-y-3 whitespace-pre-wrap pt-0.5 text-[15px] leading-7 text-white/72"
+                      ? "max-w-[82%] whitespace-pre-wrap rounded-lg border border-[var(--assistant-border)] bg-[var(--assistant-layer-strong)] px-4 py-3 text-sm leading-6 text-[var(--assistant-text-strong)] shadow-sm"
+                      : "max-w-[calc(100%-40px)] space-y-3 whitespace-pre-wrap pt-0.5 text-[15px] leading-7 text-[var(--assistant-text-body)]"
                   }
                 >
                   {fileParts.length > 0 && (
@@ -135,14 +132,14 @@ export function AssistantConversation({
             );
           })}
           {busy && messages.at(-1)?.role === "user" && (
-            <div className="flex items-center gap-3 text-white/35">
-              <span className="flex h-7 w-7 items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.05] text-white/65">
+            <div className="flex items-center gap-3 text-[var(--assistant-text-faint)]">
+              <span className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--assistant-border)] bg-[var(--assistant-layer)] text-[var(--assistant-text-body)]">
                 <Bot size={15} aria-hidden />
               </span>
-              <span className="flex gap-1" aria-label="BuilderBridge AI is thinking">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/35" />
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/35 [animation-delay:150ms]" />
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/35 [animation-delay:300ms]" />
+              <span className="flex gap-1" aria-label="Agent is thinking">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--assistant-text-faint)]" />
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--assistant-text-faint)] [animation-delay:150ms]" />
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--assistant-text-faint)] [animation-delay:300ms]" />
               </span>
             </div>
           )}

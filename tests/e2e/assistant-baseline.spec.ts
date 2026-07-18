@@ -14,14 +14,14 @@ test("AI baseline create and compare proposals confirm without OpenRouter", asyn
   );
 
   try {
-    await page.getByRole("button", { name: "Open BuilderBridge AI" }).click();
-    const dialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
+    await page.getByRole("button", { name: "Open Agent" }).click();
+    const dialog = page.getByRole("dialog", { name: "Agent" });
     await dialog
       .getByRole("navigation", { name: "Project chats" })
       .getByRole("button", { name: /Riverside Apartments/ })
       .click();
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
-    await dialog.getByLabel("Message BuilderBridge AI").fill(`Create a baseline named ${baselineName}`);
+    await dialog.getByLabel("Message Agent").fill(`Create a baseline named ${baselineName}`);
     await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
 
     let proposal = dialog
@@ -37,7 +37,7 @@ test("AI baseline create and compare proposals confirm without OpenRouter", asyn
     expect((await createResponse.json()).proposal.status).toBe("CONFIRMED");
 
     await dialog
-      .getByLabel("Message BuilderBridge AI")
+      .getByLabel("Message Agent")
       .fill(`Compare current schedule to the baseline named ${baselineName}`);
     await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
 

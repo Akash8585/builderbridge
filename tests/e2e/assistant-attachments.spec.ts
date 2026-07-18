@@ -31,8 +31,8 @@ test("project assistant attachments upload securely and persist across reloads",
   );
 
   try {
-    await page.getByRole("button", { name: "Open BuilderBridge AI" }).click();
-    const dialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
+    await page.getByRole("button", { name: "Open Agent" }).click();
+    const dialog = page.getByRole("dialog", { name: "Agent" });
     await dialog
       .getByRole("navigation", { name: "Assistant project scopes" })
       .getByRole("button", { name: /Riverside Apartments/ })
@@ -54,7 +54,7 @@ test("project assistant attachments upload securely and persist across reloads",
     });
     await expect(dialog.getByText(fileName, { exact: true })).toBeVisible({ timeout: 30_000 });
 
-    await dialog.getByLabel("Message BuilderBridge AI").fill(prompt);
+    await dialog.getByLabel("Message Agent").fill(prompt);
     await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
     const userMessage = dialog.locator('[data-message-role="user"]');
     const attachmentLink = userMessage.getByRole("link", { name: fileName });
@@ -82,8 +82,8 @@ test("project assistant attachments upload securely and persist across reloads",
     expect(created).toBeTruthy();
 
     await page.reload();
-    await page.getByRole("button", { name: "Open BuilderBridge AI" }).click();
-    const reloadedDialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
+    await page.getByRole("button", { name: "Open Agent" }).click();
+    const reloadedDialog = page.getByRole("dialog", { name: "Agent" });
     await reloadedDialog
       .getByRole("navigation", { name: "Assistant project scopes" })
       .getByRole("button", { name: /Riverside Apartments/ })
@@ -106,10 +106,10 @@ test("project assistant attachments upload securely and persist across reloads",
     await page.getByPlaceholder("Search files, people, or sources").fill(fileName);
     await expect(fileRow).toBeVisible();
     await fileRow.getByRole("button", { name: "Open chat" }).click();
-    const sourceDialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
+    const sourceDialog = page.getByRole("dialog", { name: "Agent" });
     await expect(sourceDialog).toBeVisible();
     await expect(sourceDialog.locator('[data-message-role="user"]')).toContainText(fileName);
-    await sourceDialog.getByRole("button", { name: "Close BuilderBridge AI" }).click();
+    await sourceDialog.getByRole("button", { name: "Close Agent" }).click();
 
     await page.setViewportSize({ width: 390, height: 844 });
     const mobileFile = page.getByRole("listitem").filter({ hasText: fileName });

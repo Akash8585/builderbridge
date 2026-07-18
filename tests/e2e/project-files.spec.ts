@@ -65,12 +65,12 @@ test("project files upload, index, open, filter, and delete securely", async ({ 
     expect((await rangeResponse.body()).toString()).toBe("%PDF-1.4");
 
     await row.getByRole("button", { name: `Ask AI about ${fileName}` }).click();
-    const assistantDialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
+    const assistantDialog = page.getByRole("dialog", { name: "Agent" });
     await expect(assistantDialog).toBeVisible();
-    await expect(assistantDialog.getByLabel("Message BuilderBridge AI")).toHaveValue(
+    await expect(assistantDialog.getByLabel("Message Agent")).toHaveValue(
       `What does "${fileName}" say?`
     );
-    await assistantDialog.getByRole("button", { name: "Close BuilderBridge AI" }).click();
+    await assistantDialog.getByRole("button", { name: "Close Agent" }).click();
 
     await page.getByRole("button", { name: "Direct uploads" }).click();
     await expect(row).toBeVisible();

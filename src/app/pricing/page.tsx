@@ -26,7 +26,7 @@ const TIERS = [
     period: "per organization / month",
     eyebrow: "Run the company",
     description: "For growing contractors connecting every active project.",
-    features: ["Unlimited active projects", "Everything in Free", "Portfolio timeline and dashboards", "BuilderBridge AI", "Email notifications"],
+    features: ["Unlimited active projects", "Everything in Free", "Portfolio timeline and dashboards", "Agent", "Email notifications"],
     cta: "Choose Core",
     featured: true,
   },
@@ -48,7 +48,7 @@ const COMPARISON = [
   ["Master schedule and Gantt", "Included", "Included", "Included"],
   ["Lookahead and weekly planning", "Included", "Included", "Included"],
   ["Portfolio management", "-", "Included", "Included"],
-  ["BuilderBridge AI", "-", "Included", "Included"],
+  ["Agent", "-", "Included", "Included"],
   ["Autodesk and Procore", "-", "-", "Included"],
   ["Priority support", "-", "-", "Included"],
 ] as const;

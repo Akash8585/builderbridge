@@ -20,10 +20,10 @@ test("AI weekly commitments apply to the requested week and retain variance reas
     await page.getByRole("button", { name: "Add", exact: true }).click();
     await expect(page.getByRole("link", { name: taskName })).toBeVisible();
 
-    await page.getByRole("button", { name: "Open BuilderBridge AI" }).click();
-    let dialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
+    await page.getByRole("button", { name: "Open Agent" }).click();
+    let dialog = page.getByRole("dialog", { name: "Agent" });
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
-    await dialog.getByLabel("Message BuilderBridge AI").fill(`Commit ${taskName} for week of ${week}`);
+    await dialog.getByLabel("Message Agent").fill(`Commit ${taskName} for week of ${week}`);
     await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
 
     let proposal = dialog
@@ -45,10 +45,10 @@ test("AI weekly commitments apply to the requested week and retain variance reas
     await expect(commitmentRow).toBeVisible();
     await expect(commitmentRow.locator("select")).toHaveValue("COMMITTED");
 
-    await page.getByRole("button", { name: "Open BuilderBridge AI" }).click();
-    dialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
+    await page.getByRole("button", { name: "Open Agent" }).click();
+    dialog = page.getByRole("dialog", { name: "Agent" });
     await dialog
-      .getByLabel("Message BuilderBridge AI")
+      .getByLabel("Message Agent")
       .fill(`Mark ${taskName} not completed for ${week} because material delivery delayed`);
     await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
 

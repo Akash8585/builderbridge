@@ -95,6 +95,58 @@ body {
   font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
+.assistant-theme {
+  --assistant-overlay: rgba(9, 10, 11, 0.46);
+  --assistant-rail: rgba(41, 34, 34, 0.68);
+  --assistant-panel: rgba(14, 16, 17, 0.68);
+  --assistant-layer: rgba(255, 255, 255, 0.04);
+  --assistant-layer-hover: rgba(255, 255, 255, 0.07);
+  --assistant-layer-strong: rgba(255, 255, 255, 0.1);
+  --assistant-input: rgba(255, 255, 255, 0.055);
+  --assistant-border: rgba(255, 255, 255, 0.08);
+  --assistant-border-strong: rgba(255, 255, 255, 0.16);
+  --assistant-text: #ffffff;
+  --assistant-text-strong: rgba(255, 255, 255, 0.9);
+  --assistant-text-body: rgba(255, 255, 255, 0.72);
+  --assistant-text-muted: rgba(255, 255, 255, 0.5);
+  --assistant-text-faint: rgba(255, 255, 255, 0.3);
+  --assistant-rail-text: rgba(255, 255, 255, 0.9);
+  --assistant-rail-body: rgba(255, 255, 255, 0.72);
+  --assistant-rail-muted: rgba(255, 255, 255, 0.5);
+  --assistant-rail-faint: rgba(255, 255, 255, 0.3);
+  --assistant-rail-section: rgba(255, 255, 255, 0.42);
+  --assistant-accent: #ffffff;
+  --assistant-on-accent: #111211;
+  --assistant-shadow: rgba(0, 0, 0, 0.3);
+  --assistant-rail-shadow: rgba(0, 0, 0, 0.26);
+}
+
+.assistant-theme-light {
+  --assistant-overlay: rgba(237, 242, 249, 0.9);
+  --assistant-rail: rgba(239, 244, 251, 0.96);
+  --assistant-panel: rgba(255, 255, 255, 0.97);
+  --assistant-layer: rgba(246, 247, 249, 0.94);
+  --assistant-layer-hover: rgba(224, 229, 236, 0.72);
+  --assistant-layer-strong: rgba(218, 224, 232, 0.78);
+  --assistant-input: rgba(255, 255, 255, 0.96);
+  --assistant-border: rgba(32, 36, 43, 0.09);
+  --assistant-border-strong: rgba(32, 36, 43, 0.15);
+  --assistant-text: #202124;
+  --assistant-text-strong: rgba(32, 33, 36, 0.94);
+  --assistant-text-body: rgba(45, 49, 55, 0.8);
+  --assistant-text-muted: rgba(69, 75, 84, 0.66);
+  --assistant-text-faint: rgba(85, 93, 104, 0.48);
+  --assistant-rail-text: #34383e;
+  --assistant-rail-body: #41474f;
+  --assistant-rail-muted: #555d67;
+  --assistant-rail-faint: #a0a8b3;
+  --assistant-rail-section: #9ba3ad;
+  --assistant-accent: #202124;
+  --assistant-on-accent: #ffffff;
+  --assistant-shadow: rgba(38, 45, 56, 0.1);
+  --assistant-rail-shadow: rgba(38, 45, 56, 0.08);
+}
+
 ::selection {
   background: rgba(249, 115, 22, 0.2);
 }

@@ -5,6 +5,8 @@ import {
   isMissingTaskProposalConfirmation,
   isRoadblockActionRequest,
   isRfiActionRequest,
+  isRfiCreateIntentWithoutQuestion,
+  isRfiTaskListRequest,
   isScheduleActionRequest,
   isScheduleImpactActionRequest,
   isSubmittalActionRequest,
@@ -12,12 +14,14 @@ import {
   isTaskProgressActionRequest,
   isBaselineActionRequest,
   isWeeklyCommitmentActionRequest,
+  isAwaitingRfiQuestion,
   parseDeterministicBaselineAction,
   parseDeterministicProjectControlAction,
   parseDeterministicScheduleWhatIf,
   parseDeterministicScheduleImpactAction,
   parseDeterministicTaskProgressAction,
   parseDeterministicWeeklyCommitmentAction,
+  parseRfiQuestionFollowUp,
 } from "@/lib/assistant-intent";
 import { rankTaskNameMatches } from "@/lib/assistant-tools";
 
@@ -294,6 +298,9 @@ describe("project-controls action intent", () => {
   it("detects RFI and submittal mutations", () => {
     expect(isRfiActionRequest("Raise an RFI for the waterproofing detail")).toBe(true);
     expect(isRfiActionRequest("Answer RFI 17 with the revised elevation")).toBe(true);
+    expect(isRfiActionRequest("i want to submit an RFI")).toBe(true);
+    expect(isRfiCreateIntentWithoutQuestion("i want to submit an RFI")).toBe(true);
+    expect(isRfiActionRequest("my question for new RFI is what happened to it")).toBe(true);
     expect(isSubmittalActionRequest("Approve the storefront submittal")).toBe(true);
     expect(isSubmittalActionRequest("Create a submittal for product data")).toBe(true);
   });
@@ -301,6 +308,24 @@ describe("project-controls action intent", () => {
   it("leaves project-controls questions read-only", () => {
     expect(isRfiActionRequest("Which RFIs are still open?")).toBe(false);
     expect(isSubmittalActionRequest("Show pending submittals")).toBe(false);
+  });
+
+  it("recovers conversational RFI question supply and task-list asks", () => {
+    const awaiting =
+      "What question should I put on the new RFI? Reply with the exact question text.";
+    expect(isAwaitingRfiQuestion(awaiting)).toBe(true);
+    expect(parseRfiQuestionFollowUp("what happened to it", awaiting)).toEqual({
+      toolName: "proposeRfiChange",
+      input: { operation: "CREATE", question: "what happened to it" },
+    });
+    expect(
+      parseDeterministicProjectControlAction("my question for new RFI is 'what happened to it'")
+    ).toEqual({
+      toolName: "proposeRfiChange",
+      input: { operation: "CREATE", question: "what happened to it" },
+    });
+    expect(isRfiTaskListRequest("give me all the task options", awaiting)).toBe(true);
+    expect(parseRfiQuestionFollowUp("give me all the task options", awaiting)).toBeNull();
   });
 });
 

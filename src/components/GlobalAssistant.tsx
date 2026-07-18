@@ -6,15 +6,12 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import type { UIMessage } from "ai";
 import {
-  Bot,
   Building2,
   FolderKanban,
   LayoutDashboard,
-  MessageSquare,
   PanelLeft,
   Plus,
   Search,
-  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -212,7 +209,7 @@ function ChatWorkspace({
   }, [onPromptConsumed, pendingPrompt, send, status]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-transparent text-white">
+    <div className="flex min-h-0 flex-1 flex-col bg-transparent text-[var(--assistant-text)]">
       <AssistantConversation
         messages={messages}
         busy={busy}
@@ -292,7 +289,7 @@ export function GlobalAssistant() {
         setActive(null);
       }
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Could not load BuilderBridge AI.");
+      setError(loadError instanceof Error ? loadError.message : "Could not load Agent.");
     } finally {
       setLoading(false);
     }
@@ -398,7 +395,7 @@ export function GlobalAssistant() {
         setDraftVersion((version) => version + 1);
         setRailOpen(false);
       } catch (openError) {
-        setError(openError instanceof Error ? openError.message : "Could not open BuilderBridge AI.");
+        setError(openError instanceof Error ? openError.message : "Could not open Agent.");
       } finally {
         setLoading(false);
       }
@@ -450,7 +447,7 @@ export function GlobalAssistant() {
         setDraftVersion((version) => version + 1);
         setRailOpen(false);
       } catch (openError) {
-        setError(openError instanceof Error ? openError.message : "Could not open BuilderBridge AI.");
+        setError(openError instanceof Error ? openError.message : "Could not open Agent.");
       } finally {
         setLoading(false);
       }
@@ -569,40 +566,38 @@ export function GlobalAssistant() {
   return (
     <>
       {open && (
-        <div className="fixed inset-0 z-50 bg-[rgba(9,10,11,0.46)] backdrop-blur-[18px] backdrop-saturate-150">
+        <div className="assistant-theme assistant-theme-light fixed inset-0 z-50 bg-[var(--assistant-overlay)] backdrop-blur-[18px] backdrop-saturate-150">
           <aside
             role="dialog"
-            aria-label="BuilderBridge AI"
-            className="relative flex h-full w-full overflow-hidden bg-transparent before:pointer-events-none before:absolute before:left-0 before:top-0 before:z-0 before:h-4 before:w-4 before:bg-[rgba(41,34,34,0.68)] before:backdrop-blur-[38px] before:backdrop-saturate-150 before:content-[''] md:grid md:grid-cols-[280px_minmax(0,1fr)] md:before:left-[280px] lg:grid-cols-[296px_minmax(0,1fr)] lg:before:left-[296px]"
+            aria-label="Agent"
+            className="relative flex h-full w-full overflow-hidden bg-transparent before:pointer-events-none before:absolute before:left-0 before:top-0 before:z-0 before:h-4 before:w-4 before:bg-[var(--assistant-rail)] before:backdrop-blur-[38px] before:backdrop-saturate-150 before:content-[''] md:grid md:grid-cols-[280px_minmax(0,1fr)] md:before:left-[280px] lg:grid-cols-[296px_minmax(0,1fr)] lg:before:left-[296px]"
           >
             <div
-              className={`${railOpen ? "flex" : "hidden"} absolute inset-y-0 left-0 z-30 w-[280px] shrink-0 flex-col bg-[rgba(41,34,34,0.68)] text-white shadow-[24px_0_60px_rgba(0,0,0,0.26)] backdrop-blur-[38px] backdrop-saturate-150 md:relative md:inset-auto md:z-10 md:flex md:w-full md:shadow-none`}
+              className={`${railOpen ? "flex" : "hidden"} absolute inset-y-0 left-0 z-30 w-[280px] shrink-0 flex-col bg-[var(--assistant-rail)] text-[var(--assistant-rail-text)] shadow-[24px_0_60px_var(--assistant-rail-shadow)] backdrop-blur-[38px] backdrop-saturate-150 md:relative md:inset-auto md:z-10 md:flex md:w-full md:shadow-none`}
             >
               <div className="shrink-0 px-3 pb-1 pt-3">
                 <div className="flex items-center gap-2">
-                  <div className="grid h-9 min-w-0 flex-1 grid-cols-2 rounded-md border border-white/[0.07] bg-black/25 p-1 shadow-inner backdrop-blur-xl" aria-label="Workspace mode">
+                  <div className="grid h-9 min-w-0 flex-1 grid-cols-2 rounded-md border border-[var(--assistant-border)] bg-[var(--assistant-layer)] p-1 shadow-inner backdrop-blur-xl" aria-label="Workspace mode">
                     <button
                       type="button"
-                      className="flex min-w-0 items-center justify-center gap-1.5 rounded-sm border border-white/[0.06] bg-white/[0.12] px-2 text-[11px] font-semibold text-white shadow-[0_2px_12px_rgba(0,0,0,0.18)] backdrop-blur-xl"
+                      className="flex min-w-0 items-center justify-center gap-1.5 rounded-sm border border-[var(--assistant-border)] bg-[var(--assistant-panel)] px-2 text-xs font-semibold text-[var(--assistant-rail-text)] shadow-[0_2px_12px_var(--assistant-shadow)] backdrop-blur-xl"
                       aria-pressed="true"
                     >
-                      <Bot size={13} aria-hidden />
-                      <span>AI Assist</span>
+                      <span>Agent</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setOpen(false)}
-                      className="flex min-w-0 items-center justify-center gap-1.5 rounded-sm px-2 text-[11px] font-medium text-white/45 transition-colors hover:bg-white/[0.07] hover:text-white"
+                      className="flex min-w-0 items-center justify-center gap-1.5 rounded-sm px-2 text-xs font-medium text-[var(--assistant-rail-faint)] transition-colors hover:bg-[var(--assistant-layer-hover)] hover:text-[var(--assistant-rail-text)]"
                       aria-label="Return to dashboard"
                     >
-                      <LayoutDashboard size={13} aria-hidden />
                       <span>Dashboard</span>
                     </button>
                   </div>
                   <button
                     type="button"
                     onClick={() => setRailOpen(false)}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/45 hover:bg-white/[0.07] hover:text-white md:hidden"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-[var(--assistant-text-faint)] hover:bg-[var(--assistant-layer-hover)] hover:text-[var(--assistant-text)] md:hidden"
                     aria-label="Close project navigation"
                   >
                     <X size={16} aria-hidden />
@@ -616,24 +611,24 @@ export function GlobalAssistant() {
                   onClick={() => void createConversation()}
                   aria-label="Start new conversation"
                   disabled={loading}
-                  className="flex h-9 w-full items-center gap-2 rounded-md px-2.5 text-left text-xs font-medium text-white/70 transition-colors hover:bg-white/[0.07] hover:text-white disabled:cursor-wait disabled:opacity-50"
+                  className="flex h-9 w-full items-center gap-2 rounded-md px-2.5 text-left text-sm font-normal text-[var(--assistant-rail-body)] transition-colors hover:bg-[var(--assistant-layer-hover)] hover:text-[var(--assistant-rail-text)] disabled:cursor-wait disabled:opacity-50"
                 >
-                  <Plus size={15} aria-hidden />
+                  <Plus size={16} aria-hidden />
                   New chat
                 </button>
 
-                <label className="mt-0.5 flex h-9 items-center gap-2 rounded-md px-2.5 text-white/35 transition-colors focus-within:bg-white/[0.07] focus-within:text-white/65">
-                  <Search size={14} className="shrink-0" aria-hidden />
+                <label className="mt-0.5 flex h-9 items-center gap-2 rounded-md px-2.5 text-[var(--assistant-rail-faint)] transition-colors focus-within:bg-[var(--assistant-layer-hover)] focus-within:text-[var(--assistant-rail-muted)]">
+                  <Search size={15} className="shrink-0" aria-hidden />
                   <span className="sr-only">Search conversations</span>
                   <input
                     value={conversationQuery}
                     onChange={(event) => setConversationQuery(event.target.value)}
                     placeholder="Search chats"
-                    className="min-w-0 flex-1 bg-transparent text-xs text-white/80 outline-none placeholder:text-white/30"
+                    className="min-w-0 flex-1 bg-transparent text-sm text-[var(--assistant-rail-body)] outline-none placeholder:text-[var(--assistant-rail-faint)]"
                   />
                 </label>
 
-                <p className="mb-3 mt-6 px-2 text-[10px] font-bold uppercase tracking-[0.08em] text-white/28">Projects</p>
+                <p className="mb-3 mt-6 px-2 text-sm font-medium text-[var(--assistant-rail-section)]">Projects</p>
                 <nav className="space-y-5" aria-label="Project chats">
                   {scopeGroups.map((group) => {
                     const projectConversations = visibleConversations.filter(
@@ -651,21 +646,21 @@ export function GlobalAssistant() {
                           <button
                             type="button"
                             onClick={() => selectScope(group.id)}
-                            className={`flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left text-xs font-medium transition-colors ${scopeId === group.id ? "text-white" : "text-white/55 hover:bg-white/[0.05] hover:text-white/85"}`}
+                            className={`flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left text-sm transition-colors ${scopeId === group.id ? "font-medium text-[var(--assistant-rail-text)]" : "font-normal text-[var(--assistant-rail-body)] hover:bg-[var(--assistant-layer-hover)] hover:text-[var(--assistant-rail-text)]"}`}
                           >
-                            <GroupIcon size={14} className="shrink-0 text-white/35" aria-hidden />
+                            <GroupIcon size={15} className="shrink-0 text-[var(--assistant-rail-body)]" aria-hidden />
                             <span className="truncate">{group.name}</span>
                           </button>
-                          <span className="pr-2 text-[10px] tabular-nums text-white/22">
+                          <span className="pr-2 text-[11px] tabular-nums text-[var(--assistant-rail-faint)]">
                             {conversationCount}
                           </span>
                         </div>
 
-                        <div className="ml-3 mt-1 space-y-0.5 border-l border-white/[0.07] pl-2">
+                        <div className="ml-3 mt-1 space-y-0.5 border-l border-[var(--assistant-border)] pl-2">
                           {projectConversations.map((conversation) => (
                             <div
                               key={conversation.id}
-                              className={`group/chat flex items-center rounded-md border transition-colors ${active?.conversation.id === conversation.id ? "border-white/[0.08] bg-white/[0.1] shadow-[0_5px_18px_rgba(0,0,0,0.12)] backdrop-blur-xl" : "border-transparent hover:bg-white/[0.05]"}`}
+                              className={`group/chat flex items-center rounded-md border transition-colors ${active?.conversation.id === conversation.id ? "border-[var(--assistant-border)] bg-[var(--assistant-layer-strong)] shadow-[0_5px_18px_var(--assistant-shadow)] backdrop-blur-xl" : "border-transparent hover:bg-[var(--assistant-layer-hover)]"}`}
                             >
                               <button
                                 type="button"
@@ -674,15 +669,14 @@ export function GlobalAssistant() {
                                   void loadConversation(conversation.id);
                                   setRailOpen(false);
                                 }}
-                                className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left text-[11px] text-white/48 transition-colors group-hover/chat:text-white/80"
+                                className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left text-[13px] text-[var(--assistant-rail-muted)] transition-colors group-hover/chat:text-[var(--assistant-rail-body)]"
                               >
-                                <MessageSquare size={12} className="shrink-0 text-white/25" aria-hidden />
                                 <span className="truncate">{conversation.title}</span>
                               </button>
                               <button
                                 type="button"
                                 onClick={() => void deleteConversation(conversation.id)}
-                                className="mr-1 hidden rounded p-1.5 text-white/30 hover:bg-white/10 hover:text-white group-hover/chat:block focus:block"
+                                className="mr-1 hidden rounded p-1.5 text-[var(--assistant-text-faint)] hover:bg-[var(--assistant-layer-hover)] hover:text-[var(--assistant-text)] group-hover/chat:block focus:block"
                                 aria-label={`Delete ${conversation.title}`}
                                 title="Delete chat"
                               >
@@ -691,7 +685,7 @@ export function GlobalAssistant() {
                             </div>
                           ))}
                           {!loading && !conversationQuery && conversationCount === 0 && scopeId === group.id && (
-                            <p className="px-2 py-1.5 text-[11px] text-white/25">No chats yet</p>
+                            <p className="px-2 py-1.5 text-[13px] text-[var(--assistant-rail-faint)]">No chats yet</p>
                           )}
                         </div>
                       </section>
@@ -700,29 +694,29 @@ export function GlobalAssistant() {
                 </nav>
 
                 {!loading && conversationQuery && visibleConversations.length === 0 && (
-                  <p className="mt-5 px-2 text-xs text-white/30">No matching chats.</p>
+                  <p className="mt-5 px-2 text-[13px] text-[var(--assistant-rail-faint)]">No matching chats.</p>
                 )}
               </div>
             </div>
 
-            <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden rounded-tl-2xl bg-[rgba(14,16,17,0.68)] backdrop-blur-[38px] backdrop-saturate-150 md:z-20">
-              <header className="flex h-13 shrink-0 items-center gap-3 border-b border-white/[0.065] bg-white/[0.01] px-4 backdrop-blur-xl sm:px-5">
+            <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden rounded-tl-2xl bg-[var(--assistant-panel)] backdrop-blur-[38px] backdrop-saturate-150 md:z-20">
+              <header className="flex h-13 shrink-0 items-center gap-3 border-b border-[var(--assistant-border)] bg-[var(--assistant-layer)] px-4 backdrop-blur-xl sm:px-5">
                 <button
                   type="button"
                   onClick={() => setRailOpen(true)}
-                  className="flex h-9 w-9 items-center justify-center rounded-md text-white/45 hover:bg-white/[0.07] hover:text-white md:hidden"
+                  className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--assistant-text-faint)] hover:bg-[var(--assistant-layer-hover)] hover:text-[var(--assistant-text)] md:hidden"
                   aria-label="Open project navigation"
                 >
                   <PanelLeft size={18} aria-hidden />
                 </button>
-                <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white/88">
+                <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[var(--assistant-text-strong)]">
                   {activeTitle}
                 </p>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="flex h-9 w-9 items-center justify-center rounded-md text-white/45 hover:bg-white/[0.07] hover:text-white md:hidden"
-                  aria-label="Close BuilderBridge AI"
+                  className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--assistant-text-faint)] hover:bg-[var(--assistant-layer-hover)] hover:text-[var(--assistant-text)] md:hidden"
+                  aria-label="Close Agent"
                   title="Return to dashboard"
                 >
                   <LayoutDashboard size={18} aria-hidden />
@@ -733,13 +727,13 @@ export function GlobalAssistant() {
                 <div className="flex flex-1 items-center justify-center px-6 text-center">
                   <div>
                     <p className="text-sm text-error" role="alert">{error}</p>
-                    <button type="button" onClick={() => void loadWorkspace()} className="mt-4 text-sm font-semibold text-white underline underline-offset-4">
+                    <button type="button" onClick={() => void loadWorkspace()} className="mt-4 text-sm font-semibold text-[var(--assistant-text)] underline underline-offset-4">
                       Try again
                     </button>
                   </div>
                 </div>
               ) : loading && !active ? (
-                <div className="flex flex-1 items-center justify-center text-sm text-white/35">Loading conversations...</div>
+                <div className="flex flex-1 items-center justify-center text-sm text-[var(--assistant-text-faint)]">Loading conversations...</div>
               ) : active ? (
                 <ChatWorkspace
                   key={`${active.conversation.id}:${active.conversation.messageCount}:${draftVersion}`}
@@ -755,16 +749,13 @@ export function GlobalAssistant() {
               ) : (
                 <div className="flex flex-1 items-center justify-center px-6">
                   <div className="max-w-sm text-center">
-                    <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-md bg-white text-[#111211]">
-                      <Sparkles size={19} aria-hidden />
-                    </span>
-                    <h3 className="mt-5 font-display text-xl text-white">Start with {scopeName}</h3>
-                    <p className="mt-2 text-sm leading-6 text-white/40">Create a conversation to explore the live project data in this scope.</p>
+                    <h3 className="font-display text-xl text-[var(--assistant-text)]">Start with {scopeName}</h3>
+                    <p className="mt-2 text-sm leading-6 text-[var(--assistant-text-muted)]">Create a conversation to explore the live project data in this scope.</p>
                     <button
                       type="button"
                       onClick={() => void createConversation()}
                       disabled={loading}
-                      className="mt-5 inline-flex h-10 items-center gap-2 rounded-md bg-white px-4 text-sm font-semibold text-[#111211] hover:bg-white/90"
+                      className="mt-5 inline-flex h-10 items-center gap-2 rounded-md bg-[var(--assistant-accent)] px-4 text-sm font-semibold text-[var(--assistant-on-accent)] opacity-100 hover:opacity-90"
                     >
                       <Plus size={16} aria-hidden />
                       New conversation

@@ -55,11 +55,11 @@ test("AI raises an RFI linked to an uploaded project document", async ({ page })
     uploadedId = (await uploadResponse.json()).id;
 
     await page.getByRole("button", { name: `Raise RFI from ${fileName}` }).click();
-    const dialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
+    const dialog = page.getByRole("dialog", { name: "Agent" });
     await expect(dialog).toBeVisible();
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
     const prompt = `Raise an RFI from ${fileName} page 1: ${question}`;
-    await dialog.getByLabel("Message BuilderBridge AI").fill(prompt);
+    await dialog.getByLabel("Message Agent").fill(prompt);
     await expect(dialog.getByRole("button", { name: "Send message" })).toBeEnabled();
     await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
 

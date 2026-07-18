@@ -146,6 +146,41 @@ describe("Assistant RFI and submittal proposals", () => {
     });
   });
 
+  it("rejects a document-linked RFI when its source file is removed before confirmation", async () => {
+    const conversation = await createConversation(fixture.trade.user.id);
+    const attachment = await prisma.assistantAttachment.create({
+      data: {
+        projectId: fixture.project.id,
+        uploadedById: fixture.trade.user.id,
+        fileName: "Temporary Detail.pdf",
+        mediaType: "application/pdf",
+        sizeBytes: 1024,
+        storageKey: `test/${fixture.organization.id}/temporary-detail.pdf`,
+        fileUrl: `/api/files/test/${fixture.organization.id}/temporary-detail.pdf`,
+        source: "DIRECT_UPLOAD",
+      },
+    });
+    const output = await toolsFor(fixture.trade.user.id, conversation.id).proposeRfiChange.execute!(
+      {
+        operation: "CREATE",
+        question: "Does this temporary detail still apply?",
+        fileName: "Temporary Detail.pdf",
+      },
+      { toolCallId: "stale-rfi-document", messages: [], context: {} }
+    );
+    if (!output || typeof output !== "object" || !("proposal" in output)) {
+      throw new Error("Expected a document-linked RFI proposal");
+    }
+
+    await prisma.assistantAttachment.delete({ where: { id: attachment.id } });
+    await expect(
+      confirmAssistantAction(output.proposal.id, {
+        organizationId: fixture.organization.id,
+        userId: fixture.trade.user.id,
+      })
+    ).rejects.toBeInstanceOf(AssistantActionError);
+  });
+
   it("answers an RFI as a GC role and rejects a stale proposal", async () => {
     const conversation = await createConversation(fixture.pm.user.id);
     const rfi = await prisma.rFI.create({

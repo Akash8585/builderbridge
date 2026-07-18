@@ -51,10 +51,10 @@ export function AssistantActionProposal({ initialProposal }: { initialProposal: 
   const pending = proposal.status === "PENDING";
   const warnings = proposal.warnings ?? [];
   return (
-    <section className="overflow-hidden rounded-md border border-white/[0.1] bg-white/[0.035]" aria-label="Action proposal">
-      <div className="border-b border-white/[0.08] bg-white/[0.035] px-4 py-3.5">
+    <section className="overflow-hidden rounded-md border border-[var(--assistant-border)] bg-[var(--assistant-layer)] shadow-sm" aria-label="Action proposal">
+      <div className="border-b border-[var(--assistant-border)] bg-[var(--assistant-layer)] px-4 py-3.5">
         <div className="flex items-start gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-[#111211]">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[var(--assistant-accent)] text-[var(--assistant-on-accent)]">
             {proposal.status === "CONFIRMED" ? (
               <CheckCircle2 size={17} aria-hidden />
             ) : (
@@ -62,7 +62,7 @@ export function AssistantActionProposal({ initialProposal }: { initialProposal: 
             )}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-bold uppercase text-white/35">
+            <p className="text-[11px] font-bold uppercase text-[var(--assistant-text-faint)]">
               {proposal.status === "CONFIRMED"
                 ? "Change applied"
                 : proposal.status === "CANCELLED"
@@ -71,22 +71,22 @@ export function AssistantActionProposal({ initialProposal }: { initialProposal: 
                     ? "Proposal expired"
                     : "Confirmation required"}
             </p>
-            <h4 className="mt-0.5 text-sm font-semibold text-white/90">{proposal.title}</h4>
-            <p className="mt-1 text-xs text-white/35">{proposal.projectName}</p>
+            <h4 className="mt-0.5 text-sm font-semibold text-[var(--assistant-text-strong)]">{proposal.title}</h4>
+            <p className="mt-1 text-xs text-[var(--assistant-text-faint)]">{proposal.projectName}</p>
           </div>
         </div>
       </div>
 
-      <div className="divide-y divide-white/[0.07] px-4">
+      <div className="divide-y divide-[var(--assistant-border)] px-4">
         {proposal.changes.map((change) => (
           <div
             key={change.field}
             className="grid gap-1.5 py-3 sm:grid-cols-[92px_1fr_18px_1fr] sm:items-center"
           >
-            <span className="text-[11px] font-semibold text-white/35">{change.label}</span>
-            <span className="min-w-0 break-words text-xs text-white/50">{change.before}</span>
-            <ArrowRight size={13} className="hidden text-white/25 sm:block" aria-hidden />
-            <span className="min-w-0 break-words text-xs font-semibold text-white/85">{change.after}</span>
+            <span className="text-[11px] font-semibold text-[var(--assistant-text-faint)]">{change.label}</span>
+            <span className="min-w-0 break-words text-xs text-[var(--assistant-text-muted)]">{change.before}</span>
+            <ArrowRight size={13} className="hidden text-[var(--assistant-text-faint)] sm:block" aria-hidden />
+            <span className="min-w-0 break-words text-xs font-semibold text-[var(--assistant-text-strong)]">{change.after}</span>
           </div>
         ))}
       </div>
@@ -96,8 +96,8 @@ export function AssistantActionProposal({ initialProposal }: { initialProposal: 
           <div className="flex items-start gap-2">
             <TriangleAlert size={15} className="mt-0.5 shrink-0 text-warning" aria-hidden />
             <div>
-              <p className="text-xs font-semibold text-white/85">Schedule impact</p>
-              <ul className="mt-1.5 space-y-1 text-xs leading-5 text-white/55">
+              <p className="text-xs font-semibold text-[var(--assistant-text-strong)]">Schedule impact</p>
+              <ul className="mt-1.5 space-y-1 text-xs leading-5 text-[var(--assistant-text-muted)]">
                 {warnings.map((warning) => (
                   <li key={warning}>{warning}</li>
                 ))}
@@ -108,12 +108,12 @@ export function AssistantActionProposal({ initialProposal }: { initialProposal: 
       )}
 
       {error && (
-        <p className="border-t border-white/[0.08] bg-error/10 px-4 py-2.5 text-xs text-error" role="alert">
+        <p className="border-t border-[var(--assistant-border)] bg-error/10 px-4 py-2.5 text-xs text-error" role="alert">
           {error}
         </p>
       )}
 
-      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.08] px-4 py-3">
+      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--assistant-border)] px-4 py-3">
         <Link
           href={proposal.href}
           onClick={(event) => {
@@ -127,7 +127,7 @@ export function AssistantActionProposal({ initialProposal }: { initialProposal: 
               router.refresh();
             }
           }}
-          className="inline-flex h-8 items-center gap-1.5 text-xs font-medium text-white/50 hover:text-white"
+          className="inline-flex h-8 items-center gap-1.5 text-xs font-medium text-[var(--assistant-text-muted)] hover:text-[var(--assistant-text)]"
         >
           {proposal.hrefLabel}
           <ExternalLink size={12} aria-hidden />
@@ -138,7 +138,7 @@ export function AssistantActionProposal({ initialProposal }: { initialProposal: 
               type="button"
               onClick={() => void submit("cancel")}
               disabled={submitting !== null}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-white/10 px-3 text-xs font-semibold text-white/60 hover:bg-white/[0.06] hover:text-white disabled:opacity-50"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--assistant-border)] px-3 text-xs font-semibold text-[var(--assistant-text-muted)] hover:bg-[var(--assistant-layer-hover)] hover:text-[var(--assistant-text)] disabled:opacity-50"
             >
               {submitting === "cancel" ? (
                 <LoaderCircle size={13} className="animate-spin" aria-hidden />
@@ -151,7 +151,7 @@ export function AssistantActionProposal({ initialProposal }: { initialProposal: 
               type="button"
               onClick={() => void submit("confirm")}
               disabled={submitting !== null}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-white px-3 text-xs font-semibold text-[#111211] hover:bg-white/85 disabled:opacity-50"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[var(--assistant-accent)] px-3 text-xs font-semibold text-[var(--assistant-on-accent)] transition-opacity hover:opacity-85 disabled:opacity-50"
             >
               {submitting === "confirm" ? (
                 <LoaderCircle size={13} className="animate-spin" aria-hidden />

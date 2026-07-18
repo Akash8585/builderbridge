@@ -15,15 +15,15 @@ test("AI schedule impact requests create and approve through confirmation cards"
   );
 
   try {
-    await page.getByRole("button", { name: "Open BuilderBridge AI" }).click();
-    const dialog = page.getByRole("dialog", { name: "BuilderBridge AI" });
+    await page.getByRole("button", { name: "Open Agent" }).click();
+    const dialog = page.getByRole("dialog", { name: "Agent" });
     await dialog
       .getByRole("navigation", { name: "Project chats" })
       .getByRole("button", { name: /Riverside Apartments/ })
       .click();
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
     await dialog
-      .getByLabel("Message BuilderBridge AI")
+      .getByLabel("Message Agent")
       .fill(`Create a schedule impact request for ${taskName}: ${description}`);
     await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
 
@@ -43,7 +43,7 @@ test("AI schedule impact requests create and approve through confirmation cards"
     await expect(dialog.getByText(/OpenRouter could not complete/)).toHaveCount(0);
 
     const approvePrompt = `Approve the schedule impact request ${description} because weather log confirms`;
-    await dialog.getByLabel("Message BuilderBridge AI").fill(approvePrompt);
+    await dialog.getByLabel("Message Agent").fill(approvePrompt);
     await expect(dialog.getByRole("button", { name: "Send message" })).toBeEnabled();
     await dialog.getByRole("button", { name: "Send message" }).dispatchEvent("click");
 

@@ -99,10 +99,10 @@ const FEATURE_COLUMNS: MegaColumn[] = [
     ],
   },
   {
-    title: "BuilderBridge AI",
+    title: "Agent",
     items: [
       {
-        title: "AI Assistant",
+        title: "Agent",
         description: "Instant schedule answers grounded in your live project data.",
         href: "/features/ai-assistant",
         icon: <IconAi />,

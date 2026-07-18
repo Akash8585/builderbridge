@@ -363,7 +363,7 @@ function AiBand() {
     <section className="border-y border-[#cad9e0] bg-[#e7f0f4]">
       <div className="mx-auto grid max-w-[1400px] gap-14 px-6 py-24 sm:px-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:px-12 lg:py-32">
         <div>
-          <p className="mb-5 text-[11px] font-bold uppercase tracking-[0.12em] text-[#245c75]">BuilderBridge AI</p>
+          <p className="mb-5 text-[11px] font-bold uppercase tracking-[0.12em] text-[#245c75]">Agent</p>
           <h2 className="max-w-[12ch] text-4xl font-semibold leading-[1.06] tracking-[0] sm:text-5xl">
             Ask the project. Get an answer grounded in the work.
           </h2>

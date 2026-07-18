@@ -8,7 +8,7 @@ let provider: ReturnType<typeof createOpenAICompatible> | null = null;
 export function getOpenRouterModel() {
   if (!env.OPENROUTER_API_KEY) {
     throw new AssistantNotConfiguredError(
-      "The AI Assistant isn't configured yet - add OPENROUTER_API_KEY to the environment."
+      "Agent isn't configured yet - add OPENROUTER_API_KEY to the environment."
     );
   }
 

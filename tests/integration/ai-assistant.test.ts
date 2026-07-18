@@ -7,7 +7,7 @@ import { createFixture, cleanupFixture, type Fixture } from "./fixtures";
 const hasApiKey = Boolean(env.OPENROUTER_API_KEY);
 const live = hasApiKey ? it : it.skip;
 
-describe("Global AI assistant (org-wide context + NLP)", () => {
+describe("Global Agent (org-wide context + NLP)", () => {
   let fixture: Fixture;
   let secondProjectId: string;
 

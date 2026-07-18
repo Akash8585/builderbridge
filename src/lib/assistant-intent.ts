@@ -13,8 +13,14 @@ const DEPENDENCY_SUBJECT = /\b(dependency|depend|depends|logic|predecessor|succe
 const SHIFT_ACTION = /\b(move|pull|push|shift)\b/i;
 const BULK_SHIFT_SUBJECT = /\b(all|activities|days?|entire|incomplete|schedule|tasks?|weeks?)\b/i;
 const WHAT_IF_SCHEDULE = /\bwhat (?:happens|would happen) if\b|\b(reflow|cascade|propagate)\b/i;
-const RFI_ACTION = /\b(answer|close|create|open|raise|record|respond|update)\b/i;
+const RFI_ACTION = /\b(answer|close|create|file|need|open|raise|record|respond|submit|update|want)\b/i;
 const RFI_SUBJECT = /\bRFI(?:s)?\b|\brequest(?:s)? for information\b/i;
+const RFI_CREATE_SOFT =
+  /^(?:i\s+(?:just\s+)?(?:want|need|would like)\s+to\s+)?(?:create|file|open|raise|record|submit)\s+(?:an?\s+)?(?:new\s+)?rfi\b/i;
+const RFI_QUESTION_SUPPLY =
+  /^(?:my\s+)?(?:rfi\s+)?question(?:\s+for\s+(?:the\s+)?(?:new\s+)?rfi)?\s*(?:is|:)\s*["'\u201c]?(.+?)["'\u201d]?\s*$/i;
+const RFI_TASK_LIST_REQUEST =
+  /\b((?:all\s+)?(?:the\s+)?task(?:s)?(?:\s+options)?|list(?:\s+the)?\s+tasks|which tasks?|task list|link(?:ed)? task)\b/i;
 const SUBMITTAL_ACTION = /\b(approve|create|reject|revise|submit|update)\b/i;
 const SUBMITTAL_SUBJECT = /\bsubmittal(?:s)?\b/i;
 const SCHEDULE_IMPACT_ACTION = /\b(approve|create|reject|review|submit)\b/i;
@@ -449,7 +455,7 @@ export function parseDeterministicProjectControlAction(
   }
 
   const createFromDocPage =
-    /^(?:create|open|raise|record)\s+(?:an?\s+)?rfi\s+from\s+(?:the\s+)?(?:file\s+)?(.+?)\s+page\s+(\d+)\s*[:\-]\s*(.+)$/i.exec(
+    /^(?:create|file|open|raise|record|submit)\s+(?:an?\s+)?rfi\s+from\s+(?:the\s+)?(?:file\s+)?(.+?)\s+page\s+(\d+)\s*[:\-]\s*(.+)$/i.exec(
       cleaned
     );
   if (createFromDocPage) {
@@ -465,10 +471,10 @@ export function parseDeterministicProjectControlAction(
   }
 
   const createFromDoc =
-    /^(?:create|open|raise|record)\s+(?:an?\s+)?rfi\s+from\s+(?:the\s+)?(?:file\s+)?(.+?)\s*[:\-]\s*(.+)$/i.exec(
+    /^(?:create|file|open|raise|record|submit)\s+(?:an?\s+)?rfi\s+from\s+(?:the\s+)?(?:file\s+)?(.+?)\s*[:\-]\s*(.+)$/i.exec(
       cleaned
     ) ??
-    /^(?:create|open|raise|record)\s+(?:an?\s+)?rfi\s+from\s+(?:the\s+)?(?:file\s+)?(.+?)\s+(?:asking|about)\s+(.+)$/i.exec(
+    /^(?:create|file|open|raise|record|submit)\s+(?:an?\s+)?rfi\s+from\s+(?:the\s+)?(?:file\s+)?(.+?)\s+(?:asking|about)\s+(.+)$/i.exec(
       cleaned
     );
   if (createFromDoc) {
@@ -482,10 +488,25 @@ export function parseDeterministicProjectControlAction(
     }
   }
 
-  const createRfi = /^(?:create|open|raise|record)\s+(?:an?\s+)?rfi(?:\s+(?:asking|for|about))?\s*[:\-]?\s*(.+)$/i.exec(cleaned);
+  const suppliedQuestion = RFI_QUESTION_SUPPLY.exec(cleaned);
+  if (suppliedQuestion) {
+    const question = cleanControlText(suppliedQuestion[1]);
+    if (question) return { toolName: "proposeRfiChange", input: { operation: "CREATE", question } };
+  }
+
+  const createRfi =
+    /^(?:i\s+(?:just\s+)?(?:want|need|would like)\s+to\s+)?(?:create|file|open|raise|record|submit)\s+(?:an?\s+)?(?:new\s+)?rfi(?:\s+(?:asking|for|about|regarding|on))?\s*[:\-]?\s*(.+)$/i.exec(
+      cleaned
+    );
   if (createRfi) {
     const question = cleanControlText(createRfi[1]);
-    if (question) return { toolName: "proposeRfiChange", input: { operation: "CREATE", question } };
+    if (
+      question &&
+      !/^(?:please|now|today|for me|here)?\.?$/i.test(question) &&
+      !/^(?:from|with|to)\b/i.test(question)
+    ) {
+      return { toolName: "proposeRfiChange", input: { operation: "CREATE", question } };
+    }
   }
 
   const decision = /^(approve|reject|revise)\s+(?:the\s+)?submittal\s+(.+)$/i.exec(cleaned);
@@ -555,8 +576,58 @@ export function isScheduleActionRequest(message: string) {
 
 export function isRfiActionRequest(message: string) {
   const trimmed = message.trim();
+  if (isRfiCreateIntentWithoutQuestion(trimmed) || RFI_QUESTION_SUPPLY.test(trimmed)) return true;
+  if (RFI_CREATE_SOFT.test(trimmed) && RFI_SUBJECT.test(trimmed)) return true;
   if (READ_ONLY_OPENING.test(trimmed)) return false;
   return RFI_ACTION.test(trimmed) && RFI_SUBJECT.test(trimmed);
+}
+
+export function isRfiCreateIntentWithoutQuestion(message: string) {
+  const cleaned = message.trim().replace(/[.!?]+$/g, "").trim();
+  return (
+    /^(?:i\s+(?:just\s+)?(?:want|need|would like)\s+to\s+)?(?:create|file|open|raise|record|submit)\s+(?:an?\s+)?(?:new\s+)?rfi$/i.test(
+      cleaned
+    ) || /^i\s+want\s+to\s+submit\s+(?:an?\s+)?rfi$/i.test(cleaned)
+  );
+}
+
+export function isAwaitingRfiQuestion(previousAssistantText: string) {
+  if (!/\bRFI\b/i.test(previousAssistantText)) return false;
+  return (
+    /\b(question|topic)\b/i.test(previousAssistantText) &&
+    /\b(what|which|provide|tell|reply|send|exact)\b/i.test(previousAssistantText)
+  );
+}
+
+export function isRfiTaskListRequest(message: string, previousAssistantText = "") {
+  const trimmed = message.trim();
+  if (!RFI_TASK_LIST_REQUEST.test(trimmed)) return false;
+  return /\bRFI\b/i.test(previousAssistantText) || /\bRFI\b/i.test(trimmed) || /\blink\b/i.test(trimmed);
+}
+
+export function parseRfiQuestionFollowUp(
+  message: string,
+  previousAssistantText: string
+): DeterministicProjectControlAction | null {
+  if (!isAwaitingRfiQuestion(previousAssistantText)) return null;
+  if (isRfiTaskListRequest(message, previousAssistantText)) return null;
+  if (isRfiCreateIntentWithoutQuestion(message)) return null;
+  if (AFFIRMATIVE_REPLY.test(message.trim())) return null;
+
+  const direct = parseDeterministicProjectControlAction(message);
+  if (direct?.toolName === "proposeRfiChange" && direct.input.operation === "CREATE") return direct;
+
+  const supplied = RFI_QUESTION_SUPPLY.exec(message.trim());
+  const raw = supplied?.[1] ?? message.trim();
+  const question = cleanControlText(raw);
+  if (!question || question.length < 2) return null;
+  if (
+    /^(which|what|where|how|list|show|give|tell)\b/i.test(question) &&
+    /\b(rfi|proposal|card|task options?|options?|happened in (?:the )?rfi)\b/i.test(question)
+  ) {
+    return null;
+  }
+  return { toolName: "proposeRfiChange", input: { operation: "CREATE", question } };
 }
 
 export function isSubmittalActionRequest(message: string) {

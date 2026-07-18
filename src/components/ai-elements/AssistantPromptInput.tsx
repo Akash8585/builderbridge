@@ -65,17 +65,17 @@ export function AssistantPromptInput({
                 return (
                   <div
                     key={attachment.id}
-                    className="flex min-w-0 max-w-full items-center gap-2 rounded-md border border-white/[0.09] bg-white/[0.05] px-2.5 py-2"
+                    className="flex min-w-0 max-w-full items-center gap-2 rounded-md border border-[var(--assistant-border)] bg-[var(--assistant-layer)] px-2.5 py-2"
                   >
-                    <Icon size={15} className="shrink-0 text-white/40" aria-hidden />
+                    <Icon size={15} className="shrink-0 text-[var(--assistant-text-muted)]" aria-hidden />
                     <div className="min-w-0">
-                      <p className="max-w-52 truncate text-xs font-medium text-white/80">{attachment.fileName}</p>
-                      <p className="text-[11px] text-white/35">{formatAttachmentBytes(attachment.sizeBytes)}</p>
+                      <p className="max-w-52 truncate text-xs font-medium text-[var(--assistant-text-body)]">{attachment.fileName}</p>
+                      <p className="text-[11px] text-[var(--assistant-text-faint)]">{formatAttachmentBytes(attachment.sizeBytes)}</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => onRemoveAttachment(attachment.id)}
-                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-white/35 transition-colors hover:bg-white/10 hover:text-white"
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-[var(--assistant-text-faint)] transition-colors hover:bg-[var(--assistant-layer-hover)] hover:text-[var(--assistant-text)]"
                       aria-label={`Remove ${attachment.fileName}`}
                       title="Remove attachment"
                     >
@@ -89,7 +89,7 @@ export function AssistantPromptInput({
           {attachmentError && <p className="mt-2 text-xs text-error">{attachmentError}</p>}
         </div>
       )}
-      <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-lg border border-white/[0.11] bg-white/[0.055] p-2 shadow-[0_14px_44px_rgba(0,0,0,0.3)] backdrop-blur-2xl transition-colors focus-within:border-white/20 focus-within:bg-white/[0.07]">
+      <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-lg border border-[var(--assistant-border)] bg-[var(--assistant-input)] p-2 shadow-[0_14px_44px_var(--assistant-shadow)] backdrop-blur-2xl transition-colors focus-within:border-[var(--assistant-border-strong)] focus-within:bg-[var(--assistant-panel)]">
         <input
           ref={fileInputRef}
           type="file"
@@ -111,7 +111,7 @@ export function AssistantPromptInput({
             !projectScoped ||
             attachments.length >= MAX_ASSISTANT_ATTACHMENTS
           }
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white/35 transition-colors hover:bg-white/[0.07] hover:text-white disabled:cursor-not-allowed disabled:text-white/15"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-[var(--assistant-text-faint)] transition-colors hover:bg-[var(--assistant-layer-hover)] hover:text-[var(--assistant-text)] disabled:cursor-not-allowed disabled:opacity-35"
           aria-label="Attach project files"
           title={projectScoped ? "Attach PDF or image" : "Choose a project conversation to attach files"}
         >
@@ -131,18 +131,18 @@ export function AssistantPromptInput({
               event.currentTarget.form?.requestSubmit();
             }
           }}
-          placeholder="Ask BuilderBridge AI"
+          placeholder="Ask Agent"
           maxLength={4000}
           rows={1}
           disabled={disabled}
-          className="min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm leading-6 text-white/85 outline-none placeholder:text-white/30 disabled:cursor-not-allowed"
-          aria-label="Message BuilderBridge AI"
+          className="min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm leading-6 text-[var(--assistant-text-strong)] outline-none placeholder:text-[var(--assistant-text-faint)] disabled:cursor-not-allowed"
+          aria-label="Message Agent"
         />
         {busy ? (
           <button
             type="button"
             onClick={onStop}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white text-[#111211] transition-colors hover:bg-white/85"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--assistant-accent)] text-[var(--assistant-on-accent)] transition-opacity hover:opacity-85"
             aria-label="Stop response"
             title="Stop response"
           >
@@ -152,7 +152,7 @@ export function AssistantPromptInput({
           <button
             type="submit"
             disabled={disabled || !value.trim()}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white text-[#111211] transition-colors hover:bg-white/85 disabled:bg-white/[0.08] disabled:text-white/20"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--assistant-accent)] text-[var(--assistant-on-accent)] transition-opacity hover:opacity-85 disabled:bg-[var(--assistant-layer-strong)] disabled:text-[var(--assistant-text-faint)]"
             aria-label="Send message"
             title="Send message"
           >

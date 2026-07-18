@@ -7,7 +7,7 @@ export function LandingAnnouncementBar() {
       className="group flex h-9 w-full items-center justify-center gap-2 border-b border-white/10 bg-ink/85 px-4 text-[13px] font-medium text-white shadow-[0_1px_0_rgba(255,255,255,0.06)_inset] backdrop-blur-md transition-colors hover:bg-ink/95"
     >
       <span className="truncate">
-        New: AI-powered scheduling is here. Meet BuilderBridge AI.
+        New: AI-powered scheduling is here. Meet Agent.
       </span>
       <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-white/25 transition-colors group-hover:border-white/45">
         <svg

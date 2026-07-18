@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Bot, LayoutDashboard } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
+const subscribeToHydration = () => () => undefined;
+
 export function UserMenu() {
   const router = useRouter();
   const { data: session } = authClient.useSession();
+  const mounted = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const [assistantOpen, setAssistantOpen] = useState(false);
 
   useEffect(() => {
@@ -20,7 +23,7 @@ export function UserMenu() {
     return () => window.removeEventListener("builderbridge:assistant-state", syncAssistantState);
   }, []);
 
-  if (!session?.user) return null;
+  if (!mounted || !session?.user) return null;
 
   const initials = session.user.name
     .split(/\s+/)
@@ -64,8 +67,8 @@ export function UserMenu() {
           );
         }}
         aria-pressed={assistantOpen}
-        aria-label={assistantOpen ? "Close BuilderBridge AI" : "Open BuilderBridge AI"}
-        title={assistantOpen ? "Return to dashboard" : "Open AI workspace"}
+        aria-label={assistantOpen ? "Close Agent" : "Open Agent"}
+        title={assistantOpen ? "Return to dashboard" : "Open Agent"}
         className={`inline-flex h-9 items-center gap-2 rounded-md px-2.5 text-xs font-semibold transition-colors ${
           assistantOpen
             ? "bg-ink text-white hover:bg-primary-active"
@@ -73,7 +76,7 @@ export function UserMenu() {
         }`}
       >
         {assistantOpen ? <LayoutDashboard size={15} aria-hidden /> : <Bot size={15} aria-hidden />}
-        <span className="hidden xl:inline">{assistantOpen ? "Dashboard" : "AI workspace"}</span>
+        <span className="hidden xl:inline">{assistantOpen ? "Dashboard" : "Agent"}</span>
       </button>
     </div>
   );

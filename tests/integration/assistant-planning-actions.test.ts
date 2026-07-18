@@ -149,6 +149,97 @@ describe("Assistant planning action proposals", () => {
     ).rejects.toBeInstanceOf(AssistantActionError);
   });
 
+  it("rejects invalid impact dates and prevents a reviewed request from being reviewed again", async () => {
+    const task = await createTask("Impact validation task");
+    const tradeConversation = await createConversation(fixture.trade.user.id);
+    const tradeContext = { organizationId: fixture.organization.id, userId: fixture.trade.user.id };
+
+    await expect(
+      createScheduleImpactActionProposal(
+        {
+          conversationId: tradeConversation.id,
+          projectId: fixture.project.id,
+          operation: "CREATE",
+          taskId: task.id,
+          description: "Invalid calendar date",
+          proposedNewEndDate: "2026-02-30",
+        },
+        tradeContext
+      )
+    ).rejects.toBeInstanceOf(AssistantActionError);
+    await expect(
+      createScheduleImpactActionProposal(
+        {
+          conversationId: tradeConversation.id,
+          projectId: fixture.project.id,
+          operation: "CREATE",
+          taskId: task.id,
+          description: "Finish before task start",
+          proposedNewEndDate: "2026-08-31",
+        },
+        tradeContext
+      )
+    ).rejects.toBeInstanceOf(AssistantActionError);
+
+    const reviewed = await prisma.scheduleImpactRequest.create({
+      data: {
+        projectId: fixture.project.id,
+        taskId: task.id,
+        description: "Already reviewed request",
+        submittedById: fixture.trade.member.id,
+        status: "APPROVED",
+        reviewedById: fixture.pm.member.id,
+        reviewedAt: new Date(),
+      },
+    });
+    const pmConversation = await createConversation(fixture.pm.user.id);
+    await expect(
+      createScheduleImpactActionProposal(
+        {
+          conversationId: pmConversation.id,
+          projectId: fixture.project.id,
+          operation: "REVIEW",
+          sirId: reviewed.id,
+          status: "REJECTED",
+        },
+        { organizationId: fixture.organization.id, userId: fixture.pm.user.id }
+      )
+    ).rejects.toBeInstanceOf(AssistantActionError);
+  });
+
+  it("rejects an impact review when the linked task schedule changes before confirmation", async () => {
+    const task = await createTask("Impact stale task");
+    const sir = await prisma.scheduleImpactRequest.create({
+      data: {
+        projectId: fixture.project.id,
+        taskId: task.id,
+        description: "Task schedule may change",
+        proposedNewEndDate: new Date("2026-09-10T12:00:00.000Z"),
+        submittedById: fixture.trade.member.id,
+      },
+    });
+    const conversation = await createConversation(fixture.pm.user.id);
+    const context = { organizationId: fixture.organization.id, userId: fixture.pm.user.id };
+    const output = await createScheduleImpactActionProposal(
+      {
+        conversationId: conversation.id,
+        projectId: fixture.project.id,
+        operation: "REVIEW",
+        sirId: sir.id,
+        status: "APPROVED",
+      },
+      context
+    );
+
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { endDate: new Date("2026-09-07T12:00:00.000Z") },
+    });
+    await expect(confirmAssistantAction(output.proposal.id, context)).rejects.toBeInstanceOf(
+      AssistantActionError
+    );
+  });
+
   it("creates a baseline only after confirmation and rejects stale task lists", async () => {
     const task = await createTask("Baseline task");
     const conversation = await createConversation(fixture.scheduler.user.id);

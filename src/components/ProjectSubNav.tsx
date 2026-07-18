@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
@@ -58,6 +58,7 @@ const TAB_GROUPS = [
     tabs: [{ href: "/members", label: "Members", icon: Users }],
   },
 ];
+const PROJECT_TABS = TAB_GROUPS.flatMap((group) => group.tabs);
 
 type ProjectTab = {
   href: string;
@@ -66,7 +67,33 @@ type ProjectTab = {
 };
 
 export function ProjectSubNav({ projectId, active }: { projectId: string; active: string }) {
-  const tabs = TAB_GROUPS.flatMap((group) => group.tabs);
+  const router = useRouter();
+  const projectRoutes = useMemo(
+    () => PROJECT_TABS.map((tab) => `/projects/${projectId}${tab.href}`),
+    [projectId]
+  );
+
+  useEffect(() => {
+    const likelyRoutes = ["", "/lookahead", "/weekly-plan", "/gantt", "/dashboard"].map(
+      (href) => `/projects/${projectId}${href}`
+    );
+    const timeout = window.setTimeout(() => {
+      for (const href of likelyRoutes) {
+        router.prefetch(href);
+      }
+    }, 600);
+
+    return () => window.clearTimeout(timeout);
+  }, [projectId, router]);
+
+  const prefetchProjectRoute = useCallback(
+    (href: string) => {
+      if (projectRoutes.includes(href)) {
+        router.prefetch(href);
+      }
+    },
+    [projectRoutes, router]
+  );
 
   return (
     <nav
@@ -74,8 +101,14 @@ export function ProjectSubNav({ projectId, active }: { projectId: string; active
       className="fixed bottom-3 left-[84px] right-3 z-30 rounded-xl border border-hairline bg-canvas/95 p-2 shadow-[0_16px_40px_rgba(17,17,17,0.14)] ring-1 ring-white/70 backdrop-blur-xl md:bottom-auto md:left-4 md:right-auto md:top-[88px] md:w-[58px] md:rounded-xl md:p-1.5"
     >
       <div className="flex items-center gap-1 overflow-x-auto md:flex-col md:overflow-visible">
-        {tabs.map((tab) => (
-          <ProjectRailLink key={tab.label} projectId={projectId} tab={tab} active={tab.label === active} />
+        {PROJECT_TABS.map((tab) => (
+          <ProjectRailLink
+            key={tab.label}
+            projectId={projectId}
+            tab={tab}
+            active={tab.label === active}
+            onIntent={prefetchProjectRoute}
+          />
         ))}
       </div>
     </nav>
@@ -86,19 +119,24 @@ function ProjectRailLink({
   projectId,
   tab,
   active,
+  onIntent,
 }: {
   projectId: string;
   tab: ProjectTab;
   active: boolean;
+  onIntent: (href: string) => void;
 }) {
   const Icon = tab.icon;
+  const href = `/projects/${projectId}${tab.href}`;
 
   return (
     <Link
-      href={`/projects/${projectId}${tab.href}`}
+      href={href}
       aria-current={active ? "page" : undefined}
       aria-label={tab.label}
       title={tab.label}
+      onFocus={() => onIntent(href)}
+      onPointerEnter={() => onIntent(href)}
       className={`group relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors ${
         active
           ? "bg-ink text-white shadow-[0_4px_12px_rgba(17,17,17,0.16)]"

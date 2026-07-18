@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { ExternalLink } from "lucide-react";
+import { openPdfViewer } from "@/lib/pdf-viewer";
 import { resolveRoadblock, updateRoadblockDetails } from "@/app/actions/tasks";
 import { Button } from "@/components/ui/Button";
 import { ErrorText } from "@/components/ui/ErrorText";
@@ -18,6 +20,9 @@ export type RoadblockRow = {
   roadblockType: RoadblockType | null;
   roadblockOwnerId: string | null;
   roadblockDueDate: Date | null;
+  roadblockAttachment: { fileName: string; fileUrl: string } | null;
+  roadblockPageNumber: number | null;
+  roadblockCitationExcerpt: string | null;
   raisedByName: string;
   assignedToUserId: string | null;
 };
@@ -132,7 +137,30 @@ function RoadblockRowView({
           <span className="text-xs">{ROADBLOCK_TYPE_LABELS[type]}</span>
         )}
       </td>
-      <td className="py-3 pr-3 text-body max-w-[220px]">{roadblock.roadblockNote}</td>
+      <td className="max-w-[260px] py-3 pr-3 text-body">
+        <p>{roadblock.roadblockNote}</p>
+        {roadblock.roadblockAttachment && (
+          <button
+            type="button"
+            onClick={() => openPdfViewer(
+              roadblock.roadblockAttachment!.fileUrl,
+              roadblock.roadblockAttachment!.fileName,
+              "dashboard",
+              { page: roadblock.roadblockPageNumber ?? 1 }
+            )}
+            className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-muted hover:text-ink"
+          >
+            {roadblock.roadblockAttachment.fileName}
+            {roadblock.roadblockPageNumber ? `, page ${roadblock.roadblockPageNumber}` : ""}
+            <ExternalLink size={11} aria-hidden />
+          </button>
+        )}
+        {roadblock.roadblockCitationExcerpt && (
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted">
+            {roadblock.roadblockCitationExcerpt}
+          </p>
+        )}
+      </td>
       <td className="py-3 pr-3">
         {canManage ? (
           <select

@@ -36,6 +36,7 @@ import {
   isWeeklyCommitmentActionRequest,
   parseDeterministicBaselineAction,
   parseDeterministicProjectControlAction,
+  parseDeterministicRoadblockAction,
   parseDeterministicScheduleWhatIf,
   parseDeterministicScheduleImpactAction,
   parseDeterministicTaskProgressAction,
@@ -43,9 +44,19 @@ import {
   parseRfiQuestionFollowUp,
 } from "@/lib/assistant-intent";
 import { AssistantActionError } from "@/lib/assistant-actions";
+import {
+  consumeAssistantBurstLimit,
+  consumeAssistantModelQuota,
+  usageLimitHeaders,
+} from "@/lib/assistant-usage";
 import { env } from "@/lib/env";
 import { createAssistantTools } from "@/lib/assistant-tools";
-import { getOpenRouterModel } from "@/lib/openrouter";
+import {
+  getOpenRouterModel,
+  getOpenRouterModelOrder,
+  getOpenRouterRequestOptions,
+  openRouterErrorMessage,
+} from "@/lib/openrouter";
 import { prisma } from "@/lib/prisma";
 import { isProjectDocumentQuestion } from "@/lib/project-document-search";
 import { requireActiveOrganization, requireUser } from "@/lib/session";
@@ -68,11 +79,7 @@ function serializeParts(parts: UIMessage["parts"]): Prisma.InputJsonValue {
 }
 
 function streamErrorMessage(error: unknown): string {
-  const detail = error instanceof Error ? error.message.toLowerCase() : "";
-  if (detail.includes("429") || detail.includes("rate limit")) {
-    return "OpenRouter's free models are busy right now. Please wait a moment and try again.";
-  }
-  return "OpenRouter could not complete this response. Please try again.";
+  return openRouterErrorMessage(error);
 }
 
 function assistantMessageIdFor(userMessageId: string) {
@@ -164,6 +171,7 @@ function createPersistedTextResponse({
           update: {
             content: text,
             parts: serializeParts(responseMessage.parts),
+            model,
             completedAt: finalCompletedAt,
             durationMs: finalDurationMs,
           },
@@ -211,6 +219,9 @@ export async function POST(request: Request) {
   const conversation = await requireAssistantConversation(parsed.data.conversationId, user.id, organizationId);
   const existingMessage = await prisma.assistantMessage.findUnique({ where: { id: latestMessage.id } });
   const assistantMessageId = assistantMessageIdFor(latestMessage.id);
+  const existingAssistantMessage = await prisma.assistantMessage.findUnique({
+    where: { id: assistantMessageId },
+  });
 
   const fileParts = assistantFileParts(latestMessage);
   if (fileParts.length > MAX_ASSISTANT_ATTACHMENTS) {
@@ -252,6 +263,22 @@ export async function POST(request: Request) {
     return Response.json({ error: "Message already belongs to another conversation." }, { status: 409 });
   }
 
+  // Idempotent retries and completed-message replays are free. Only reserve a
+  // burst slot when this request would start a brand-new assistant response.
+  if (!existingAssistantMessage) {
+    const burstLimit = await consumeAssistantBurstLimit(user.id);
+    if (!burstLimit.allowed) {
+      const retrySeconds = Math.max(
+        1,
+        Math.ceil((burstLimit.resetAt.getTime() - Date.now()) / 1000)
+      );
+      return Response.json(
+        { error: `You're sending messages too quickly. Wait ${retrySeconds} seconds and try again.` },
+        { status: 429, headers: usageLimitHeaders(burstLimit) }
+      );
+    }
+  }
+
   if (!existingMessage) {
     const attachmentSummary = attachments.length
       ? `\n\nAttached project files (stored securely): ${attachments
@@ -282,9 +309,6 @@ export async function POST(request: Request) {
     ]);
   }
 
-  const existingAssistantMessage = await prisma.assistantMessage.findUnique({
-    where: { id: assistantMessageId },
-  });
   const responseStartedAt = existingAssistantMessage?.createdAt ?? new Date();
   if (existingAssistantMessage) {
     if (existingAssistantMessage.conversationId !== conversation.id) {
@@ -490,6 +514,9 @@ export async function POST(request: Request) {
   const deterministicWhatIf = forceScheduleProposal
     ? parseDeterministicScheduleWhatIf(question)
     : null;
+  const deterministicRoadblock = forceRoadblockProposal
+    ? parseDeterministicRoadblockAction(question)
+    : null;
   const deterministicProjectControl = forceRfiProposal || forceSubmittalProposal
     ? parseDeterministicProjectControlAction(question) ??
       (forceRfiProposal ? rfiQuestionFollowUp : null)
@@ -508,7 +535,8 @@ export async function POST(request: Request) {
     : null;
   const deterministicAction = deterministicWhatIf
     ? { toolName: "proposeScheduleChange" as const, input: deterministicWhatIf }
-    : deterministicProjectControl ??
+    : deterministicRoadblock ??
+      deterministicProjectControl ??
       deterministicTaskProgress ??
       deterministicWeeklyCommitment ??
       deterministicScheduleImpact ??
@@ -606,7 +634,9 @@ export async function POST(request: Request) {
           const toolOptions = { toolCallId, messages: [], context: {} };
           const output = deterministicAction.toolName === "proposeScheduleChange"
             ? await tools.proposeScheduleChange.execute!(deterministicAction.input, toolOptions)
-            : deterministicAction.toolName === "proposeRfiChange"
+            : deterministicAction.toolName === "proposeRoadblockChange"
+              ? await tools.proposeRoadblockChange.execute!(deterministicAction.input, toolOptions)
+              : deterministicAction.toolName === "proposeRfiChange"
               ? await tools.proposeRfiChange.execute!(deterministicAction.input, toolOptions)
               : deterministicAction.toolName === "proposeSubmittalChange"
                 ? await tools.proposeSubmittalChange.execute!(deterministicAction.input, toolOptions)
@@ -692,40 +722,103 @@ export async function POST(request: Request) {
     return createUIMessageStreamResponse({ stream: directStream });
   }
 
+  let routedModel = env.OPENROUTER_MODEL;
+  let openRouterModel: ReturnType<typeof getOpenRouterModel>;
+  try {
+    openRouterModel = getOpenRouterModel();
+  } catch (error) {
+    const message = streamErrorMessage(error);
+    assistantTraceLog("error", {
+      conversationId: conversation.id,
+      userMessageId: latestMessage.id,
+      assistantMessageId,
+      modelOrder: getOpenRouterModelOrder(),
+      message,
+    });
+    return createPersistedTextResponse({
+      text: message,
+      originalMessages: validated.data,
+      assistantMessageId,
+      conversationId: conversation.id,
+      model: "openrouter-error",
+      responseStartedAt,
+    });
+  }
+
+  const organization = await prisma.organization.findUniqueOrThrow({
+    where: { id: organizationId },
+    select: { planTier: true },
+  });
+  const modelQuota = await consumeAssistantModelQuota(organizationId, organization.planTier);
+  if (!modelQuota.allowed) {
+    const resetLabel = new Intl.DateTimeFormat("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(modelQuota.resetAt);
+    assistantTraceLog("error", {
+      conversationId: conversation.id,
+      userMessageId: latestMessage.id,
+      assistantMessageId,
+      reason: "monthly-model-limit",
+      planTier: organization.planTier,
+      limit: modelQuota.limit,
+      resetAt: modelQuota.resetAt.toISOString(),
+    });
+    return createPersistedTextResponse({
+      text:
+        `This workspace has reached its monthly Agent model limit (${modelQuota.limit.toLocaleString("en-US")}). ` +
+        `The allowance resets on ${resetLabel}. Direct project proposal commands remain available.`,
+      originalMessages: validated.data,
+      assistantMessageId,
+      conversationId: conversation.id,
+      model: "local-usage-limit",
+      responseStartedAt,
+    });
+  }
+
   const context = await buildAssistantContext(organizationId, user.id, conversation.projectId ?? undefined);
   assistantTraceLog("stream-start", {
     conversationId: conversation.id,
     userMessageId: latestMessage.id,
     assistantMessageId,
     forcedTool,
-    model: env.OPENROUTER_MODEL,
+    modelOrder: getOpenRouterModelOrder(),
+    maxRetries: env.OPENROUTER_MAX_RETRIES,
+    monthlyModelRequestsRemaining: modelQuota.remaining,
   });
   const result = streamText({
-    model: getOpenRouterModel(),
-    system:
-      ASSISTANT_TOOL_SYSTEM_PROMPT +
-      "Attached project files are already uploaded, saved securely, and linked to the conversation. Never claim BuilderBridge cannot save or attach them. Use searchProjectDocuments before describing file contents, and ground the answer only in returned extracted snippets. If extraction is unavailable or no snippet matches, say that clearly.\n\n" +
-      context,
-    messages: recentMessages.map((message) => ({
-      role: message.role === "USER" ? ("user" as const) : ("assistant" as const),
-      content: message.content,
-    })),
-    tools,
-    toolChoice: "auto",
-    prepareStep: ({ stepNumber }) =>
-      stepNumber === 0 && forcedTool
-        ? {
-            activeTools: [forcedTool],
-            toolChoice: { type: "tool", toolName: forcedTool },
-          }
-        : { toolChoice: "auto" },
-    stopWhen: stepCountIs(6),
-    temperature: 0.3,
-    maxOutputTokens: 1000,
-    abortSignal: request.signal,
+    model: openRouterModel,
+    ...getOpenRouterRequestOptions(),
+      system:
+        ASSISTANT_TOOL_SYSTEM_PROMPT +
+        "Attached project files are already uploaded, saved securely, and linked to the conversation. Never claim BuilderBridge cannot save or attach them. Use searchProjectDocuments before describing file contents, and ground the answer only in returned extracted snippets. If extraction is unavailable or no snippet matches, say that clearly.\n\n" +
+        context,
+      messages: recentMessages.map((message) => ({
+        role: message.role === "USER" ? ("user" as const) : ("assistant" as const),
+        content: message.content,
+      })),
+      tools,
+      toolChoice: "auto",
+      prepareStep: ({ stepNumber }) =>
+        stepNumber === 0 && forcedTool
+          ? {
+              activeTools: [forcedTool],
+              toolChoice: { type: "tool", toolName: forcedTool },
+            }
+          : { toolChoice: "auto" },
+      stopWhen: stepCountIs(6),
+      temperature: 0.3,
+      maxOutputTokens: 1000,
+      abortSignal: request.signal,
+      onStepEnd: ({ response }) => {
+        routedModel = response.modelId || routedModel;
+      },
   });
 
   let streamedCompletedAt: Date | null = null;
+  let streamFailureMessage = "";
   const stream = toUIMessageStream({
     stream: result.stream,
     tools,
@@ -746,10 +839,29 @@ export async function POST(request: Request) {
       }
       return undefined;
     },
-    onError: streamErrorMessage,
+    onError: (error) => {
+      streamFailureMessage = streamErrorMessage(error);
+      assistantTraceLog("error", {
+        conversationId: conversation.id,
+        userMessageId: latestMessage.id,
+        assistantMessageId,
+        model: routedModel,
+        message: streamFailureMessage,
+      });
+      return streamFailureMessage;
+    },
     onEnd: async ({ responseMessage, isAborted }) => {
-      const content = messageText(responseMessage).trim();
       if (isAborted) return;
+      const streamedContent = messageText(responseMessage).trim();
+      const content = streamFailureMessage
+        ? [streamedContent, streamFailureMessage].filter(Boolean).join("\n\n")
+        : streamedContent;
+      const persistedParts = streamFailureMessage
+        ? [
+            ...responseMessage.parts,
+            { type: "text" as const, text: `${streamedContent ? "\n\n" : ""}${streamFailureMessage}` },
+          ]
+        : responseMessage.parts;
       const finalCompletedAt = streamedCompletedAt ?? new Date();
       const finalDurationMs = Math.max(0, finalCompletedAt.getTime() - responseStartedAt.getTime());
       assistantTraceLog("finish", {
@@ -757,7 +869,7 @@ export async function POST(request: Request) {
         userMessageId: latestMessage.id,
         assistantMessageId,
         forcedTool,
-        model: env.OPENROUTER_MODEL,
+        model: routedModel,
         contentLength: content.length,
       });
       await prisma.$transaction([
@@ -765,17 +877,18 @@ export async function POST(request: Request) {
           where: { id: assistantMessageId },
           update: {
             content,
-            parts: serializeParts(responseMessage.parts),
+            parts: serializeParts(persistedParts),
             completedAt: finalCompletedAt,
             durationMs: finalDurationMs,
+            model: routedModel,
           },
           create: {
             id: assistantMessageId,
             conversationId: conversation.id,
             role: "ASSISTANT",
             content,
-            parts: serializeParts(responseMessage.parts),
-            model: env.OPENROUTER_MODEL,
+            parts: serializeParts(persistedParts),
+            model: routedModel,
             createdAt: responseStartedAt,
             completedAt: finalCompletedAt,
             durationMs: finalDurationMs,

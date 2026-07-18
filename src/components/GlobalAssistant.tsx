@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { AssistantConversation } from "@/components/ai-elements/AssistantConversation";
 import { AssistantPromptInput } from "@/components/ai-elements/AssistantPromptInput";
+import { PdfViewerPanel } from "@/components/PdfViewer";
 import type {
   AssistantAttachmentView,
   AssistantBootstrap,
@@ -28,6 +29,11 @@ import {
   MAX_ASSISTANT_ATTACHMENT_BYTES,
   MAX_ASSISTANT_ATTACHMENTS,
 } from "@/lib/assistant-attachments";
+import {
+  PDF_VIEWER_EVENT,
+  type PdfViewerDocument,
+  type PdfViewerRequest,
+} from "@/lib/pdf-viewer";
 
 const PORTFOLIO_SUGGESTIONS = [
   "Which projects need attention today?",
@@ -42,6 +48,15 @@ const PROJECT_SUGGESTIONS = [
   "Which tasks need attention this week?",
   "Review current RFIs and submittals.",
 ];
+
+function fileSuggestions(fileName: string): string[] {
+  return [
+    `Summarize "${fileName}" for the project team.`,
+    `Find possible RFIs in "${fileName}".`,
+    `Extract schedule risks from "${fileName}".`,
+    `Create action items from "${fileName}".`,
+  ];
+}
 
 function focusProjectIdFromPath(pathname: string | null): string | null {
   const match = pathname?.match(/^\/projects\/([^/]+)/);
@@ -69,6 +84,7 @@ type ChatWorkspaceProps = {
   pendingPrompt: string | null;
   onPromptConsumed: () => void;
   draftPrompt: string | null;
+  suggestions: string[];
   onSent: (prompt: string) => void;
   onUpdated: () => void;
   onRecovered: (detail: AssistantConversationDetail) => void;
@@ -80,6 +96,7 @@ function ChatWorkspace({
   pendingPrompt,
   onPromptConsumed,
   draftPrompt,
+  suggestions,
   onSent,
   onUpdated,
   onRecovered,
@@ -218,7 +235,7 @@ function ChatWorkspace({
       <AssistantConversation
         messages={messages}
         busy={busy}
-        suggestions={projectScoped ? PROJECT_SUGGESTIONS : PORTFOLIO_SUGGESTIONS}
+        suggestions={suggestions}
         onSuggestion={send}
       />
       {error && (
@@ -253,10 +270,12 @@ export function GlobalAssistant() {
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const [draftPrompt, setDraftPrompt] = useState<string | null>(null);
   const [draftVersion, setDraftVersion] = useState(0);
+  const [suggestions, setSuggestions] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [railOpen, setRailOpen] = useState(false);
   const [conversationQuery, setConversationQuery] = useState("");
+  const [pdfDocument, setPdfDocument] = useState<PdfViewerDocument | null>(null);
 
   const loadConversation = useCallback(async (conversationId: string) => {
     setLoading(true);
@@ -279,6 +298,7 @@ export function GlobalAssistant() {
     try {
       const nextBootstrap = await fetchJson<AssistantBootstrap>("/api/assistant/conversations");
       setBootstrap(nextBootstrap);
+      setSuggestions(null);
       const nextScope =
         focusProjectId && nextBootstrap.projects.some((project) => project.id === focusProjectId)
           ? focusProjectId
@@ -305,14 +325,25 @@ export function GlobalAssistant() {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Escape") return;
+      if (pdfDocument) setPdfDocument(null);
+      else setOpen(false);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [open]);
+  }, [open, pdfDocument]);
+
+  useEffect(() => {
+    const openViewer = (event: Event) => {
+      const request = (event as CustomEvent<PdfViewerRequest>).detail;
+      if (request?.placement === "agent") setPdfDocument(request);
+    };
+    window.addEventListener(PDF_VIEWER_EVENT, openViewer);
+    return () => window.removeEventListener(PDF_VIEWER_EVENT, openViewer);
+  }, []);
 
   useEffect(() => {
     window.dispatchEvent(
@@ -324,6 +355,7 @@ export function GlobalAssistant() {
     const toggleAssistant = (event: Event) => {
       const requestedOpen = (event as CustomEvent<{ open?: boolean }>).detail?.open;
       const nextOpen = typeof requestedOpen === "boolean" ? requestedOpen : !open;
+      if (!nextOpen) setPdfDocument(null);
       setOpen(nextOpen);
       if (nextOpen) void loadWorkspace();
     };
@@ -346,6 +378,7 @@ export function GlobalAssistant() {
         setBootstrap(nextBootstrap);
         setScopeId(detail.conversation.projectId);
         setActive(detail);
+        setSuggestions(null);
         setRailOpen(false);
       } catch (openError) {
         setError(openError instanceof Error ? openError.message : "Could not open this conversation.");
@@ -355,6 +388,51 @@ export function GlobalAssistant() {
     };
     window.addEventListener("builderbridge:open-assistant-conversation", openConversation);
     return () => window.removeEventListener("builderbridge:open-assistant-conversation", openConversation);
+  }, []);
+
+  useEffect(() => {
+    const openProjectFileAgent = async (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId?: string; fileName?: string }>).detail;
+      if (!detail?.projectId || !detail.fileName) return;
+      setOpen(true);
+      setLoading(true);
+      setError(null);
+      setActive(null);
+      try {
+        const nextBootstrap = await fetchJson<AssistantBootstrap>("/api/assistant/conversations");
+        if (!nextBootstrap.projects.some((project) => project.id === detail.projectId)) {
+          throw new Error("This project is unavailable or you no longer have access.");
+        }
+
+        const conversation = await fetchJson<AssistantConversationSummary>(
+          "/api/assistant/conversations",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ projectId: detail.projectId }),
+          }
+        );
+
+        setBootstrap({
+          ...nextBootstrap,
+          conversations: [conversation, ...nextBootstrap.conversations],
+        });
+        setScopeId(detail.projectId);
+        setActive({ conversation, messages: [] });
+        setPendingPrompt(null);
+        setDraftPrompt(null);
+        setSuggestions(fileSuggestions(detail.fileName));
+        setDraftVersion((version) => version + 1);
+        setRailOpen(false);
+      } catch (openError) {
+        setError(openError instanceof Error ? openError.message : "Could not open Agent.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    window.addEventListener("builderbridge:open-project-file-agent", openProjectFileAgent);
+    return () =>
+      window.removeEventListener("builderbridge:open-project-file-agent", openProjectFileAgent);
   }, []);
 
   useEffect(() => {
@@ -371,6 +449,7 @@ export function GlobalAssistant() {
         }
         setBootstrap(nextBootstrap);
         setScopeId(detail.projectId);
+        setSuggestions(fileSuggestions(detail.fileName));
         const latest = nextBootstrap.conversations.find(
           (conversation) => conversation.projectId === detail.projectId
         );
@@ -411,7 +490,11 @@ export function GlobalAssistant() {
 
   useEffect(() => {
     const raiseRfiFromFile = async (event: Event) => {
-      const detail = (event as CustomEvent<{ projectId?: string; fileName?: string }>).detail;
+      const detail = (event as CustomEvent<{
+        projectId?: string;
+        fileName?: string;
+        action?: "RFI" | "SUBMITTAL" | "ROADBLOCK";
+      }>).detail;
       if (!detail?.projectId || !detail.fileName) return;
       setOpen(true);
       setLoading(true);
@@ -423,6 +506,7 @@ export function GlobalAssistant() {
         }
         setBootstrap(nextBootstrap);
         setScopeId(detail.projectId);
+        setSuggestions(fileSuggestions(detail.fileName));
         const latest = nextBootstrap.conversations.find(
           (conversation) => conversation.projectId === detail.projectId
         );
@@ -448,7 +532,12 @@ export function GlobalAssistant() {
           );
           setActive({ conversation, messages: [] });
         }
-        setDraftPrompt(`Raise an RFI from "${detail.fileName}": `);
+        const draft = detail.action === "SUBMITTAL"
+          ? `Create a submittal from "${detail.fileName}": `
+          : detail.action === "ROADBLOCK"
+            ? `Flag [task name] as a roadblock from "${detail.fileName}": `
+            : `Raise an RFI from "${detail.fileName}": `;
+        setDraftPrompt(draft);
         setDraftVersion((version) => version + 1);
         setRailOpen(false);
       } catch (openError) {
@@ -487,6 +576,7 @@ export function GlobalAssistant() {
       setRailOpen(false);
       setPendingPrompt(null);
       setDraftPrompt(null);
+      setSuggestions(null);
       const latest = bootstrap?.conversations.find((conversation) => conversation.projectId === projectId);
       if (latest) void loadConversation(latest.id);
       else setActive(null);
@@ -512,6 +602,7 @@ export function GlobalAssistant() {
         );
         setActive({ conversation, messages: [] });
         setPendingPrompt(prompt ?? null);
+        setSuggestions(null);
         setRailOpen(false);
       } catch (createError) {
         setError(createError instanceof Error ? createError.message : "Could not start a conversation.");
@@ -592,7 +683,10 @@ export function GlobalAssistant() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setOpen(false)}
+                      onClick={() => {
+                        setPdfDocument(null);
+                        setOpen(false);
+                      }}
                       className="flex min-w-0 items-center justify-center gap-1.5 rounded-sm px-2 text-xs font-medium text-[var(--assistant-rail-faint)] transition-colors hover:bg-[var(--assistant-layer-hover)] hover:text-[var(--assistant-rail-text)]"
                       aria-label="Return to dashboard"
                     >
@@ -719,7 +813,10 @@ export function GlobalAssistant() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    setPdfDocument(null);
+                    setOpen(false);
+                  }}
                   className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--assistant-text-faint)] hover:bg-[var(--assistant-layer-hover)] hover:text-[var(--assistant-text)] md:hidden"
                   aria-label="Close Agent"
                   title="Return to dashboard"
@@ -728,6 +825,8 @@ export function GlobalAssistant() {
                 </button>
               </header>
 
+              <div className="flex min-h-0 flex-1 overflow-hidden">
+                <div className={`${pdfDocument ? "hidden lg:flex lg:w-1/2" : "flex w-full"} min-h-0 min-w-0 flex-col`}>
               {error && !active ? (
                 <div className="flex flex-1 items-center justify-center px-6 text-center">
                   <div>
@@ -747,6 +846,7 @@ export function GlobalAssistant() {
                   pendingPrompt={pendingPrompt}
                   onPromptConsumed={() => setPendingPrompt(null)}
                   draftPrompt={draftPrompt}
+                  suggestions={suggestions ?? (scopeId !== null ? PROJECT_SUGGESTIONS : PORTFOLIO_SUGGESTIONS)}
                   onSent={handleSent}
                   onUpdated={refreshSummaries}
                   onRecovered={setActive}
@@ -768,6 +868,18 @@ export function GlobalAssistant() {
                   </div>
                 </div>
               )}
+                </div>
+                {pdfDocument && (
+                  <div className="h-full min-h-0 min-w-0 w-full lg:w-1/2">
+                    <PdfViewerPanel
+                      key={`${pdfDocument.url}:${pdfDocument.page}`}
+                      document={pdfDocument}
+                      onClose={() => setPdfDocument(null)}
+                      variant="agent"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </aside>
         </div>

@@ -12,6 +12,18 @@ const envSchema = z.object({
   // "openrouter/free" auto-selects an available free model with failover,
   // which sidesteps rate limits on any single popular free model.
   OPENROUTER_MODEL: z.string().default("openrouter/free"),
+  // Comma-separated model IDs tried by OpenRouter after OPENROUTER_MODEL.
+  // Keeping openrouter/free as the final fallback preserves free-tier support
+  // when a specific primary model is configured.
+  OPENROUTER_FALLBACK_MODELS: z.string().default("openrouter/free"),
+  // The AI SDK retries retryable pre-stream failures with exponential backoff.
+  OPENROUTER_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
+  // Agent abuse protection and monthly model-request allowances. Local,
+  // deterministic proposal handlers do not consume the monthly allowance.
+  AI_CHAT_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).max(300).default(30),
+  AI_MONTHLY_LIMIT_FREE: z.coerce.number().int().min(1).default(250),
+  AI_MONTHLY_LIMIT_CORE: z.coerce.number().int().min(1).default(2500),
+  AI_MONTHLY_LIMIT_PRO: z.coerce.number().int().min(1).default(10000),
   // Optional: S3-compatible object storage (Supabase Storage / Cloudflare R2 /
   // AWS S3 / MinIO) for Field Tracking photos and Drawings. Endpoint, keys,
   // and bucket must be set together to enable it — otherwise uploads fall

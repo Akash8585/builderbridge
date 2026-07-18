@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../../node_modules/streamdown/dist/*.js";
 
 /*
   Design tokens sourced from DESIGN.md (Cal.com-inspired visual language).
@@ -183,6 +184,63 @@ body {
   --assistant-on-accent: #ffffff;
   --assistant-shadow: rgba(38, 45, 56, 0.1);
   --assistant-rail-shadow: rgba(38, 45, 56, 0.08);
+}
+
+.assistant-markdown {
+  --color-background: var(--assistant-panel);
+  --color-foreground: var(--assistant-text-body);
+  --color-primary: var(--assistant-text);
+  --color-muted: var(--assistant-layer-strong);
+  --color-muted-foreground: var(--assistant-text-muted);
+  --color-border: var(--assistant-border-strong);
+  --color-sidebar: var(--assistant-layer);
+  color: var(--assistant-text-body);
+  line-height: 1.75;
+}
+
+.assistant-markdown p {
+  margin: 0;
+}
+
+.assistant-markdown [data-streamdown="strong"] {
+  color: var(--assistant-text);
+  font-weight: 600;
+}
+
+.assistant-markdown [data-streamdown="heading-1"],
+.assistant-markdown [data-streamdown="heading-2"],
+.assistant-markdown [data-streamdown="heading-3"],
+.assistant-markdown [data-streamdown="heading-4"],
+.assistant-markdown [data-streamdown="heading-5"],
+.assistant-markdown [data-streamdown="heading-6"] {
+  margin: 1rem 0 0.35rem;
+  color: var(--assistant-text);
+  font-size: 1rem;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+.assistant-markdown [data-streamdown="ordered-list"],
+.assistant-markdown [data-streamdown="unordered-list"] {
+  margin: 0.35rem 0;
+  padding-left: 1.4rem;
+}
+
+.assistant-markdown [data-streamdown="list-item"] {
+  margin: 0.2rem 0;
+  padding-left: 0.15rem;
+}
+
+.assistant-markdown [data-streamdown="inline-code"] {
+  border-radius: 4px;
+  background: var(--assistant-layer-strong);
+  color: var(--assistant-text);
+}
+
+.assistant-markdown [data-streamdown="link"] {
+  color: var(--assistant-text);
+  text-decoration-color: var(--assistant-border-strong);
+  text-underline-offset: 3px;
 }
 
 ::selection {

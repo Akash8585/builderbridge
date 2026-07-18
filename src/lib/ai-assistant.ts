@@ -4,7 +4,8 @@ import { formatDate, TASK_STATUS_LABELS, ROADBLOCK_TYPE_LABELS } from "@/lib/uti
 import { computePpcTrend } from "@/lib/analytics";
 import { loadProjectSummary } from "@/lib/project-summary";
 import { stripAssistantMarkdown } from "@/lib/assistant-plain-text";
-import { getOpenRouterModel } from "@/lib/openrouter";
+import { getOpenRouterModel, getOpenRouterRequestOptions } from "@/lib/openrouter";
+import { requireOrganizationMember } from "@/lib/permissions";
 
 export { AssistantNotConfiguredError } from "@/lib/openrouter";
 
@@ -78,6 +79,7 @@ export async function buildAssistantContext(
   userId: string,
   focusProjectId?: string
 ): Promise<string> {
+  await requireOrganizationMember(userId, organizationId);
   const [organization, projects] = await Promise.all([
     prisma.organization.findUniqueOrThrow({ where: { id: organizationId } }),
     prisma.project.findMany({
@@ -139,7 +141,7 @@ export const ASSISTANT_SYSTEM_PROMPT =
   "If the data is insufficient, say exactly what is missing. You may prepare changes only through the available confirmation-gated proposal tools, and must not claim to have changed project data before confirmation. " +
   "Return only the user-facing answer; never output internal analysis, safety labels, or tool-call JSON. " +
   "Never mention database IDs, internal records, tool names, tool calls, lookup steps, or implementation details. " +
-  "Use concise, plain conversational text. Avoid markdown symbols and emojis unless the user explicitly requests a formatted response.\n\n";
+  "Use concise conversational text. You may use **bold** for short labels that improve scanning, but avoid decorative formatting and emojis unless the user requests them.\n\n";
 
 export const ASSISTANT_TOOL_SYSTEM_PROMPT =
   ASSISTANT_SYSTEM_PROMPT +
@@ -159,7 +161,8 @@ export const ASSISTANT_TOOL_SYSTEM_PROMPT =
   "When the user wants to submit or raise an RFI but has not given the question yet, ask only for the exact RFI question text. Never say a proposal was prepared. When they supply the question (including 'my question is ...'), call proposeRfiChange CREATE immediately. " +
   "When the user asks for task options while raising an RFI, list the project task names and tell them how to include one in the raise command. " +
   "When the user asks to raise an RFI from a project file or cited page, call proposeRfiChange with operation CREATE and include fileName plus any page/passage they named. Do not call searchProjectDocuments first for a clear document-to-RFI request. " +
-  "When the user asks to create a submittal or change its review status, call proposeSubmittalChange directly. New submittals may include a spec section, linked task, and due date. Use REVISE_RESUBMIT for revise-and-resubmit decisions. " +
+  "When the user asks to create a submittal or change its review status, call proposeSubmittalChange directly. New submittals may include a spec section, linked task, due date, and source document (fileName with optional pageNumber or citationExcerpt). Use REVISE_RESUBMIT for revise-and-resubmit decisions. " +
+  "When the user asks to create a submittal from a project file or cited page, call proposeSubmittalChange CREATE with fileName and any page/passage they named. When they ask to flag a task as a roadblock from a project file or cited page, call proposeRoadblockChange with taskName, note, fileName, and any page/passage. Do not search the document first when the requested title or roadblock note is already explicit. " +
   "RFI and submittal records synced from an external system are read-only in BuilderBridge; repeat the tool clarification instead of claiming a proposal exists. " +
   "If task search has no exact or clearly unambiguous match, ask one brief clarification that names at most three likely tasks. Do not dump the schedule, discuss your search process, or continue resolving other fields until the task is confirmed. " +
   "If a named owner or assignee has no unique match, ask one brief name clarification using human-readable names only. " +
@@ -180,6 +183,7 @@ export async function answerAssistantQuestion(
   const context = await buildAssistantContext(organizationId, options.userId, options?.focusProjectId);
   const { text } = await generateText({
     model: getOpenRouterModel(),
+    ...getOpenRouterRequestOptions(),
     system: ASSISTANT_SYSTEM_PROMPT + context,
     messages: [
       ...(options?.history ?? []).map((message) => ({ role: message.role, content: message.content })),

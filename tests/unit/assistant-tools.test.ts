@@ -16,6 +16,7 @@ import {
   isWeeklyCommitmentActionRequest,
   isAwaitingRfiQuestion,
   parseDeterministicBaselineAction,
+  parseDeterministicRoadblockAction,
   parseDeterministicProjectControlAction,
   parseDeterministicScheduleWhatIf,
   parseDeterministicScheduleImpactAction,
@@ -378,6 +379,37 @@ describe("parseDeterministicProjectControlAction", () => {
       });
     expect(parseDeterministicProjectControlAction("Approve the submittal storefront product data"))
       .toMatchObject({ input: { operation: "UPDATE_STATUS", status: "APPROVED" } });
+    expect(
+      parseDeterministicProjectControlAction(
+        'Create a submittal from "Waterproofing Spec.pdf" page 3: Membrane product data'
+      )
+    ).toEqual({
+      toolName: "proposeSubmittalChange",
+      input: {
+        operation: "CREATE",
+        title: "Membrane product data",
+        fileName: "Waterproofing Spec.pdf",
+        pageNumber: 3,
+      },
+    });
+  });
+});
+
+describe("parseDeterministicRoadblockAction", () => {
+  it("parses a cited document roadblock without an AI provider", () => {
+    expect(
+      parseDeterministicRoadblockAction(
+        'Flag Rough plumbing install as a roadblock from "Permit Log.pdf" page 2: Permit approval is pending'
+      )
+    ).toEqual({
+      toolName: "proposeRoadblockChange",
+      input: {
+        taskName: "Rough plumbing install",
+        note: "Permit approval is pending",
+        fileName: "Permit Log.pdf",
+        pageNumber: 2,
+      },
+    });
   });
 });
 

@@ -32,7 +32,13 @@ test("RFI commands create proposal cards without OpenRouter", async ({ page }) =
     await expect(proposal.getByText("Raise RFI", { exact: false })).toBeVisible();
     await expect(proposal.getByRole("button", { name: "Confirm change" })).toBeVisible();
     await expect(dialog.getByText(/OpenRouter could not complete/)).toHaveCount(0);
+    const cancelPromise = page.waitForResponse(
+      (response) => response.url().includes("/api/assistant/actions/") && response.request().method() === "PATCH"
+    );
     await proposal.getByRole("button", { name: "Cancel" }).click();
+    const cancelResponse = await cancelPromise;
+    expect(cancelResponse.ok()).toBe(true);
+    expect((await cancelResponse.json()).proposal.status).toBe("CANCELLED");
     await expect(proposal.getByText("Proposal cancelled")).toBeVisible();
     await proposal.getByRole("link", { name: "Open RFI log" }).click();
     await expect(dialog).toBeHidden();

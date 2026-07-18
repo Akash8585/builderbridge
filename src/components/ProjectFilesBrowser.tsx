@@ -5,18 +5,17 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Camera,
-  ExternalLink,
   FileImage,
   FileText,
   FolderOpen,
   LoaderCircle,
-  MessageSquarePlus,
   RotateCcw,
   Search,
   Trash2,
   Upload,
 } from "lucide-react";
 import { AgentIcon } from "@/components/AgentIcon";
+import { openPdfViewer } from "@/lib/pdf-viewer";
 
 export type ProjectFileKind = "PROJECT_DOCUMENT" | "AI_UPLOAD" | "DRAWING" | "FIELD_PHOTO";
 export type DocumentProcessingState = "PENDING" | "PROCESSING" | "READY" | "FAILED" | "UNSUPPORTED";
@@ -123,6 +122,25 @@ function FileThumb({ file }: { file: ProjectFileRecord }) {
   );
 }
 
+function FileNameAction({ file }: { file: ProjectFileRecord }) {
+  if (file.mediaType === "application/pdf") {
+    return (
+      <button
+        type="button"
+        onClick={() => openPdfViewer(file.url, file.name, "dashboard")}
+        className="block max-w-full truncate text-left font-medium text-ink hover:underline"
+      >
+        {file.name}
+      </button>
+    );
+  }
+  return (
+    <a href={file.url} target="_blank" rel="noreferrer" className="block truncate font-medium text-ink hover:underline">
+      {file.name}
+    </a>
+  );
+}
+
 function SourceAction({ file }: { file: ProjectFileRecord }) {
   if (file.conversationId) {
     return (
@@ -156,41 +174,63 @@ function SourceAction({ file }: { file: ProjectFileRecord }) {
   return null;
 }
 
-function AskAiAction({ file, projectId }: { file: ProjectFileRecord; projectId: string }) {
-  if (file.extractionStatus !== "READY") return null;
+function OpenInAgentAction({ file, projectId }: { file: ProjectFileRecord; projectId: string }) {
+  if (file.extractionStatus === "PENDING" || file.extractionStatus === "PROCESSING") {
+    return (
+      <span className="inline-flex h-8 items-center justify-end gap-1 text-xs font-medium text-muted">
+        <LoaderCircle size={12} className="animate-spin" aria-hidden />
+        Processing
+      </span>
+    );
+  }
+
+  if (file.extractionStatus !== "READY") {
+    return <span className="text-xs font-medium text-muted">Stored only</span>;
+  }
+
   return (
-    <>
-      <button
-        type="button"
-        onClick={() =>
-          window.dispatchEvent(
-            new CustomEvent("builderbridge:ask-project-file", {
-              detail: { projectId, fileName: file.name },
-            })
-          )
-        }
-        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-canvas hover:text-ink"
-        aria-label={`Ask Agent about ${file.name}`}
-        title="Ask Agent about this file"
-      >
-        <AgentIcon size={17} />
-      </button>
-      <button
-        type="button"
-        onClick={() =>
-          window.dispatchEvent(
-            new CustomEvent("builderbridge:raise-rfi-from-file", {
-              detail: { projectId, fileName: file.name },
-            })
-          )
-        }
-        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-canvas hover:text-ink"
-        aria-label={`Raise RFI from ${file.name}`}
-        title="Raise an RFI from this file"
-      >
-        <MessageSquarePlus size={15} aria-hidden />
-      </button>
-    </>
+    <button
+      type="button"
+      onClick={() =>
+        window.dispatchEvent(
+          new CustomEvent("builderbridge:open-project-file-agent", {
+            detail: { projectId, fileName: file.name },
+          })
+        )
+      }
+      className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-md border border-hairline bg-canvas px-3 text-xs font-semibold text-ink transition-colors hover:border-muted-soft hover:bg-surface-soft"
+    >
+      Open in Agent
+    </button>
+  );
+}
+
+function DeleteFileAction({
+  file,
+  deleting,
+  onDelete,
+}: {
+  file: ProjectFileRecord;
+  deleting: boolean;
+  onDelete: () => void;
+}) {
+  if (!file.canDelete) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={onDelete}
+      disabled={deleting}
+      aria-label={`Delete ${file.name}`}
+      title="Delete file"
+      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-error/8 hover:text-error disabled:cursor-wait disabled:opacity-70"
+    >
+      {deleting ? (
+        <LoaderCircle size={15} className="animate-spin" aria-hidden />
+      ) : (
+        <Trash2 size={15} aria-hidden />
+      )}
+    </button>
   );
 }
 
@@ -377,11 +417,11 @@ export function ProjectFilesBrowser({
             <table className="w-full table-fixed text-left text-sm">
               <thead className="border-b border-hairline bg-surface-soft">
                 <tr>
-                  <th className="app-table-heading w-[38%] px-4 py-2.5">File</th>
+                  <th className="app-table-heading w-[34%] px-4 py-2.5">File</th>
                   <th className="app-table-heading w-[18%] px-4 py-2.5">Source</th>
                   <th className="app-table-heading w-[15%] px-4 py-2.5">Uploaded by</th>
                   <th className="app-table-heading w-[17%] px-4 py-2.5">Added</th>
-                  <th className="app-table-heading w-[12%] px-4 py-2.5 text-right">Open</th>
+                  <th className="app-table-heading w-[16%] px-4 py-2.5 text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -391,9 +431,7 @@ export function ProjectFilesBrowser({
                       <div className="flex min-w-0 items-center gap-3">
                         <FileThumb file={file} />
                         <div className="min-w-0">
-                          <a href={file.url} target="_blank" rel="noreferrer" className="block truncate font-medium text-ink hover:underline">
-                            {file.name}
-                          </a>
+                          <FileNameAction file={file} />
                           <p className="mt-0.5 truncate text-xs text-muted">
                             {KIND_LABELS[file.kind]} - {formatBytes(file.sizeBytes)}
                             {file.detail ? ` - ${file.detail}` : ""}
@@ -415,34 +453,13 @@ export function ProjectFilesBrowser({
                     <td className="truncate px-4 py-3 text-xs text-body">{file.uploadedBy}</td>
                     <td className="px-4 py-3 text-xs text-muted">{file.uploadedAtLabel}</td>
                     <td className="px-4 py-3 text-right">
-                      <div className="inline-flex items-center">
-                        <AskAiAction file={file} projectId={projectId} />
-                        <a
-                          href={file.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-canvas hover:text-ink"
-                          aria-label={`Open ${file.name}`}
-                          title="Open file"
-                        >
-                          <ExternalLink size={15} aria-hidden />
-                        </a>
-                        {file.canDelete && (
-                          <button
-                            type="button"
-                            onClick={() => void deleteFile(file)}
-                            disabled={deletingId === file.id}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-error/8 hover:text-error disabled:cursor-wait"
-                            aria-label={`Delete ${file.name}`}
-                            title="Delete file"
-                          >
-                            {deletingId === file.id ? (
-                              <LoaderCircle size={15} className="animate-spin" aria-hidden />
-                            ) : (
-                              <Trash2 size={15} aria-hidden />
-                            )}
-                          </button>
-                        )}
+                      <div className="inline-flex items-center justify-end gap-1.5">
+                        <OpenInAgentAction file={file} projectId={projectId} />
+                        <DeleteFileAction
+                          file={file}
+                          deleting={deletingId === file.id}
+                          onDelete={() => void deleteFile(file)}
+                        />
                       </div>
                     </td>
                   </tr>
@@ -457,9 +474,7 @@ export function ProjectFilesBrowser({
                 <div className="flex items-start gap-3">
                   <FileThumb file={file} />
                   <div className="min-w-0 flex-1">
-                    <a href={file.url} target="_blank" rel="noreferrer" className="block truncate text-sm font-medium text-ink">
-                      {file.name}
-                    </a>
+                    <FileNameAction file={file} />
                     <p className="mt-1 text-xs text-muted">{KIND_LABELS[file.kind]} - {formatBytes(file.sizeBytes)}</p>
                     <div className="mt-1">
                       <ProcessingStatus
@@ -474,22 +489,13 @@ export function ProjectFilesBrowser({
                       <span className="text-[11px] text-muted-soft">{file.uploadedAtLabel}</span>
                     </div>
                   </div>
-                  <div className="flex shrink-0 flex-col">
-                    <AskAiAction file={file} projectId={projectId} />
-                    <a href={file.url} target="_blank" rel="noreferrer" className="flex h-8 w-8 items-center justify-center rounded-md text-muted" aria-label={`Open ${file.name}`}>
-                      <ExternalLink size={15} aria-hidden />
-                    </a>
-                    {file.canDelete && (
-                      <button
-                        type="button"
-                        onClick={() => void deleteFile(file)}
-                        disabled={deletingId === file.id}
-                        className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:text-error"
-                        aria-label={`Delete ${file.name}`}
-                      >
-                        {deletingId === file.id ? <LoaderCircle size={15} className="animate-spin" aria-hidden /> : <Trash2 size={15} aria-hidden />}
-                      </button>
-                    )}
+                  <div className="flex shrink-0 flex-col items-end gap-1.5">
+                    <OpenInAgentAction file={file} projectId={projectId} />
+                    <DeleteFileAction
+                      file={file}
+                      deleting={deletingId === file.id}
+                      onDelete={() => void deleteFile(file)}
+                    />
                   </div>
                 </div>
               </li>

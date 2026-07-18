@@ -6,6 +6,7 @@ import { getToolName } from "ai";
 import type { DynamicToolUIPart, ToolUIPart } from "ai";
 import { AssistantActionProposal } from "@/components/ai-elements/AssistantActionProposal";
 import type { AssistantActionProposalView } from "@/lib/assistant-types";
+import { openPdfViewer } from "@/lib/pdf-viewer";
 
 type SourceLink = { label: string; href: string };
 
@@ -58,6 +59,10 @@ function readSources(output: unknown): SourceLink[] {
   );
 }
 
+function isPdfSource(source: SourceLink): boolean {
+  return source.href.includes("#page=") && /(?:\.pdf|\/api\/files\/)/i.test(source.href);
+}
+
 export function AssistantToolResult({ part }: { part: ToolUIPart | DynamicToolUIPart }) {
   const toolName = getToolName(part);
   const label = TOOL_LABELS[toolName] ?? "Project data checked";
@@ -102,16 +107,25 @@ export function AssistantToolResult({ part }: { part: ToolUIPart | DynamicToolUI
       </div>
       {sources.length > 0 && (
         <div className="mt-2.5 flex flex-wrap gap-2" aria-label="Sources">
-          {sources.map((source) => (
-            <Link
-              key={`${part.toolCallId}-${source.href}-${source.label}`}
-              href={source.href}
-              className="inline-flex min-h-7 items-center gap-1.5 rounded-md border border-[var(--assistant-border)] bg-[var(--assistant-layer)] px-2.5 text-[11px] font-medium text-[var(--assistant-text-muted)] transition-colors hover:border-[var(--assistant-border-strong)] hover:text-[var(--assistant-text)]"
-            >
-              <span className="max-w-48 truncate">{source.label}</span>
-              <ExternalLink size={11} aria-hidden />
-            </Link>
-          ))}
+          {sources.map((source) => {
+            const className = "inline-flex min-h-7 items-center gap-1.5 rounded-md border border-[var(--assistant-border)] bg-[var(--assistant-layer)] px-2.5 text-[11px] font-medium text-[var(--assistant-text-muted)] transition-colors hover:border-[var(--assistant-border-strong)] hover:text-[var(--assistant-text)]";
+            return isPdfSource(source) ? (
+              <button
+                type="button"
+                key={`${part.toolCallId}-${source.href}-${source.label}`}
+                onClick={() => openPdfViewer(source.href, source.label.replace(/\s+-\s+Page\s+\d+$/i, ""), "agent")}
+                className={className}
+              >
+                <span className="max-w-48 truncate">{source.label}</span>
+                <ExternalLink size={11} aria-hidden />
+              </button>
+            ) : (
+              <Link key={`${part.toolCallId}-${source.href}-${source.label}`} href={source.href} className={className}>
+                <span className="max-w-48 truncate">{source.label}</span>
+                <ExternalLink size={11} aria-hidden />
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

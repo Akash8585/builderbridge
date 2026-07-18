@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { requireProjectMember } from "@/lib/permissions";
+import { requireOrganizationMember, requireProjectMember } from "@/lib/permissions";
 
 export class AssistantAccessError extends Error {}
 
@@ -8,6 +8,7 @@ export async function requireAssistantConversation(
   userId: string,
   organizationId: string
 ) {
+  await requireOrganizationMember(userId, organizationId);
   const conversation = await prisma.assistantConversation.findFirst({
     where: {
       id: conversationId,

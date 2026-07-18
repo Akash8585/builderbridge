@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { ExternalLink } from "lucide-react";
 import { createSubmittal, updateSubmittalStatus } from "@/app/actions/submittals";
 import { Button } from "@/components/ui/Button";
 import { ErrorText } from "@/components/ui/ErrorText";
+import { openPdfViewer } from "@/lib/pdf-viewer";
 import { SUBMITTAL_STATUS_LABELS, formatDate } from "@/lib/utils";
 import type { SubmittalStatus, IntegrationSource } from "@prisma/client";
 
@@ -17,6 +19,9 @@ export type SubmittalRow = {
   createdAt: Date;
   submittedBy: { user: { name: string } };
   task: { id: string; name: string } | null;
+  attachment: { fileName: string; fileUrl: string } | null;
+  pageNumber: number | null;
+  citationExcerpt: string | null;
 };
 
 export type TaskOption = { id: string; name: string };
@@ -156,6 +161,22 @@ function SubmittalCard({ submittal, canDecide }: { submittal: SubmittalRow; canD
         {submittal.source === "PROCORE" && <span className="text-muted-soft">From Procore</span>}
         {submittal.specSection && <span>Spec {submittal.specSection}</span>}
         {submittal.task && <span>Task: {submittal.task.name}</span>}
+        {submittal.attachment && (
+          <button
+            type="button"
+            onClick={() => openPdfViewer(
+              submittal.attachment!.fileUrl,
+              submittal.attachment!.fileName,
+              "dashboard",
+              { page: submittal.pageNumber ?? 1 }
+            )}
+            className="inline-flex items-center gap-1 font-medium text-body hover:text-ink"
+          >
+            Source: {submittal.attachment.fileName}
+            {submittal.pageNumber ? `, page ${submittal.pageNumber}` : ""}
+            <ExternalLink size={11} aria-hidden />
+          </button>
+        )}
         {submittal.dueDate && (
           <span className={isOverdue ? "text-error font-medium" : undefined}>
             Due {formatDate(submittal.dueDate)}
@@ -164,6 +185,11 @@ function SubmittalCard({ submittal, canDecide }: { submittal: SubmittalRow; canD
         )}
         <span>Submitted by {submittal.submittedBy.user.name}</span>
       </div>
+      {submittal.citationExcerpt && (
+        <p className="mb-2 border-l-2 border-hairline pl-3 text-xs leading-5 text-muted">
+          {submittal.citationExcerpt}
+        </p>
+      )}
       {canDecide && submittal.status !== "APPROVED" && (
         <div className="flex flex-wrap gap-2 mt-2">
           {STATUS_OPTIONS.filter((s) => s !== submittal.status).map((s) => (

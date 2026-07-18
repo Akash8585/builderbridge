@@ -13,6 +13,7 @@ import {
   canResolveRoadblocks,
   requireCommitAccess,
   requireCommitmentRemovalAccess,
+  requireOrganizationMember,
   requireProjectMember,
   requireScheduleEditAccess,
   requireTaskEditAccess,
@@ -51,6 +52,9 @@ const createRoadblockProposalSchema = z.object({
   roadblockType: roadblockTypeSchema.optional(),
   ownerMemberId: z.string().min(1).nullable().optional(),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD for the due date").nullable().optional(),
+  attachmentId: z.string().min(1).nullable().optional(),
+  pageNumber: z.number().int().min(1).nullable().optional(),
+  citationExcerpt: z.string().trim().min(1).max(1000).nullable().optional(),
 });
 
 const roadblockPayloadSchema = z.object({
@@ -59,6 +63,10 @@ const roadblockPayloadSchema = z.object({
   roadblockType: roadblockTypeSchema,
   ownerMemberId: z.string().nullable(),
   dueDate: z.string().datetime().nullable(),
+  attachmentId: z.string().nullable().default(null),
+  fileName: z.string().nullable().default(null),
+  pageNumber: z.number().int().min(1).nullable().default(null),
+  citationExcerpt: z.string().max(1000).nullable().default(null),
 });
 
 const roadblockSnapshotSchema = z.object({
@@ -71,6 +79,10 @@ const roadblockSnapshotSchema = z.object({
   ownerMemberId: z.string().nullable(),
   ownerName: z.string().nullable(),
   dueDate: z.string().datetime().nullable(),
+  attachmentId: z.string().nullable().default(null),
+  fileName: z.string().nullable().default(null),
+  pageNumber: z.number().int().min(1).nullable().default(null),
+  citationExcerpt: z.string().max(1000).nullable().default(null),
 });
 
 const taskStatusSchema = z.enum(["NOT_STARTED", "IN_PROGRESS", "DONE", "DELAYED"]);
@@ -233,6 +245,10 @@ const submittalControlPayloadSchema = z.object({
   recordId: z.string().nullable(),
   taskId: z.string().nullable(),
   taskName: z.string().nullable(),
+  attachmentId: z.string().nullable().default(null),
+  fileName: z.string().nullable().default(null),
+  pageNumber: z.number().int().min(1).nullable().default(null),
+  citationExcerpt: z.string().max(1000).nullable().default(null),
   title: z.string().min(1).max(200),
   specSection: z.string().max(50).nullable(),
   status: z.enum(["PENDING", "APPROVED", "REJECTED", "REVISE_RESUBMIT"]),
@@ -265,6 +281,10 @@ const submittalControlSnapshotSchema = z.object({
   source: z.enum(["NATIVE", "PROCORE", "AUTODESK"]).nullable(),
   taskId: z.string().nullable(),
   taskName: z.string().nullable(),
+  attachmentId: z.string().nullable().default(null),
+  fileName: z.string().nullable().default(null),
+  pageNumber: z.number().int().min(1).nullable().default(null),
+  citationExcerpt: z.string().max(1000).nullable().default(null),
   title: z.string().nullable(),
   specSection: z.string().nullable(),
   status: z.enum(["PENDING", "APPROVED", "REJECTED", "REVISE_RESUBMIT"]).nullable(),
@@ -464,6 +484,63 @@ function displayValue(value: string | null): string {
   return value?.trim() || "Not set";
 }
 
+async function resolveProjectDocumentCitation({
+  projectId,
+  attachmentId,
+  pageNumber,
+  citationExcerpt,
+}: {
+  projectId: string;
+  attachmentId: string | null | undefined;
+  pageNumber: number | null | undefined;
+  citationExcerpt: string | null | undefined;
+}) {
+  if (!attachmentId) {
+    if (pageNumber != null || citationExcerpt) {
+      throw new AssistantActionError("Choose a project file before citing a page or passage.");
+    }
+    return {
+      attachment: null,
+      pageNumber: null,
+      citationExcerpt: null,
+    };
+  }
+
+  const attachment = await prisma.assistantAttachment.findFirst({
+    where: { id: attachmentId, projectId },
+    select: { id: true, fileName: true },
+  });
+  if (!attachment) throw new AssistantActionError("The cited project file is no longer available.", 409);
+
+  let resolvedExcerpt = citationExcerpt ?? null;
+  const resolvedPage = pageNumber ?? null;
+  if (resolvedPage !== null) {
+    const pageExists = await prisma.documentChunk.count({
+      where: { documentId: attachment.id, pageNumber: resolvedPage },
+    });
+    if (!pageExists && !resolvedExcerpt) {
+      const anyChunks = await prisma.documentChunk.count({ where: { documentId: attachment.id } });
+      if (anyChunks > 0) {
+        throw new AssistantActionError(`I couldn't find page ${resolvedPage} in ${attachment.fileName}.`);
+      }
+    }
+    if (!resolvedExcerpt) {
+      const chunk = await prisma.documentChunk.findFirst({
+        where: { documentId: attachment.id, pageNumber: resolvedPage },
+        orderBy: { chunkIndex: "asc" },
+        select: { text: true },
+      });
+      resolvedExcerpt = chunk?.text.slice(0, 500) ?? null;
+    }
+  }
+
+  return {
+    attachment,
+    pageNumber: resolvedPage,
+    citationExcerpt: resolvedExcerpt,
+  };
+}
+
 function sameRoadblockSnapshot(task: Task, snapshot: z.infer<typeof roadblockSnapshotSchema>): boolean {
   return (
     task.isRoadblock === snapshot.isRoadblock &&
@@ -471,7 +548,10 @@ function sameRoadblockSnapshot(task: Task, snapshot: z.infer<typeof roadblockSna
     task.roadblockNote === snapshot.note &&
     task.roadblockType === snapshot.roadblockType &&
     task.roadblockOwnerId === snapshot.ownerMemberId &&
-    dateSnapshot(task.roadblockDueDate) === snapshot.dueDate
+    dateSnapshot(task.roadblockDueDate) === snapshot.dueDate &&
+    task.roadblockAttachmentId === snapshot.attachmentId &&
+    task.roadblockPageNumber === snapshot.pageNumber &&
+    (task.roadblockCitationExcerpt ?? null) === snapshot.citationExcerpt
   );
 }
 
@@ -521,6 +601,9 @@ function sameProjectControlSnapshot(
   if (snapshot.entity === "SUBMITTAL" && "title" in record) {
     return (
       record.taskId === snapshot.taskId &&
+      record.attachmentId === snapshot.attachmentId &&
+      record.pageNumber === snapshot.pageNumber &&
+      (record.citationExcerpt ?? null) === snapshot.citationExcerpt &&
       record.title === snapshot.title &&
       record.specSection === snapshot.specSection &&
       record.status === snapshot.status &&
@@ -541,6 +624,7 @@ const PROJECT_CONTROL_STATUS_LABELS: Record<z.infer<typeof projectControlStatusS
 };
 
 async function requireOwnedConversation(conversationId: string, context: ActionContext) {
+  await requireOrganizationMember(context.userId, context.organizationId);
   const conversation = await prisma.assistantConversation.findFirst({
     where: {
       id: conversationId,
@@ -553,6 +637,7 @@ async function requireOwnedConversation(conversationId: string, context: ActionC
 }
 
 async function loadProposal(proposalId: string, context: ActionContext) {
+  await requireOrganizationMember(context.userId, context.organizationId);
   const proposal = await prisma.assistantActionProposal.findFirst({
     where: {
       id: proposalId,
@@ -605,6 +690,58 @@ function changesForProposal(
       label: "Need by",
       before: displayDate(snapshot.dueDate),
       after: displayDate(payload.dueDate),
+    });
+  }
+  changes.push(
+    ...documentCitationChanges({
+      before: snapshot,
+      after: payload,
+    })
+  );
+  return changes;
+}
+
+function documentCitationChanges({
+  before,
+  after,
+}: {
+  before: {
+    attachmentId: string | null;
+    fileName: string | null;
+    pageNumber: number | null;
+    citationExcerpt: string | null;
+  };
+  after: {
+    attachmentId: string | null;
+    fileName: string | null;
+    pageNumber: number | null;
+    citationExcerpt: string | null;
+  };
+}): AssistantActionChange[] {
+  if (
+    before.attachmentId === after.attachmentId &&
+    before.pageNumber === after.pageNumber &&
+    before.citationExcerpt === after.citationExcerpt
+  ) {
+    return [];
+  }
+
+  const sourceLabel = (fileName: string | null, pageNumber: number | null) =>
+    fileName ? `${fileName}${pageNumber ? `, page ${pageNumber}` : ""}` : "Not linked";
+  const changes: AssistantActionChange[] = [
+    {
+      field: "document",
+      label: "Source document",
+      before: sourceLabel(before.fileName, before.pageNumber),
+      after: sourceLabel(after.fileName, after.pageNumber),
+    },
+  ];
+  if (after.citationExcerpt && after.citationExcerpt !== before.citationExcerpt) {
+    changes.push({
+      field: "citationExcerpt",
+      label: "Cited passage",
+      before: displayValue(before.citationExcerpt),
+      after: after.citationExcerpt,
     });
   }
   return changes;
@@ -1231,6 +1368,9 @@ function projectControlChangesForProposal(
       });
     }
   }
+  if (payload.entity === "SUBMITTAL" && snapshot.entity === "SUBMITTAL") {
+    changes.push(...documentCitationChanges({ before: snapshot, after: payload }));
+  }
   if (snapshot.taskId !== payload.taskId) {
     changes.push({
       field: "linkedTask",
@@ -1315,7 +1455,7 @@ export async function createRoadblockActionProposal(
   context: ActionContext
 ): Promise<AssistantActionToolOutput> {
   const parsed = createRoadblockProposalSchema.parse(input);
-  await requireOwnedConversation(parsed.conversationId, context);
+  const conversation = await requireOwnedConversation(parsed.conversationId, context);
 
   const task = await prisma.task.findFirst({
     where: {
@@ -1325,9 +1465,13 @@ export async function createRoadblockActionProposal(
     include: {
       project: { select: { name: true } },
       roadblockOwner: { include: { user: { select: { name: true } } } },
+      roadblockAttachment: { select: { id: true, fileName: true } },
     },
   });
   if (!task) throw new AssistantActionError("Task not found.", 404);
+  if (conversation.projectId && conversation.projectId !== task.projectId) {
+    throw new AssistantActionError("This conversation belongs to a different project.", 409);
+  }
   if (task.isRoadblock && task.roadblockStatus !== "OPEN") {
     throw new AssistantActionError("Only an open roadblock can be updated.");
   }
@@ -1351,6 +1495,22 @@ export async function createRoadblockActionProposal(
   const proposedNote = parsed.note ?? task.roadblockNote;
   if (!proposedNote) throw new AssistantActionError("Describe what is blocking the task before proposing it.");
 
+  const citation =
+    parsed.attachmentId !== undefined ||
+    parsed.pageNumber !== undefined ||
+    parsed.citationExcerpt !== undefined
+      ? await resolveProjectDocumentCitation({
+          projectId: task.projectId,
+          attachmentId: parsed.attachmentId,
+          pageNumber: parsed.pageNumber,
+          citationExcerpt: parsed.citationExcerpt,
+        })
+      : {
+          attachment: task.roadblockAttachment,
+          pageNumber: task.roadblockPageNumber,
+          citationExcerpt: task.roadblockCitationExcerpt,
+        };
+
   const payload = roadblockPayloadSchema.parse({
     taskId: task.id,
     note: proposedNote,
@@ -1358,6 +1518,10 @@ export async function createRoadblockActionProposal(
     ownerMemberId:
       parsed.ownerMemberId === undefined ? task.roadblockOwnerId : parsed.ownerMemberId,
     dueDate: dateSnapshot(parsedDueDate === undefined ? task.roadblockDueDate : parsedDueDate),
+    attachmentId: citation.attachment?.id ?? null,
+    fileName: citation.attachment?.fileName ?? null,
+    pageNumber: citation.pageNumber,
+    citationExcerpt: citation.citationExcerpt,
   });
   const snapshot = roadblockSnapshotSchema.parse({
     taskName: task.name,
@@ -1369,6 +1533,10 @@ export async function createRoadblockActionProposal(
     ownerMemberId: task.roadblockOwnerId,
     ownerName: task.roadblockOwner?.user.name ?? null,
     dueDate: dateSnapshot(task.roadblockDueDate),
+    attachmentId: task.roadblockAttachmentId,
+    fileName: task.roadblockAttachment?.fileName ?? null,
+    pageNumber: task.roadblockPageNumber,
+    citationExcerpt: task.roadblockCitationExcerpt,
   });
   const changes = changesForProposal(payload, snapshot, ownerName);
   if (changes.length === 0) throw new AssistantActionError("This proposal would not change the roadblock.");
@@ -2546,7 +2714,10 @@ export async function createProjectControlActionProposal(
     const existing = parsed.operation === "UPDATE"
       ? await prisma.submittal.findFirst({
           where: { id: parsed.recordId, projectId: project.id },
-          include: { task: { select: { name: true } } },
+          include: {
+            task: { select: { name: true } },
+            attachment: { select: { id: true, fileName: true } },
+          },
         })
       : null;
     if (parsed.operation === "UPDATE" && !existing) throw new AssistantActionError("Submittal not found.", 404);
@@ -2569,12 +2740,28 @@ export async function createProjectControlActionProposal(
     const dueDate = parsed.operation === "CREATE"
       ? parseDueDate(parsed.dueDate) ?? null
       : existing!.dueDate;
+    const citation = parsed.operation === "CREATE"
+      ? await resolveProjectDocumentCitation({
+          projectId: project.id,
+          attachmentId: parsed.attachmentId,
+          pageNumber: parsed.pageNumber,
+          citationExcerpt: parsed.citationExcerpt,
+        })
+      : {
+          attachment: existing!.attachment,
+          pageNumber: existing!.pageNumber,
+          citationExcerpt: existing!.citationExcerpt,
+        };
     payload = submittalControlPayloadSchema.parse({
       entity: "SUBMITTAL",
       operation: parsed.operation,
       recordId: existing?.id ?? null,
       taskId: existing?.taskId ?? task?.id ?? null,
       taskName: existing?.task?.name ?? task?.name ?? null,
+      attachmentId: existing?.attachmentId ?? citation.attachment?.id ?? null,
+      fileName: existing?.attachment?.fileName ?? citation.attachment?.fileName ?? null,
+      pageNumber: existing?.pageNumber ?? citation.pageNumber,
+      citationExcerpt: existing?.citationExcerpt ?? citation.citationExcerpt,
       title: existing?.title ?? parsed.title,
       specSection: existing?.specSection ?? parsed.specSection ?? null,
       status: parsed.operation === "CREATE" ? "PENDING" : parsed.status,
@@ -2587,6 +2774,10 @@ export async function createProjectControlActionProposal(
       source: existing?.source ?? null,
       taskId: existing?.taskId ?? null,
       taskName: existing?.task?.name ?? null,
+      attachmentId: existing?.attachmentId ?? null,
+      fileName: existing?.attachment?.fileName ?? null,
+      pageNumber: existing?.pageNumber ?? null,
+      citationExcerpt: existing?.citationExcerpt ?? null,
       title: existing?.title ?? null,
       specSection: existing?.specSection ?? null,
       status: existing?.status ?? null,
@@ -2662,6 +2853,18 @@ async function confirmRoadblockAction(
           409
         );
       }
+      if (payload.attachmentId) {
+        const attachment = await tx.assistantAttachment.findFirst({
+          where: { id: payload.attachmentId, projectId: proposal.projectId },
+          select: { fileName: true },
+        });
+        if (!attachment || attachment.fileName !== payload.fileName) {
+          throw new AssistantActionError(
+            "The cited project file changed after the proposal was created. Ask Agent to prepare a fresh proposal.",
+            409
+          );
+        }
+      }
 
       const claimed = await tx.assistantActionProposal.updateMany({
         where: { id: proposal.id, status: "PENDING" },
@@ -2682,6 +2885,9 @@ async function confirmRoadblockAction(
           roadblockType: payload.roadblockType as RoadblockType,
           roadblockOwnerId: payload.ownerMemberId,
           roadblockDueDate: payload.dueDate ? new Date(payload.dueDate) : null,
+          roadblockAttachmentId: payload.attachmentId,
+          roadblockPageNumber: payload.pageNumber,
+          roadblockCitationExcerpt: payload.citationExcerpt,
           roadblockRaisedBy: currentTask.roadblockRaisedBy ?? context.userId,
           resolvedAt: null,
         },
@@ -2694,7 +2900,11 @@ async function confirmRoadblockAction(
           taskName: currentTask.name,
           userId: context.userId,
           action: snapshot.isRoadblock ? "assistant_roadblock_updated" : "assistant_roadblock_flagged",
-          detail: `${snapshot.isRoadblock ? "Updated" : "Flagged"} roadblock via Agent confirmation: ${payload.note}`,
+          detail: `${snapshot.isRoadblock ? "Updated" : "Flagged"} roadblock via Agent confirmation: ${payload.note}${
+            payload.fileName
+              ? ` (from ${payload.fileName}${payload.pageNumber ? ` page ${payload.pageNumber}` : ""})`
+              : ""
+          }`,
         },
       });
     });
@@ -3709,7 +3919,7 @@ async function confirmProjectControlAction(
         });
         if (!taskExists) throw new AssistantActionError("The linked task is no longer available.", 409);
       }
-      if (payload.entity === "RFI" && payload.operation === "CREATE" && payload.attachmentId) {
+      if (payload.operation === "CREATE" && payload.attachmentId) {
         const attachment = await tx.assistantAttachment.findFirst({
           where: { id: payload.attachmentId, projectId: proposal.projectId },
           select: { fileName: true },
@@ -3798,6 +4008,9 @@ async function confirmProjectControlAction(
               data: {
                 projectId: proposal.projectId,
                 taskId: payload.taskId,
+                attachmentId: payload.attachmentId,
+                pageNumber: payload.pageNumber,
+                citationExcerpt: payload.citationExcerpt,
                 title: payload.title,
                 specSection: payload.specSection,
                 dueDate: payload.dueDate ? new Date(payload.dueDate) : null,
@@ -3819,7 +4032,11 @@ async function confirmProjectControlAction(
               ? "assistant_submittal_created"
               : "assistant_submittal_status_changed",
             detail: payload.operation === "CREATE"
-              ? `Created submittal via Agent confirmation: ${payload.title}`
+              ? `Created submittal via Agent confirmation: ${payload.title}${
+                  payload.fileName
+                    ? ` (from ${payload.fileName}${payload.pageNumber ? ` page ${payload.pageNumber}` : ""})`
+                    : ""
+                }`
               : `Marked "${payload.title}" ${PROJECT_CONTROL_STATUS_LABELS[payload.status]} via Agent confirmation`,
           },
         });
@@ -3873,14 +4090,27 @@ export async function confirmAssistantAction(proposalId: string, context: Action
   if (proposal.status !== "PENDING") {
     throw new AssistantActionError(`This proposal is already ${proposal.status.toLowerCase()}.`, 409);
   }
-  if (proposal.kind === "TASK_CHANGE") return confirmTaskChangeAction(proposal, context);
-  if (proposal.kind === "TASK_PROGRESS_CHANGE") return confirmTaskProgressAction(proposal, context);
-  if (proposal.kind === "WEEKLY_COMMITMENT_CHANGE") return confirmWeeklyCommitmentAction(proposal, context);
-  if (proposal.kind === "SCHEDULE_IMPACT_CHANGE") return confirmScheduleImpactAction(proposal, context);
-  if (proposal.kind === "BASELINE_CHANGE") return confirmBaselineAction(proposal, context);
-  if (proposal.kind === "SCHEDULE_CHANGE") return confirmScheduleChangeAction(proposal, context);
-  if (proposal.kind === "PROJECT_CONTROL_CHANGE") return confirmProjectControlAction(proposal, context);
-  return confirmRoadblockAction(proposal, context);
+  switch (proposal.kind) {
+    case "ROADBLOCK_CHANGE":
+      return confirmRoadblockAction(proposal, context);
+    case "TASK_CHANGE":
+      return confirmTaskChangeAction(proposal, context);
+    case "TASK_PROGRESS_CHANGE":
+      return confirmTaskProgressAction(proposal, context);
+    case "WEEKLY_COMMITMENT_CHANGE":
+      return confirmWeeklyCommitmentAction(proposal, context);
+    case "SCHEDULE_IMPACT_CHANGE":
+      return confirmScheduleImpactAction(proposal, context);
+    case "BASELINE_CHANGE":
+      return confirmBaselineAction(proposal, context);
+    case "SCHEDULE_CHANGE":
+      return confirmScheduleChangeAction(proposal, context);
+    case "PROJECT_CONTROL_CHANGE":
+      return confirmProjectControlAction(proposal, context);
+    default:
+      proposal.kind satisfies never;
+      throw new AssistantActionError("This proposal type is unsupported.", 409);
+  }
 }
 
 export async function cancelAssistantAction(proposalId: string, context: ActionContext) {

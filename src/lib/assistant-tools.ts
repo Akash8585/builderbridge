@@ -15,6 +15,7 @@ import {
 import { MS_PER_DAY } from "@/lib/schedule-impact";
 import { formatDate, getWeekStart, ROADBLOCK_TYPE_LABELS, TASK_STATUS_LABELS } from "@/lib/utils";
 import { searchProjectDocuments } from "@/lib/project-document-search";
+import { PermissionError, requireOrganizationMember } from "@/lib/permissions";
 
 type AssistantToolContext = {
   organizationId: string;
@@ -73,6 +74,7 @@ const projectInput = {
 };
 
 async function resolveProject(context: AssistantToolContext, requestedProjectId?: string) {
+  await requireOrganizationMember(context.userId, context.organizationId);
   let projectId = context.focusProjectId ?? requestedProjectId;
   if (!context.focusProjectId && requestedProjectId?.match(/^project-\d+$/i)) {
     const index = Number(requestedProjectId.split("-")[1]) - 1;
@@ -87,7 +89,7 @@ async function resolveProject(context: AssistantToolContext, requestedProjectId?
     });
     projectId = projects[index]?.id;
   }
-  if (!projectId) throw new Error("Choose a project before using this tool.");
+  if (!projectId) throw new PermissionError("Choose an accessible project before using this tool.");
 
   const project = await prisma.project.findFirst({
     where: {
@@ -97,8 +99,22 @@ async function resolveProject(context: AssistantToolContext, requestedProjectId?
       members: { some: { userId: context.userId } },
     },
   });
-  if (!project) throw new Error("Project is unavailable or you no longer have access.");
+  if (!project) throw new PermissionError("Project is unavailable or you no longer have access.");
   return project;
+}
+
+async function matchProjectFile(projectId: string, fileName: string) {
+  const files = await prisma.assistantAttachment.findMany({
+    where: { projectId },
+    select: { id: true, fileName: true },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
+  const { matches, task } = chooseUnambiguousTask(
+    files.map((file) => ({ ...file, name: file.fileName })),
+    fileName
+  );
+  return { matches, attachment: task };
 }
 
 function untrustedSnippet(snippet: string) {
@@ -241,7 +257,7 @@ export function createAssistantTools(context: AssistantToolContext) {
 
     proposeRoadblockChange: tool({
       description:
-        "Prepare, but do not apply, a user-confirmable roadblock proposal from natural task and member names. This tool resolves names itself. The user must confirm the rendered proposal before project data changes.",
+        "Prepare, but do not apply, a user-confirmable roadblock proposal from natural task, member, and project-file names. For document-to-roadblock actions, pass fileName and optional pageNumber/citationExcerpt. The user must confirm the rendered proposal before project data changes.",
       inputSchema: z.object({
         ...projectInput,
         taskName: z.string().trim().min(1).max(200).describe("The human-readable task name."),
@@ -260,8 +276,19 @@ export function createAssistantTools(context: AssistantToolContext) {
           .nullable()
           .optional()
           .describe("Need-by date in YYYY-MM-DD. Null explicitly clears it."),
+        fileName: z.string().trim().min(1).max(260).optional(),
+        pageNumber: z.number().int().min(1).nullable().optional(),
+        citationExcerpt: z.string().trim().min(1).max(1000).nullable().optional(),
       }),
-      execute: async ({ projectId, taskName, ownerName, ...change }) => {
+      execute: async ({
+        projectId,
+        taskName,
+        ownerName,
+        fileName,
+        pageNumber,
+        citationExcerpt,
+        ...change
+      }) => {
         const project = await resolveProject(context, projectId);
         const tasks = await prisma.task.findMany({
           where: { projectId: project.id },
@@ -321,12 +348,32 @@ export function createAssistantTools(context: AssistantToolContext) {
           ownerMemberId = ownerMatches[0].id;
         }
 
+        let attachmentId: string | undefined;
+        if (fileName) {
+          const { matches, attachment } = await matchProjectFile(project.id, fileName);
+          if (!attachment) {
+            return {
+              kind: "action-clarification",
+              subject: "document",
+              message: matches.length > 0
+                ? `Which project file did you mean: ${matches.map(({ task }) => `“${task.fileName}”`).join(" or ")}?`
+                : `I couldn't find a project file matching “${fileName}”.`,
+              suggestions: matches.map(({ task }) => task.fileName),
+              sources: [{ label: `${project.name} files`, href: `/projects/${project.id}/files` }],
+            };
+          }
+          attachmentId = attachment.id;
+        }
+
         return createRoadblockActionProposal(
           {
             ...change,
             conversationId: context.conversationId,
             taskId: bestTask.task.id,
             ownerMemberId,
+            attachmentId,
+            pageNumber: fileName ? pageNumber : undefined,
+            citationExcerpt: fileName ? citationExcerpt : undefined,
           },
           { organizationId: context.organizationId, userId: context.userId }
         );
@@ -485,7 +532,7 @@ export function createAssistantTools(context: AssistantToolContext) {
 
     proposeSubmittalChange: tool({
       description:
-        "Prepare, but do not apply, a user-confirmable submittal creation or status decision. Resolve the submittal and optional linked task from human-readable text; never ask for an internal ID.",
+        "Prepare, but do not apply, a user-confirmable submittal creation or status decision. Resolve the submittal, optional linked task, and optional source document from human-readable text; never ask for an internal ID. For document-to-submittal create actions, pass fileName and optional pageNumber/citationExcerpt.",
       inputSchema: z.object({
         ...projectInput,
         operation: z.enum(["CREATE", "UPDATE_STATUS"]),
@@ -494,8 +541,22 @@ export function createAssistantTools(context: AssistantToolContext) {
         taskName: z.string().trim().min(1).max(200).optional(),
         dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
         status: z.enum(["PENDING", "APPROVED", "REJECTED", "REVISE_RESUBMIT"]).optional(),
+        fileName: z.string().trim().min(1).max(260).optional(),
+        pageNumber: z.number().int().min(1).nullable().optional(),
+        citationExcerpt: z.string().trim().min(1).max(1000).nullable().optional(),
       }),
-      execute: async ({ projectId, operation, title, specSection, taskName, dueDate, status }) => {
+      execute: async ({
+        projectId,
+        operation,
+        title,
+        specSection,
+        taskName,
+        dueDate,
+        status,
+        fileName,
+        pageNumber,
+        citationExcerpt,
+      }) => {
         const project = await resolveProject(context, projectId);
         let recordId: string | undefined;
         if (operation === "UPDATE_STATUS") {
@@ -569,6 +630,23 @@ export function createAssistantTools(context: AssistantToolContext) {
           }
           taskId = best.task.id;
         }
+
+        let attachmentId: string | undefined;
+        if (operation === "CREATE" && fileName) {
+          const { matches, attachment } = await matchProjectFile(project.id, fileName);
+          if (!attachment) {
+            return {
+              kind: "action-clarification",
+              subject: "document",
+              message: matches.length > 0
+                ? `Which project file did you mean: ${matches.map(({ task }) => `“${task.fileName}”`).join(" or ")}?`
+                : `I couldn't find a project file matching “${fileName}”.`,
+              suggestions: matches.map(({ task }) => task.fileName),
+              sources: [{ label: `${project.name} files`, href: `/projects/${project.id}/files` }],
+            };
+          }
+          attachmentId = attachment.id;
+        }
         return createProjectControlActionProposal(
           {
             conversationId: context.conversationId,
@@ -577,6 +655,9 @@ export function createAssistantTools(context: AssistantToolContext) {
             operation: operation === "CREATE" ? "CREATE" : "UPDATE",
             recordId,
             taskId,
+            attachmentId,
+            pageNumber: operation === "CREATE" && fileName ? pageNumber : undefined,
+            citationExcerpt: operation === "CREATE" && fileName ? citationExcerpt : undefined,
             title: operation === "CREATE" ? title : undefined,
             specSection: operation === "CREATE" ? specSection : undefined,
             dueDate: operation === "CREATE" ? dueDate : undefined,
@@ -1181,6 +1262,7 @@ export function createAssistantTools(context: AssistantToolContext) {
         "Read live health, progress, PPC, PRR, schedule variance, and roadblock totals for every accessible project.",
       inputSchema: z.object({}),
       execute: async () => {
+        await requireOrganizationMember(context.userId, context.organizationId);
         const projects = await prisma.project.findMany({
           where: {
             organizationId: context.organizationId,

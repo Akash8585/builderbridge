@@ -22,6 +22,20 @@ export function canResolveRoadblocks(role: ProjectRole): boolean {
   return ROADBLOCK_RESOLVER_ROLES.includes(role);
 }
 
+/** Returns the user's organization membership, or null when access was removed. */
+export async function getOrganizationMembership(userId: string, organizationId: string) {
+  return prisma.member.findUnique({
+    where: { organizationId_userId: { organizationId, userId } },
+  });
+}
+
+/** Every organization-scoped Agent operation must pass this guard first. */
+export async function requireOrganizationMember(userId: string, organizationId: string) {
+  const membership = await getOrganizationMembership(userId, organizationId);
+  if (!membership) throw new PermissionError("You do not have access to this organization");
+  return membership;
+}
+
 /**
  * Returns the current user's role on a project, or null if they aren't a member.
  */

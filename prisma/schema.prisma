@@ -120,6 +120,23 @@ model Organization {
   @@map("organization")
 }
 
+// Durable fixed-window counters used to protect the Agent endpoint across
+// serverless instances. subjectId is a user ID or organization ID depending
+// on kind; a loose reference lets expired windows be pruned independently.
+model AssistantUsageWindow {
+  id          String   @id @default(cuid())
+  kind        String
+  subjectId   String
+  windowStart DateTime
+  count       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([kind, subjectId, windowStart])
+  @@index([windowStart])
+  @@map("assistant_usage_window")
+}
+
 model Member {
   id             String       @id @default(cuid())
   organizationId String
@@ -362,6 +379,8 @@ model AssistantAttachment {
   updatedAt        DateTime                 @updatedAt
   chunks           DocumentChunk[]
   rfis             RFI[]
+  submittals       Submittal[]
+  roadblockTasks   Task[]                   @relation("RoadblockSourceAttachment")
 
   @@index([conversationId, createdAt])
   @@index([messageId])
@@ -429,6 +448,10 @@ model Task {
   roadblockOwnerId  String?
   roadblockOwner    ProjectMember?   @relation("RoadblockOwner", fields: [roadblockOwnerId], references: [id], onDelete: SetNull)
   roadblockDueDate  DateTime?
+  roadblockAttachmentId String?
+  roadblockAttachment AssistantAttachment? @relation("RoadblockSourceAttachment", fields: [roadblockAttachmentId], references: [id], onDelete: SetNull)
+  roadblockPageNumber Int?
+  roadblockCitationExcerpt String? @db.Text
   resolvedAt        DateTime?
   sequenceOrder     Int              @default(0)
   createdAt         DateTime         @default(now())
@@ -444,6 +467,7 @@ model Task {
   rfis                   RFI[]
   drawings               Drawing[]
 
+  @@index([roadblockAttachmentId])
   @@map("task")
 }
 
@@ -530,6 +554,10 @@ model Submittal {
   project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   taskId        String?
   task          Task?             @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  attachmentId String?
+  attachment AssistantAttachment? @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
+  pageNumber Int?
+  citationExcerpt String? @db.Text
   title         String
   specSection   String?
   status        SubmittalStatus   @default(PENDING)
@@ -544,6 +572,7 @@ model Submittal {
 
   @@unique([projectId, source, externalId])
   @@index([projectId])
+  @@index([attachmentId])
   @@map("submittal")
 }
 

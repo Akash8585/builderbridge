@@ -15,7 +15,7 @@ Based on BuilderBridge's current state, approximately **54 major tasks** remain.
 
 Complete tasks 1-24 for a controlled beta.
 
-> Current checkpoint: Tasks 1-7 are implemented. Continue from task 8 (document-to-submittal and roadblock actions).
+> Current checkpoint: Tasks 1-14 are implemented. Continue with the next P0/P1 priority task.
 
 - [x] 1. Add AI task progress and status-change proposals.
 - [x] 2. Add actual start, actual finish, and percent-complete actions.
@@ -24,23 +24,23 @@ Complete tasks 1-24 for a controlled beta.
 - [x] 5. Add AI schedule-impact-request actions.
 - [x] 6. Add AI baseline creation and comparison proposals.
 - [x] 7. Add document-to-RFI actions.
-- [ ] 8. Add document-to-submittal and roadblock actions.
-- [ ] 9. Add permission checks to every AI tool.
-- [ ] 10. Add OpenRouter model fallback and retry handling.
-- [ ] 11. Add rate limits and AI usage limits.
-- [ ] 12. Test every AI read tool and confirmation action.
-- [ ] 13. Build the in-app PDF viewer.
-- [ ] 14. Add exact-page citation navigation.
+- [x] 8. **P0 Hackathon priority:** Add document-to-submittal and roadblock actions.
+- [x] 9. **P0 Hackathon priority:** Add permission checks to every AI tool.
+- [x] 10. **P1 Hackathon polish:** Add OpenRouter model fallback and retry handling.
+- [x] 11. Add rate limits and AI usage limits.
+- [x] 12. **P0 Hackathon priority:** Test every AI read tool and confirmation action.
+- [x] 13. Build the in-app PDF viewer.
+- [x] 14. **P1 Hackathon polish:** Add exact-page citation navigation.
 - [ ] 15. Highlight cited PDF passages.
 - [ ] 16. Add scanned-PDF and image OCR.
-- [ ] 17. Add file upload quotas and stronger validation.
-- [ ] 18. Add file access and download auditing.
-- [ ] 19. Complete role and project permission auditing.
-- [ ] 20. Add complete activity logs for project changes.
+- [ ] 17. **P1 Hackathon polish:** Add file upload quotas and stronger validation.
+- [ ] 18. **P1 Hackathon polish:** Add file access and download auditing.
+- [ ] 19. **P1 Hackathon polish:** Complete role and project permission auditing.
+- [ ] 20. **P1 Hackathon polish:** Add complete activity logs for project changes.
 - [ ] 21. Add production error monitoring and structured logs.
 - [ ] 22. Add database backup and recovery checks.
-- [ ] 23. Build first-project onboarding and useful empty states.
-- [ ] 24. Complete mobile and accessibility testing.
+- [ ] 23. **P0 Hackathon priority:** Build first-project onboarding and useful empty states.
+- [ ] 24. **P0 Hackathon priority:** Complete mobile and accessibility testing.
 
 ## Public Launch
 

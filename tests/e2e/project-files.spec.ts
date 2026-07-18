@@ -57,12 +57,21 @@ test("project files upload, index, open, filter, and delete securely", async ({ 
     await expect(row).toContainText("Project file");
     await expect(row).toContainText("Search ready");
     await expect(row).toContainText("Files workspace");
-    const fileLink = row.getByRole("link", { name: fileName, exact: true });
-    const href = await fileLink.getAttribute("href");
+    const fileButton = row.getByRole("button", { name: fileName, exact: true });
+    await fileButton.click();
+    const pdfDialog = page.getByRole("dialog", { name: "Project PDF viewer" });
+    await expect(pdfDialog).toBeVisible();
+    const pdfFrame = pdfDialog.locator("iframe");
+    await expect(pdfFrame).toHaveAttribute("title", `${fileName}, page 1`);
+    const href = (await pdfFrame.getAttribute("src"))?.split("#", 1)[0];
     expect(href).toMatch(/^\/api\/files\/documents\//);
     const rangeResponse = await page.request.get(href!, { headers: { Range: "bytes=0-7" } });
     expect(rangeResponse.status()).toBe(206);
     expect((await rangeResponse.body()).toString()).toBe("%PDF-1.4");
+    expect(rangeResponse.headers()["x-frame-options"]).toBe("SAMEORIGIN");
+    expect(rangeResponse.headers()["content-security-policy"]).toContain("frame-ancestors 'self'");
+    await pdfDialog.getByRole("button", { name: "Close PDF viewer" }).click();
+    await expect(pdfDialog).toBeHidden();
 
     await row.getByRole("button", { name: `Ask Agent about ${fileName}` }).click();
     const assistantDialog = page.getByRole("dialog", { name: "Agent" });

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { createRfi, answerRfi, closeRfi } from "@/app/actions/rfis";
 import { Button } from "@/components/ui/Button";
 import { ErrorText } from "@/components/ui/ErrorText";
+import { openPdfViewer } from "@/lib/pdf-viewer";
 import { RFI_STATUS_LABELS, formatDate } from "@/lib/utils";
 import type { RfiStatus, IntegrationSource } from "@prisma/client";
 
@@ -200,10 +201,14 @@ function RfiCard({ rfi, canAnswer }: { rfi: RfiRow; canAnswer: boolean }) {
         {rfi.source === "PROCORE" && <span className="text-muted-soft">From Procore</span>}
         {rfi.task && <span>Task: {rfi.task.name}</span>}
         {rfi.attachment && sourceHref && (
-          <a href={sourceHref} target="_blank" rel="noopener noreferrer" className="hover:text-ink hover:underline">
+          <button
+            type="button"
+            onClick={() => openPdfViewer(sourceHref, rfi.attachment!.fileName, "dashboard")}
+            className="hover:text-ink hover:underline"
+          >
             From {rfi.attachment.fileName}
             {rfi.pageNumber ? ` · p.${rfi.pageNumber}` : ""}
-          </a>
+          </button>
         )}
         {rfi.dueDate && (
           <span className={isOverdue ? "text-error font-medium" : undefined}>

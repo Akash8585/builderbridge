@@ -30,7 +30,10 @@ export default async function ProjectRoadblocksPage({
         isRoadblock: true,
         ...(statusFilter === "ALL" ? {} : { roadblockStatus: statusFilter }),
       },
-      include: { assignedTo: { select: { userId: true } } },
+      include: {
+        assignedTo: { select: { userId: true } },
+        roadblockAttachment: { select: { fileName: true, fileUrl: true } },
+      },
       orderBy: { roadblockDueDate: "asc" },
     }),
     prisma.projectMember.findMany({
@@ -48,6 +51,9 @@ export default async function ProjectRoadblocksPage({
     roadblockType: t.roadblockType,
     roadblockOwnerId: t.roadblockOwnerId,
     roadblockDueDate: t.roadblockDueDate,
+    roadblockAttachment: t.roadblockAttachment,
+    roadblockPageNumber: t.roadblockPageNumber,
+    roadblockCitationExcerpt: t.roadblockCitationExcerpt,
     raisedByName: (t.roadblockRaisedBy && memberNameByUserId.get(t.roadblockRaisedBy)) || "Unknown",
     assignedToUserId: t.assignedTo?.userId ?? null,
   }));

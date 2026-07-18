@@ -63,7 +63,11 @@ describe("Assistant project document retrieval", () => {
       matches: [
         {
           fileName: "Door Specifications.pdf",
-          snippet: expect.stringContaining("90 minute rating"),
+          snippet: {
+            quotedText: expect.stringContaining("90 minute rating"),
+            evidenceType: "untrusted-document-excerpt",
+            containsInstructionLikeText: false,
+          },
           pageCount: 4,
           pageNumber: 3,
         },

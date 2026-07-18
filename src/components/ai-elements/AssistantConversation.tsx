@@ -5,8 +5,10 @@ import type { UIMessage } from "ai";
 import { ExternalLink, FileText, Image as ImageIcon } from "lucide-react";
 import { isFileUIPart, isToolUIPart } from "ai";
 import type { FileUIPart } from "ai";
+import { Streamdown } from "streamdown";
 import { AssistantToolResult } from "@/components/ai-elements/AssistantToolResult";
 import type { AssistantUIMessage } from "@/lib/assistant-types";
+import { openPdfViewer } from "@/lib/pdf-viewer";
 
 function formatDuration(durationMs: number): string {
   const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
@@ -37,19 +39,28 @@ type AssistantConversationProps = {
   onSuggestion: (suggestion: string) => void;
 };
 
+function AssistantRichText({ text, isAnimating }: { text: string; isAnimating: boolean }) {
+  return (
+    <Streamdown
+      className="assistant-markdown"
+      controls={false}
+      isAnimating={isAnimating}
+      lineNumbers={false}
+      mode="streaming"
+    >
+      {text}
+    </Streamdown>
+  );
+}
+
 function AttachmentPreview({ part, userMessage }: { part: FileUIPart; userMessage: boolean }) {
   const isImage = part.mediaType.startsWith("image/");
-  return (
-    <a
-      href={part.url}
-      target="_blank"
-      rel="noreferrer"
-      className={`group block overflow-hidden rounded-md border transition-colors ${
+  const className = `group block w-full overflow-hidden rounded-md border text-left transition-colors ${
         userMessage
           ? "border-[var(--assistant-border)] bg-[var(--assistant-layer-strong)] hover:bg-[var(--assistant-layer-hover)]"
           : "border-[var(--assistant-border)] bg-[var(--assistant-layer)] text-[var(--assistant-text-body)] hover:border-[var(--assistant-border-strong)]"
-      }`}
-    >
+      }`;
+  const content = <>
       {isImage && (
         // Authenticated project files must load directly in the browser so its session cookie is included.
         // eslint-disable-next-line @next/next/no-img-element
@@ -66,6 +77,17 @@ function AttachmentPreview({ part, userMessage }: { part: FileUIPart; userMessag
         </span>
         <ExternalLink size={13} className="shrink-0 opacity-55 group-hover:opacity-100" aria-hidden />
       </span>
+    </>;
+  if (part.mediaType === "application/pdf") {
+    return (
+      <button type="button" onClick={() => openPdfViewer(part.url, part.filename ?? "Project attachment", "agent")} className={className}>
+        {content}
+      </button>
+    );
+  }
+  return (
+    <a href={part.url} target="_blank" rel="noreferrer" className={className}>
+      {content}
     </a>
   );
 }
@@ -140,7 +162,7 @@ export function AssistantConversation({
                     className={
                       isUser
                         ? "max-w-full whitespace-pre-wrap rounded-lg border border-[var(--assistant-border)] bg-[var(--assistant-layer-strong)] px-4 py-3 text-sm leading-6 text-[var(--assistant-text-strong)] shadow-sm"
-                        : "w-full space-y-3 whitespace-pre-wrap pt-0.5 text-[15px] leading-7 text-[var(--assistant-text-body)]"
+                        : "w-full space-y-3 pt-0.5 text-[15px] leading-7 text-[var(--assistant-text-body)]"
                     }
                   >
                     {!isUser && elapsedMs !== null && elapsedMs !== undefined && (
@@ -162,7 +184,13 @@ export function AssistantConversation({
                     {toolParts.map((part) => (
                       <AssistantToolResult key={part.toolCallId} part={part} />
                     ))}
-                    {text && !hasToolError && <div>{text}</div>}
+                    {text &&
+                      !hasToolError &&
+                      (isUser ? (
+                        <div>{text}</div>
+                      ) : (
+                        <AssistantRichText text={text} isAnimating={isActiveAssistant} />
+                      ))}
                   </div>
                   {completedAt && (
                     <time

@@ -30,6 +30,9 @@ export async function createFixture() {
     const member = await prisma.projectMember.create({
       data: { projectId: project.id, userId: user.id, role },
     });
+    await prisma.member.create({
+      data: { organizationId: organization.id, userId: user.id },
+    });
     return { user, member };
   }
 

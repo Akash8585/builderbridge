@@ -27,6 +27,15 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: securityHeaders,
       },
+      {
+        // PDFs are rendered by BuilderBridge's same-origin in-app viewer.
+        // Keep cross-origin framing blocked while allowing that one surface.
+        source: "/api/files/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+        ],
+      },
     ];
   },
 };

@@ -55,8 +55,22 @@ export type DeterministicProjectControlAction =
         operation: "CREATE" | "UPDATE_STATUS";
         title: string;
         status?: "APPROVED" | "REJECTED" | "REVISE_RESUBMIT";
+        fileName?: string;
+        pageNumber?: number;
+        citationExcerpt?: string;
       };
     };
+
+export type DeterministicRoadblockAction = {
+  toolName: "proposeRoadblockChange";
+  input: {
+    taskName: string;
+    note: string;
+    fileName: string;
+    pageNumber?: number;
+    citationExcerpt?: string;
+  };
+};
 
 export type DeterministicTaskProgressAction = {
   toolName: "proposeTaskProgressChange";
@@ -522,12 +536,76 @@ export function parseDeterministicProjectControlAction(
     }
   }
 
+  const createSubmittalFromDocPage =
+    /^(?:create|submit)\s+(?:an?\s+)?submittal\s+from\s+(?:the\s+)?(?:file\s+)?(.+?)\s+page\s+(\d+)\s*[:\-]\s*(.+)$/i.exec(
+      cleaned
+    );
+  if (createSubmittalFromDocPage) {
+    const fileName = cleanAnchorName(createSubmittalFromDocPage[1]);
+    const pageNumber = Number(createSubmittalFromDocPage[2]);
+    const title = cleanControlText(createSubmittalFromDocPage[3]);
+    if (fileName && title && Number.isFinite(pageNumber)) {
+      return {
+        toolName: "proposeSubmittalChange",
+        input: { operation: "CREATE", title, fileName, pageNumber },
+      };
+    }
+  }
+
+  const createSubmittalFromDoc =
+    /^(?:create|submit)\s+(?:an?\s+)?submittal\s+from\s+(?:the\s+)?(?:file\s+)?(.+?)\s*[:\-]\s*(.+)$/i.exec(
+      cleaned
+    );
+  if (createSubmittalFromDoc) {
+    const fileName = cleanAnchorName(createSubmittalFromDoc[1]);
+    const title = cleanControlText(createSubmittalFromDoc[2]);
+    if (fileName && title) {
+      return {
+        toolName: "proposeSubmittalChange",
+        input: { operation: "CREATE", title, fileName },
+      };
+    }
+  }
+
   const createSubmittal = /^(?:create|submit)\s+(?:an?\s+)?submittal(?:\s+(?:called|named|for))?\s*[:\-]?\s*(.+)$/i.exec(cleaned);
   if (createSubmittal) {
     const title = cleanControlText(createSubmittal[1]);
     if (title) return { toolName: "proposeSubmittalChange", input: { operation: "CREATE", title } };
   }
   return null;
+}
+
+export function parseDeterministicRoadblockAction(
+  message: string
+): DeterministicRoadblockAction | null {
+  const cleaned = message.trim().replace(/^['"\u201c]|['"\u201d]$/g, "").trim();
+  const fromDocumentPage =
+    /^(?:flag|mark|create|add)\s+(.+?)\s+(?:as\s+)?(?:an?\s+)?roadblock\s+from\s+(?:the\s+)?(?:file\s+)?(.+?)\s+page\s+(\d+)\s*[:\-]\s*(.+)$/i.exec(
+      cleaned
+    );
+  if (fromDocumentPage) {
+    const taskName = cleanAnchorName(fromDocumentPage[1]);
+    const fileName = cleanAnchorName(fromDocumentPage[2]);
+    const pageNumber = Number(fromDocumentPage[3]);
+    const note = cleanControlText(fromDocumentPage[4]);
+    if (taskName && fileName && note && Number.isFinite(pageNumber)) {
+      return {
+        toolName: "proposeRoadblockChange",
+        input: { taskName, note, fileName, pageNumber },
+      };
+    }
+  }
+
+  const fromDocument =
+    /^(?:flag|mark|create|add)\s+(.+?)\s+(?:as\s+)?(?:an?\s+)?roadblock\s+from\s+(?:the\s+)?(?:file\s+)?(.+?)\s*[:\-]\s*(.+)$/i.exec(
+      cleaned
+    );
+  if (!fromDocument) return null;
+  const taskName = cleanAnchorName(fromDocument[1]);
+  const fileName = cleanAnchorName(fromDocument[2]);
+  const note = cleanControlText(fromDocument[3]);
+  if (!taskName || !fileName || !note) return null;
+  return { toolName: "proposeRoadblockChange", input: { taskName, note, fileName } };
 }
 
 export function isRoadblockActionRequest(message: string) {

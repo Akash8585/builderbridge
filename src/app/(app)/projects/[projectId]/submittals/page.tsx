@@ -26,6 +26,7 @@ export default async function ProjectSubmittalsPage({
       include: {
         submittedBy: { include: { user: { select: { name: true } } } },
         task: { select: { id: true, name: true } },
+        attachment: { select: { fileName: true, fileUrl: true } },
       },
       orderBy: { createdAt: "desc" },
     }),

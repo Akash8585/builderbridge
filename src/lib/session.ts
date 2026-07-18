@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getOrganizationMembership } from "@/lib/permissions";
 
 export async function getCurrentSession() {
   return auth.api.getSession({ headers: await headers() });
@@ -26,7 +27,10 @@ export async function requireActiveOrganization() {
   if (!session?.user) redirect("/sign-in");
 
   const activeOrganizationId = session.session.activeOrganizationId;
-  if (!activeOrganizationId) {
+  const activeMembership = activeOrganizationId
+    ? await getOrganizationMembership(session.user.id, activeOrganizationId)
+    : null;
+  if (!activeMembership) {
     // Fall back to the user's first org membership (e.g. right after accepting
     // an invite) before sending them to create a brand new one.
     const firstMembership = await prisma.member.findFirst({
@@ -37,5 +41,5 @@ export async function requireActiveOrganization() {
     return { user: session.user, organizationId: firstMembership.organizationId };
   }
 
-  return { user: session.user, organizationId: activeOrganizationId };
+  return { user: session.user, organizationId: activeMembership.organizationId };
 }

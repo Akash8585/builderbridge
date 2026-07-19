@@ -3,23 +3,51 @@ import type { ProjectRole } from "@prisma/client";
 
 export class PermissionError extends Error {}
 
-/** Roles considered "GC-side" (office/field management), as opposed to TRADE. */
-const GC_SIDE_ROLES: ProjectRole[] = ["PROJECT_MANAGER", "SCHEDULER", "SUPERINTENDENT"];
+export type ProjectCapability =
+  | "VIEW_PROJECT"
+  | "MANAGE_PROJECT"
+  | "EDIT_SCHEDULE"
+  | "RESOLVE_ROADBLOCKS"
+  | "COMMIT_ANY_TASK"
+  | "REVIEW_SCHEDULE_IMPACTS"
+  | "SUBMIT_FIELD_ITEMS"
+  | "UPLOAD_PROJECT_FILES";
 
-/** Roles allowed to resolve a roadblock on behalf of the team (besides the assigned trade). */
-const ROADBLOCK_RESOLVER_ROLES: ProjectRole[] = ["PROJECT_MANAGER", "SUPERINTENDENT"];
+const ALL_PROJECT_ROLES: readonly ProjectRole[] = [
+  "PROJECT_MANAGER",
+  "SCHEDULER",
+  "SUPERINTENDENT",
+  "TRADE",
+];
+const GC_SIDE_ROLES: readonly ProjectRole[] = ["PROJECT_MANAGER", "SCHEDULER", "SUPERINTENDENT"];
+const FIELD_CONTROL_ROLES: readonly ProjectRole[] = ["PROJECT_MANAGER", "SUPERINTENDENT"];
+
+export const PROJECT_CAPABILITY_ROLES: Readonly<Record<ProjectCapability, readonly ProjectRole[]>> = {
+  VIEW_PROJECT: ALL_PROJECT_ROLES,
+  MANAGE_PROJECT: ["PROJECT_MANAGER"],
+  EDIT_SCHEDULE: GC_SIDE_ROLES,
+  RESOLVE_ROADBLOCKS: FIELD_CONTROL_ROLES,
+  COMMIT_ANY_TASK: FIELD_CONTROL_ROLES,
+  REVIEW_SCHEDULE_IMPACTS: FIELD_CONTROL_ROLES,
+  SUBMIT_FIELD_ITEMS: ALL_PROJECT_ROLES,
+  UPLOAD_PROJECT_FILES: ALL_PROJECT_ROLES,
+};
+
+export function hasProjectCapability(role: ProjectRole, capability: ProjectCapability): boolean {
+  return PROJECT_CAPABILITY_ROLES[capability].includes(role);
+}
 
 /** Pure UI-gating helpers (no DB access) — use when the role is already known. */
 export function isProjectManager(role: ProjectRole): boolean {
-  return role === "PROJECT_MANAGER";
+  return hasProjectCapability(role, "MANAGE_PROJECT");
 }
 
 export function canManageSchedule(role: ProjectRole): boolean {
-  return GC_SIDE_ROLES.includes(role);
+  return hasProjectCapability(role, "EDIT_SCHEDULE");
 }
 
 export function canResolveRoadblocks(role: ProjectRole): boolean {
-  return ROADBLOCK_RESOLVER_ROLES.includes(role);
+  return hasProjectCapability(role, "RESOLVE_ROADBLOCKS");
 }
 
 /** Returns the user's organization membership, or null when access was removed. */
@@ -40,8 +68,13 @@ export async function requireOrganizationMember(userId: string, organizationId: 
  * Returns the current user's role on a project, or null if they aren't a member.
  */
 export async function getProjectRole(userId: string, projectId: string): Promise<ProjectRole | null> {
-  const member = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId } },
+  const member = await prisma.projectMember.findFirst({
+    where: {
+      projectId,
+      userId,
+      project: { organization: { members: { some: { userId } } } },
+    },
+    select: { role: true },
   });
   return member?.role ?? null;
 }
@@ -61,7 +94,7 @@ export async function requireProjectMember(userId: string, projectId: string): P
  */
 export async function requireProjectManager(userId: string, projectId: string): Promise<ProjectRole> {
   const role = await requireProjectMember(userId, projectId);
-  if (role !== "PROJECT_MANAGER") {
+  if (!hasProjectCapability(role, "MANAGE_PROJECT")) {
     throw new PermissionError("Only a Project Manager can perform this action");
   }
   return role;
@@ -73,7 +106,7 @@ export async function requireProjectManager(userId: string, projectId: string): 
  */
 export async function requireScheduleEditAccess(userId: string, projectId: string): Promise<ProjectRole> {
   const role = await requireProjectMember(userId, projectId);
-  if (!GC_SIDE_ROLES.includes(role)) {
+  if (!hasProjectCapability(role, "EDIT_SCHEDULE")) {
     throw new PermissionError("Only a Project Manager, Scheduler, or Superintendent can edit the schedule");
   }
   return role;
@@ -94,7 +127,7 @@ export async function requireTaskEditAccess(userId: string, taskId: string) {
   const role = await requireProjectMember(userId, task.projectId);
   const isAssignedTrade = task.assignedTo?.userId === userId;
 
-  if (!GC_SIDE_ROLES.includes(role) && !isAssignedTrade) {
+  if (!hasProjectCapability(role, "EDIT_SCHEDULE") && !isAssignedTrade) {
     throw new PermissionError("Not authorized to edit this task");
   }
 
@@ -116,7 +149,7 @@ export async function requireCommitAccess(userId: string, taskId: string) {
   const role = await requireProjectMember(userId, task.projectId);
   const isAssignedTrade = task.assignedTo?.userId === userId;
 
-  if (!ROADBLOCK_RESOLVER_ROLES.includes(role) && !isAssignedTrade) {
+  if (!hasProjectCapability(role, "COMMIT_ANY_TASK") && !isAssignedTrade) {
     throw new PermissionError("Only a Project Manager, Superintendent, or the assigned trade can commit this task");
   }
 
@@ -136,7 +169,7 @@ export async function requireCommitmentRemovalAccess(userId: string, commitmentI
 
   const role = await requireProjectMember(userId, commitment.task.projectId);
   const isCommitter = commitment.committedBy.userId === userId;
-  if (!ROADBLOCK_RESOLVER_ROLES.includes(role) && !isCommitter) {
+  if (!hasProjectCapability(role, "COMMIT_ANY_TASK") && !isCommitter) {
     throw new PermissionError(
       "Only a Project Manager, Superintendent, or the person who made the commitment can remove it"
     );
@@ -160,9 +193,48 @@ export async function requireRoadblockResolveAccess(userId: string, taskId: stri
   const role = await requireProjectMember(userId, task.projectId);
   const isAssignedTrade = task.assignedTo?.userId === userId;
 
-  if (!ROADBLOCK_RESOLVER_ROLES.includes(role) && !isAssignedTrade) {
+  if (!hasProjectCapability(role, "RESOLVE_ROADBLOCKS") && !isAssignedTrade) {
     throw new PermissionError("Only a Project Manager, Superintendent, or the assigned trade can resolve this roadblock");
   }
 
   return task;
+}
+
+/** Rejects member IDs from another project or from users removed from the organization. */
+export async function requireProjectMemberReference(projectId: string, memberId: string) {
+  const member = await prisma.projectMember.findFirst({
+    where: { id: memberId, projectId },
+    include: { project: { select: { organizationId: true } } },
+  });
+  if (!member) throw new PermissionError("Selected member is not part of this project");
+
+  const organizationMembership = await getOrganizationMembership(
+    member.userId,
+    member.project.organizationId
+  );
+  if (!organizationMembership) {
+    throw new PermissionError("Selected member no longer has access to this organization");
+  }
+  return member;
+}
+
+/** Rejects task IDs supplied from another project. */
+export async function requireProjectTaskReference(projectId: string, taskId: string) {
+  const task = await prisma.task.findFirst({ where: { id: taskId, projectId } });
+  if (!task) throw new PermissionError("Selected task is not part of this project");
+  return task;
+}
+
+/** Rejects dependency IDs supplied from another project. */
+export async function requireProjectDependencyReference(projectId: string, dependencyId: string) {
+  const dependency = await prisma.taskDependency.findFirst({
+    where: {
+      id: dependencyId,
+      predecessor: { projectId },
+      successor: { projectId },
+    },
+    include: { predecessor: true, successor: true },
+  });
+  if (!dependency) throw new PermissionError("Dependency is not part of this project");
+  return dependency;
 }

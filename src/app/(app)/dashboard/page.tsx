@@ -7,10 +7,14 @@ import { AppPageHeader } from "@/components/PageHeader";
 import { loadProjectSummary, healthColor } from "@/lib/project-summary";
 
 export default async function ExecutiveDashboardPage() {
-  const { organizationId } = await requireActiveOrganization();
+  const { user, organizationId } = await requireActiveOrganization();
 
   const projects = await prisma.project.findMany({
-    where: { organizationId, isArchived: false },
+    where: {
+      organizationId,
+      isArchived: false,
+      members: { some: { userId: user.id } },
+    },
     orderBy: { createdAt: "desc" },
   });
 

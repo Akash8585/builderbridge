@@ -303,6 +303,9 @@ export async function syncAutodeskProject(input: unknown): Promise<ActionResult<
 }
 
 export async function fetchAutodeskProjectsForOrg(organizationId: string) {
+  const user = await requireUser();
+  await requireOrgOwner(user.id, organizationId);
+  await requireProTier(organizationId);
   const connection = await getAutodeskConnectionForOrg(organizationId);
   if (!connection) return [];
   return listAutodeskProjects(connection.accessToken, connection.autodeskHubId);

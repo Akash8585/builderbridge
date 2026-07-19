@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
 import { canManageSchedule } from "@/lib/permissions";
-import { syncOverdueRfiFlags } from "@/app/actions/rfis";
+import { syncOverdueRfiFlags } from "@/lib/rfi-overdue";
 import { RoadblockLogTable } from "@/components/RoadblockLogTable";
 import { ProjectPageHeader } from "@/components/PageHeader";
 import type { RoadblockStatus } from "@prisma/client";

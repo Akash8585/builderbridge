@@ -294,6 +294,9 @@ export async function syncProcoreProject(input: unknown): Promise<ActionResult<P
 }
 
 export async function fetchProcoreProjectsForOrg(organizationId: string) {
+  const user = await requireUser();
+  await requireOrgOwner(user.id, organizationId);
+  await requireProTier(organizationId);
   const connection = await getProcoreConnectionForOrg(organizationId);
   if (!connection) return [];
   return listProcoreProjects(connection.accessToken, connection.procoreCompanyId);

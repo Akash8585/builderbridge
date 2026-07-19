@@ -126,11 +126,24 @@ export async function removeMember(input: unknown): Promise<ActionResult<null>> 
     const user = await requireUser();
     await requireProjectManager(user.id, parsed.data.projectId);
 
-    // onDelete: SetNull on Task.assignedToId automatically unassigns their tasks.
-    const { count } = await prisma.projectMember.deleteMany({
-      where: { id: parsed.data.memberId, projectId: parsed.data.projectId },
+    await prisma.$transaction(async (tx) => {
+      const member = await tx.projectMember.findFirst({
+        where: { id: parsed.data.memberId, projectId: parsed.data.projectId },
+      });
+      if (!member) throw new Error("Member not found on this project");
+
+      if (member.role === "PROJECT_MANAGER") {
+        const managerCount = await tx.projectMember.count({
+          where: { projectId: parsed.data.projectId, role: "PROJECT_MANAGER" },
+        });
+        if (managerCount <= 1) {
+          throw new Error("A project must keep at least one Project Manager");
+        }
+      }
+
+      // onDelete: SetNull on Task.assignedToId automatically unassigns their tasks.
+      await tx.projectMember.delete({ where: { id: member.id } });
     });
-    if (count === 0) throw new Error("Member not found on this project");
 
     revalidatePath(`/projects/${parsed.data.projectId}/members`);
     revalidatePath(`/projects/${parsed.data.projectId}`);

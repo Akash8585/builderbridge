@@ -6,10 +6,19 @@ import { PROJECT_ROLE_LABELS } from "@/lib/utils";
 import { AppPageHeader } from "@/components/PageHeader";
 
 export default async function TradePerformancePage() {
-  const { organizationId } = await requireActiveOrganization();
+  const { user, organizationId } = await requireActiveOrganization();
 
   const commitments = await prisma.weeklyCommitment.findMany({
-    where: { removedAt: null, task: { project: { organizationId, isArchived: false } } },
+    where: {
+      removedAt: null,
+      task: {
+        project: {
+          organizationId,
+          isArchived: false,
+          members: { some: { userId: user.id } },
+        },
+      },
+    },
     include: {
       committedBy: { include: { user: { select: { id: true, name: true } } } },
       task: { select: { projectId: true } },

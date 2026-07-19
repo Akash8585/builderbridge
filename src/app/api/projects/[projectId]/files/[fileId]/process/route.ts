@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { processProjectDocument } from "@/lib/document-extraction";
+import { getProjectRole } from "@/lib/permissions";
 import { requireActiveOrganization, requireUser } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -11,6 +12,10 @@ export async function POST(
   const { projectId, fileId } = await params;
   const user = await requireUser();
   const { organizationId } = await requireActiveOrganization();
+  const role = await getProjectRole(user.id, projectId);
+  if (!role) {
+    return Response.json({ error: "File not found or unavailable." }, { status: 404 });
+  }
   const document = await prisma.assistantAttachment.findFirst({
     where: {
       id: fileId,
@@ -23,6 +28,12 @@ export async function POST(
   });
   if (!document) {
     return Response.json({ error: "File not found or unavailable." }, { status: 404 });
+  }
+  if (document.uploadedById !== user.id && role !== "PROJECT_MANAGER") {
+    return Response.json(
+      { error: "Only the uploader or a Project Manager can reprocess this file." },
+      { status: 403 }
+    );
   }
 
   const processed = await processProjectDocument(document);

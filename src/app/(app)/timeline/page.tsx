@@ -6,10 +6,14 @@ import { loadProjectSummary } from "@/lib/project-summary";
 import { AppPageHeader } from "@/components/PageHeader";
 
 export default async function PortfolioTimelinePage() {
-  const { organizationId } = await requireActiveOrganization();
+  const { user, organizationId } = await requireActiveOrganization();
 
   const projects = await prisma.project.findMany({
-    where: { organizationId, isArchived: false },
+    where: {
+      organizationId,
+      isArchived: false,
+      members: { some: { userId: user.id } },
+    },
     orderBy: { startDate: "asc" },
   });
 

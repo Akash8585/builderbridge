@@ -4,7 +4,11 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import { requireProjectMember, requireScheduleEditAccess } from "@/lib/permissions";
+import {
+  requireProjectMember,
+  requireProjectTaskReference,
+  requireScheduleEditAccess,
+} from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-log";
 import { ok, fail, submittalStatusSchema, type ActionResult } from "./schemas";
 import { SUBMITTAL_STATUS_LABELS } from "@/lib/utils";
@@ -27,6 +31,9 @@ export async function createSubmittal(input: unknown): Promise<ActionResult<Subm
   try {
     const user = await requireUser();
     await requireProjectMember(user.id, parsed.data.projectId);
+    if (parsed.data.taskId) {
+      await requireProjectTaskReference(parsed.data.projectId, parsed.data.taskId);
+    }
 
     const submitter = await prisma.projectMember.findUniqueOrThrow({
       where: { projectId_userId: { projectId: parsed.data.projectId, userId: user.id } },

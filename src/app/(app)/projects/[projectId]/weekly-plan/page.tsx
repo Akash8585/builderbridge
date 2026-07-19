@@ -5,6 +5,7 @@ import { WeeklyPlanBoard } from "@/components/WeeklyPlanBoard";
 import { Card } from "@/components/ui/Card";
 import { formatDate, getWeekStart, percentComplete } from "@/lib/utils";
 import { ProjectPageHeader } from "@/components/PageHeader";
+import { hasProjectCapability } from "@/lib/permissions";
 import { isFutureCommitmentWeek } from "@/lib/weekly-commitments";
 
 export default async function ProjectWeeklyPlanPage({
@@ -45,8 +46,8 @@ export default async function ProjectWeeklyPlanPage({
   ]);
 
   const alreadyCommittedTaskIds = new Set(commitments.map((c) => c.task.id));
-  const canCommitAny = role === "PROJECT_MANAGER" || role === "SUPERINTENDENT";
-  const canRemoveForRole = role === "PROJECT_MANAGER" || role === "SUPERINTENDENT";
+  const canCommitAny = hasProjectCapability(role, "COMMIT_ANY_TASK");
+  const canRemoveForRole = hasProjectCapability(role, "COMMIT_ANY_TASK");
   const commitmentsForBoard = commitments.map((commitment) => ({
     ...commitment,
     canRemove:

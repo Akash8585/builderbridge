@@ -4,7 +4,11 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import { requireProjectMember, requireScheduleEditAccess } from "@/lib/permissions";
+import {
+  requireProjectMember,
+  requireProjectTaskReference,
+  requireScheduleEditAccess,
+} from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-log";
 import { notifyUser } from "@/lib/notifications";
 import { ok, fail, type ActionResult } from "./schemas";
@@ -29,6 +33,9 @@ export async function createRfi(input: unknown): Promise<ActionResult<RFI>> {
   try {
     const user = await requireUser();
     await requireProjectMember(user.id, parsed.data.projectId);
+    if (parsed.data.taskId) {
+      await requireProjectTaskReference(parsed.data.projectId, parsed.data.taskId);
+    }
 
     const raiser = await prisma.projectMember.findUniqueOrThrow({
       where: { projectId_userId: { projectId: parsed.data.projectId, userId: user.id } },
@@ -162,41 +169,5 @@ export async function closeRfi(input: unknown): Promise<ActionResult<RFI>> {
     return ok(rfi);
   } catch (error) {
     return fail(error);
-  }
-}
-
-/**
- * An OPEN RFI past its due date auto-flags its linked task as a roadblock,
- * the same way a manually-flagged roadblock works. Idempotent — only acts on
- * tasks that aren't already flagged, and is safe to call on every page load
- * since there's no background job runner in this app.
- */
-export async function syncOverdueRfiFlags(projectId: string): Promise<void> {
-  const overdue = await prisma.rFI.findMany({
-    where: { projectId, status: "OPEN", dueDate: { lt: new Date() }, taskId: { not: null } },
-    include: { task: true, raisedBy: { select: { userId: true } } },
-  });
-
-  for (const rfi of overdue) {
-    if (!rfi.task || rfi.task.isRoadblock) continue;
-    await prisma.task.update({
-      where: { id: rfi.task.id },
-      data: {
-        isRoadblock: true,
-        roadblockStatus: "OPEN",
-        roadblockNote: `Auto-flagged: RFI "${rfi.question}" is overdue`,
-        roadblockType: "OTHER",
-        roadblockRaisedBy: rfi.raisedBy.userId,
-        roadblockDueDate: rfi.dueDate,
-      },
-    });
-    await logActivity({
-      projectId,
-      taskId: rfi.task.id,
-      taskName: rfi.task.name,
-      userId: rfi.raisedBy.userId,
-      action: "roadblock_auto_flagged",
-      detail: `Auto-flagged "${rfi.task.name}" as a roadblock — linked RFI is overdue`,
-    });
   }
 }

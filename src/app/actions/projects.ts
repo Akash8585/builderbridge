@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import { requireProjectManager } from "@/lib/permissions";
+import { requireOrganizationMember, requireProjectManager } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-log";
 import { assertCanCreateProject } from "@/lib/billing";
 import { ok, fail, type ActionResult } from "./schemas";
@@ -30,6 +30,7 @@ export async function createProject(input: unknown): Promise<ActionResult<Projec
 
   try {
     const user = await requireUser();
+    await requireOrganizationMember(user.id, parsed.data.organizationId);
     await assertCanCreateProject(parsed.data.organizationId);
 
     const project = await prisma.project.create({

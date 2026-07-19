@@ -16,21 +16,23 @@ export default async function IntegrationsPage({
   const { user, organizationId } = await requireActiveOrganization();
   const params = await searchParams;
 
-  const [org, membership, procoreConnection, projects] = await Promise.all([
+  const [org, membership, procoreConnection] = await Promise.all([
     prisma.organization.findUniqueOrThrow({ where: { id: organizationId } }),
     prisma.member.findUnique({
       where: { organizationId_userId: { organizationId, userId: user.id } },
     }),
     prisma.procoreConnection.findUnique({ where: { organizationId } }),
-    prisma.project.findMany({
-      where: { organizationId, isArchived: false },
-      select: { id: true, name: true, procoreProjectId: true },
-      orderBy: { name: "asc" },
-    }),
   ]);
 
   const isOwner = membership?.role === "owner";
   const isProPlan = canUseIntegrations(org.planTier);
+  const projects = isOwner
+    ? await prisma.project.findMany({
+        where: { organizationId, isArchived: false },
+        select: { id: true, name: true, procoreProjectId: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
   const procoreProjects =
     procoreConnection && isOwner && isProPlan ? await fetchProcoreProjectsForOrg(organizationId) : [];
 

@@ -4,7 +4,11 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import { requireProjectMember, canResolveRoadblocks } from "@/lib/permissions";
+import {
+  requireProjectMember,
+  requireProjectTaskReference,
+  canResolveRoadblocks,
+} from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-log";
 import { notifyUser } from "@/lib/notifications";
 import { ok, fail, sirStatusSchema, type ActionResult } from "./schemas";
@@ -26,6 +30,9 @@ export async function createScheduleImpactRequest(input: unknown): Promise<Actio
   try {
     const user = await requireUser();
     await requireProjectMember(user.id, parsed.data.projectId);
+    if (parsed.data.taskId) {
+      await requireProjectTaskReference(parsed.data.projectId, parsed.data.taskId);
+    }
 
     const submitter = await prisma.projectMember.findUniqueOrThrow({
       where: { projectId_userId: { projectId: parsed.data.projectId, userId: user.id } },
@@ -95,6 +102,7 @@ export async function reviewScheduleImpactRequest(input: unknown): Promise<Actio
 
     // An approved SIR that proposed a new end date pushes the linked task out.
     if (parsed.data.status === "APPROVED" && existing.taskId && existing.proposedNewEndDate) {
+      await requireProjectTaskReference(existing.projectId, existing.taskId);
       await prisma.task.update({
         where: { id: existing.taskId },
         data: { endDate: existing.proposedNewEndDate },

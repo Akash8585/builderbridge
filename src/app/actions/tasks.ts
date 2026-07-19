@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import {
   requireProjectMember,
+  requireProjectMemberReference,
+  requireProjectDependencyReference,
   requireScheduleEditAccess,
   requireTaskEditAccess,
   requireRoadblockResolveAccess,
@@ -19,6 +21,7 @@ import type { Task, TaskDependency } from "@prisma/client";
 
 /** Emails a project member (by ProjectMember id) that a task/roadblock now involves them. */
 async function notifyMember(params: {
+  projectId: string;
   memberId: string;
   actorUserId: string;
   subject: string;
@@ -26,8 +29,8 @@ async function notifyMember(params: {
   bodyLines: string[];
   path: string;
 }) {
-  const member = await prisma.projectMember.findUnique({
-    where: { id: params.memberId },
+  const member = await prisma.projectMember.findFirst({
+    where: { id: params.memberId, projectId: params.projectId },
     select: { userId: true },
   });
   if (!member) return;
@@ -65,6 +68,9 @@ export async function createTask(input: unknown): Promise<ActionResult<Task>> {
     const user = await requireUser();
     // Project Manager, Scheduler, or Superintendent can create tasks.
     await requireScheduleEditAccess(user.id, parsed.data.projectId);
+    if (parsed.data.assignedToId) {
+      await requireProjectMemberReference(parsed.data.projectId, parsed.data.assignedToId);
+    }
 
     const task = await prisma.task.create({
       data: {
@@ -89,6 +95,7 @@ export async function createTask(input: unknown): Promise<ActionResult<Task>> {
 
     if (task.assignedToId) {
       await notifyMember({
+        projectId: parsed.data.projectId,
         memberId: task.assignedToId,
         actorUserId: user.id,
         subject: `New task assigned: ${task.name}`,
@@ -132,6 +139,9 @@ export async function updateTask(input: unknown): Promise<ActionResult<Task>> {
   try {
     const user = await requireUser();
     const existing = await requireTaskEditAccess(user.id, parsed.data.taskId);
+    if (parsed.data.assignedToId) {
+      await requireProjectMemberReference(existing.projectId, parsed.data.assignedToId);
+    }
 
     const task = await prisma.task.update({
       where: { id: parsed.data.taskId },
@@ -155,6 +165,7 @@ export async function updateTask(input: unknown): Promise<ActionResult<Task>> {
     // Only notify on a genuinely new assignment, not every edit.
     if (task.assignedToId && task.assignedToId !== existing.assignedToId) {
       await notifyMember({
+        projectId: existing.projectId,
         memberId: task.assignedToId,
         actorUserId: user.id,
         subject: `New task assigned: ${task.name}`,
@@ -294,6 +305,9 @@ export async function flagRoadblock(input: unknown): Promise<ActionResult<Task>>
 
     // Any project member can flag a roadblock (view access is enough).
     await requireProjectMember(user.id, existing.projectId);
+    if (parsed.data.roadblockOwnerId) {
+      await requireProjectMemberReference(existing.projectId, parsed.data.roadblockOwnerId);
+    }
 
     const task = await prisma.task.update({
       where: { id: parsed.data.taskId },
@@ -320,6 +334,7 @@ export async function flagRoadblock(input: unknown): Promise<ActionResult<Task>>
 
     if (task.roadblockOwnerId) {
       await notifyMember({
+        projectId: existing.projectId,
         memberId: task.roadblockOwnerId,
         actorUserId: user.id,
         subject: `Roadblock assigned to you: ${task.name}`,
@@ -362,6 +377,9 @@ export async function updateRoadblockDetails(input: unknown): Promise<ActionResu
     if (!existing) throw new Error("Task not found");
 
     await requireScheduleEditAccess(user.id, existing.projectId);
+    if (parsed.data.roadblockOwnerId) {
+      await requireProjectMemberReference(existing.projectId, parsed.data.roadblockOwnerId);
+    }
 
     const task = await prisma.task.update({
       where: { id: parsed.data.taskId },
@@ -374,6 +392,7 @@ export async function updateRoadblockDetails(input: unknown): Promise<ActionResu
 
     if (task.roadblockOwnerId && task.roadblockOwnerId !== existing.roadblockOwnerId) {
       await notifyMember({
+        projectId: existing.projectId,
         memberId: task.roadblockOwnerId,
         actorUserId: user.id,
         subject: `Roadblock assigned to you: ${task.name}`,
@@ -539,11 +558,10 @@ export async function removeDependency(input: unknown): Promise<ActionResult<nul
     const user = await requireUser();
     await requireScheduleEditAccess(user.id, parsed.data.projectId);
 
-    const edge = await prisma.taskDependency.findUnique({
-      where: { id: parsed.data.dependencyId },
-      include: { predecessor: true, successor: true },
-    });
-    if (!edge) throw new Error("Dependency not found");
+    const edge = await requireProjectDependencyReference(
+      parsed.data.projectId,
+      parsed.data.dependencyId
+    );
 
     await prisma.taskDependency.delete({ where: { id: parsed.data.dependencyId } });
 

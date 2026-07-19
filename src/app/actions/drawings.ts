@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import { requireScheduleEditAccess } from "@/lib/permissions";
+import { requireProjectTaskReference, requireScheduleEditAccess } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-log";
 import { uploadFile, buildStorageKey, deleteStoredFile } from "@/lib/storage";
 import { enforceUploadQuota, validateUploadedFile } from "@/lib/file-uploads";
@@ -43,6 +43,9 @@ export async function uploadDrawing(formData: FormData): Promise<ActionResult<Dr
   try {
     const user = await requireUser();
     await requireScheduleEditAccess(user.id, parsed.data.projectId);
+    if (parsed.data.taskId) {
+      await requireProjectTaskReference(parsed.data.projectId, parsed.data.taskId);
+    }
 
     const uploader = await prisma.projectMember.findUniqueOrThrow({
       where: { projectId_userId: { projectId: parsed.data.projectId, userId: user.id } },

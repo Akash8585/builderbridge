@@ -10,12 +10,16 @@ export default async function ProjectsPage({
 }: {
   searchParams: Promise<{ archived?: string }>;
 }) {
-  const { organizationId } = await requireActiveOrganization();
+  const { user, organizationId } = await requireActiveOrganization();
   const { archived } = await searchParams;
   const showArchived = archived === "true";
 
   const projects = await prisma.project.findMany({
-    where: { organizationId, isArchived: showArchived },
+    where: {
+      organizationId,
+      isArchived: showArchived,
+      members: { some: { userId: user.id } },
+    },
     include: { tasks: { select: { status: true } } },
     orderBy: { createdAt: "desc" },
   });

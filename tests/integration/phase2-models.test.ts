@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity-log";
-import { syncOverdueRfiFlags } from "@/app/actions/rfis";
+import { syncOverdueRfiFlags } from "@/lib/rfi-overdue";
 import { computeProjectVariance } from "@/lib/portfolio-analytics";
 import { createFixture, cleanupFixture, type Fixture } from "./fixtures";
 

@@ -98,18 +98,21 @@ function NewSubmittalForm({ projectId, tasks }: { projectId: string; tasks: Task
       <h3 className="app-card-title mb-3">New Submittal</h3>
       <div className="flex flex-wrap items-center gap-3">
         <input
+          aria-label="Submittal title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Title (e.g. Structural Steel Shop Drawings)"
           className="h-10 flex-1 min-w-[220px] rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink"
         />
         <input
+          aria-label="Specification section"
           value={specSection}
           onChange={(e) => setSpecSection(e.target.value)}
           placeholder="Spec section"
           className="h-10 w-32 rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink"
         />
         <select
+          aria-label="Linked task"
           value={taskId}
           onChange={(e) => setTaskId(e.target.value)}
           className="h-10 rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink"
@@ -122,6 +125,7 @@ function NewSubmittalForm({ projectId, tasks }: { projectId: string; tasks: Task
           ))}
         </select>
         <input
+          aria-label="Submittal due date"
           type="date"
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}

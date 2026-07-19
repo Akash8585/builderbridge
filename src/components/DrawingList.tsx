@@ -101,6 +101,7 @@ function UploadDrawingForm({ projectId, tasks }: { projectId: string; tasks: Tas
       <h3 className="app-card-title mb-3">Upload a Drawing</h3>
       <div className="flex flex-wrap items-center gap-3">
         <input
+          aria-label="Drawing title"
           name="title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -108,11 +109,13 @@ function UploadDrawingForm({ projectId, tasks }: { projectId: string; tasks: Tas
           className="h-10 flex-1 min-w-[260px] rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink"
         />
         <input
+          aria-label="Drawing discipline"
           name="discipline"
           placeholder="Discipline"
           className="h-10 w-32 rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink"
         />
         <select
+          aria-label="Linked task"
           name="taskId"
           className="h-10 rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink"
         >
@@ -124,6 +127,7 @@ function UploadDrawingForm({ projectId, tasks }: { projectId: string; tasks: Tas
           ))}
         </select>
         <input
+          aria-label="Drawing file"
           name="file"
           type="file"
           accept="application/pdf,image/png,image/jpeg,image/webp"

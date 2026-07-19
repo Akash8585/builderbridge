@@ -15,7 +15,7 @@
   --color-ink: #111111;
   --color-body: #374151;
   --color-muted: #6b7280;
-  --color-muted-soft: #898989;
+  --color-muted-soft: #6b7280;
   --color-hairline: #e5e7eb;
   --color-hairline-soft: #f3f4f6;
   --color-canvas: #ffffff;
@@ -30,7 +30,7 @@
   --color-brand-accent: #3b82f6;
   --color-success: #10b981;
   --color-warning: #f59e0b;
-  --color-error: #ef4444;
+  --color-error: #b91c1c;
   --color-badge-orange: #fb923c;
   --color-badge-pink: #ec4899;
   --color-badge-violet: #8b5cf6;
@@ -280,7 +280,7 @@ textarea:focus-visible {
 }
 
 body.has-project-rail .app-page {
-  padding-bottom: 112px;
+  padding-bottom: calc(112px + env(safe-area-inset-bottom));
 }
 
 .app-page {
@@ -507,6 +507,15 @@ body.has-project-rail .app-page {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
   .landing-panel-enter {
     animation: none;
   }

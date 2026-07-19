@@ -107,6 +107,7 @@ function NewRfiForm({
     <form onSubmit={handleSubmit} className="border border-hairline rounded-lg p-4 bg-surface-soft">
       <h3 className="app-card-title mb-3">Raise an RFI</h3>
       <textarea
+        aria-label="RFI question"
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
         placeholder="What needs clarification?"
@@ -116,6 +117,7 @@ function NewRfiForm({
       />
       <div className="flex flex-wrap items-center gap-3">
         <select
+          aria-label="Linked task"
           value={taskId}
           onChange={(e) => setTaskId(e.target.value)}
           className="h-10 rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink"
@@ -128,6 +130,7 @@ function NewRfiForm({
           ))}
         </select>
         <select
+          aria-label="Source document"
           value={attachmentId}
           onChange={(e) => setAttachmentId(e.target.value)}
           className="h-10 max-w-[220px] rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink"
@@ -140,6 +143,7 @@ function NewRfiForm({
           ))}
         </select>
         <input
+          aria-label="Cited page"
           type="number"
           min={1}
           value={pageNumber}
@@ -150,6 +154,7 @@ function NewRfiForm({
           className="h-10 w-20 rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink disabled:opacity-50"
         />
         <input
+          aria-label="Response needed by"
           type="date"
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
@@ -227,6 +232,7 @@ function RfiCard({ rfi, canAnswer }: { rfi: RfiRow; canAnswer: boolean }) {
       {canAnswer && rfi.status === "OPEN" && (
         <div className="flex flex-wrap items-center gap-2 mt-2">
           <input
+            aria-label={`Answer RFI: ${rfi.question}`}
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
             placeholder="Type an answer…"

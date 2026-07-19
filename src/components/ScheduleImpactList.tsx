@@ -80,6 +80,7 @@ function SubmitSirForm({ projectId, tasks }: { projectId: string; tasks: TaskOpt
     <form onSubmit={handleSubmit} className="border border-hairline rounded-lg p-4 bg-surface-soft">
       <h3 className="app-card-title mb-3">Submit a Schedule Impact Request</h3>
       <textarea
+        aria-label="Schedule impact description"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="What field condition is affecting the schedule?"
@@ -89,6 +90,7 @@ function SubmitSirForm({ projectId, tasks }: { projectId: string; tasks: TaskOpt
       />
       <div className="flex flex-wrap items-center gap-3">
         <select
+          aria-label="Affected task"
           value={taskId}
           onChange={(e) => setTaskId(e.target.value)}
           className="h-10 rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink"
@@ -101,6 +103,7 @@ function SubmitSirForm({ projectId, tasks }: { projectId: string; tasks: TaskOpt
           ))}
         </select>
         <input
+          aria-label="Proposed new end date"
           type="date"
           value={proposedNewEndDate}
           onChange={(e) => setProposedNewEndDate(e.target.value)}
@@ -152,6 +155,7 @@ function SirCard({ sir, canReview }: { sir: SirRow; canReview: boolean }) {
       {sir.status === "PENDING" && canReview && (
         <div className="flex flex-wrap items-center gap-2 mt-2">
           <input
+            aria-label="Review note"
             value={reviewNote}
             onChange={(e) => setReviewNote(e.target.value)}
             placeholder="Review note (optional)"

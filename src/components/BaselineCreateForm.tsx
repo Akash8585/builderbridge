@@ -28,6 +28,7 @@ export function BaselineCreateForm({ projectId }: { projectId: string }) {
       <h3 className="app-card-title mb-3">Save a new baseline</h3>
       <div className="flex flex-wrap items-center gap-3">
         <input
+          aria-label="Baseline name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Name (e.g. Original Schedule, Rev 1)"

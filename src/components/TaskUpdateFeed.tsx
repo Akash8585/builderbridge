@@ -70,6 +70,7 @@ export function TaskUpdateFeed({ taskId, updates }: { taskId: string; updates: T
       <form ref={formRef} onSubmit={handleSubmit} className="border border-hairline rounded-lg p-4 bg-surface-soft mb-6">
         <h3 className="app-card-title mb-3">Post a field update</h3>
         <textarea
+          aria-label="Field update"
           name="note"
           value={note}
           onChange={(e) => setNote(e.target.value)}
@@ -80,6 +81,7 @@ export function TaskUpdateFeed({ taskId, updates }: { taskId: string; updates: T
         />
         <div className="flex flex-wrap items-center gap-3">
           <input
+            aria-label="Field update photo"
             ref={fileInputRef}
             type="file"
             name="photo"

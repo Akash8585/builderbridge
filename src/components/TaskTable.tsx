@@ -214,6 +214,7 @@ function TaskRowView({
             <span className="inline-flex items-center gap-1.5">
               <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${STATUS_DOT[task.status]}`} aria-hidden />
               <select
+                aria-label={`Status for ${task.name}`}
                 value={task.status}
                 disabled={pending}
                 onChange={(e) => handleStatusChange(e.target.value as TaskStatus)}

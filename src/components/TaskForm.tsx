@@ -52,6 +52,7 @@ export function TaskForm({ projectId, members }: { projectId: string; members: M
     <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 rounded-md border border-hairline bg-surface-soft p-3">
       <div className="flex-1 min-w-[160px]">
         <Input
+          aria-label="Task name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Task name"
@@ -60,6 +61,7 @@ export function TaskForm({ projectId, members }: { projectId: string; members: M
         />
       </div>
       <select
+        aria-label="Assignee"
         value={assignedToId}
         onChange={(e) => setAssignedToId(e.target.value)}
         className="h-10 rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink"
@@ -71,8 +73,8 @@ export function TaskForm({ projectId, members }: { projectId: string; members: M
           </option>
         ))}
       </select>
-      <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required className="w-40" />
-      <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required className="w-40" />
+      <Input aria-label="Task start date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required className="w-40" />
+      <Input aria-label="Task end date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required className="w-40" />
       <Button type="submit" disabled={loading} className="h-10">
         {loading ? "Adding…" : "Add"}
       </Button>

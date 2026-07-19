@@ -116,6 +116,7 @@ function CommitmentRowView({ commitment }: { commitment: CommitmentRow }) {
       <td className="px-4 py-3 text-muted">{commitment.committedBy.user.name}</td>
       <td className="px-4 py-3">
         <select
+          aria-label={`Status for ${commitment.task.name}`}
           value={status}
           disabled={pending}
           onChange={(e) => handleStatusChange(e.target.value as CommitmentStatus)}
@@ -130,6 +131,7 @@ function CommitmentRowView({ commitment }: { commitment: CommitmentRow }) {
         {status === "NOT_COMPLETED" && (
           <div className="mt-2 flex items-center gap-2">
             <input
+              aria-label={`Variance reason for ${commitment.task.name}`}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Reason for variance"
@@ -198,6 +200,7 @@ function CommitForm({ weekStartDate, tasks }: { weekStartDate: string; tasks: Co
       <h3 className="app-card-title mb-3">Add work to this week</h3>
       <div className="flex flex-wrap items-center gap-3">
         <select
+          aria-label="Task to commit"
           value={taskId}
           onChange={(e) => setTaskId(e.target.value)}
           className="h-10 rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink"

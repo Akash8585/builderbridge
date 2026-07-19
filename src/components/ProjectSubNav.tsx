@@ -137,7 +137,7 @@ function ProjectRailLink({
       title={tab.label}
       onFocus={() => onIntent(href)}
       onPointerEnter={() => onIntent(href)}
-      className={`group relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors ${
+      className={`group relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors md:h-10 md:w-10 ${
         active
           ? "bg-ink text-canvas shadow-[0_4px_12px_rgba(17,17,17,0.16)]"
           : "text-body hover:bg-surface-soft hover:text-ink"

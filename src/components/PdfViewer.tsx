@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Download, ExternalLink, X } from "lucide-react";
 import {
   fileDownloadUrl,
@@ -125,6 +125,8 @@ export function PdfViewerPanel({
 
 export function DashboardPdfViewer() {
   const [document, setDocument] = useState<PdfViewerDocument | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const openViewer = (event: Event) => {
@@ -138,22 +140,67 @@ export function DashboardPdfViewer() {
 
   useEffect(() => {
     if (!document) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setDocument(null);
+    restoreFocusRef.current = window.document.activeElement instanceof HTMLElement
+      ? window.document.activeElement
+      : null;
+    const backgroundElements = Array.from(
+      window.document.querySelectorAll<HTMLElement>(".app-shell > header, .app-shell > nav, .app-shell > main")
+    );
+    backgroundElements.forEach((element) => { element.inert = true; });
+    const focusFrame = window.requestAnimationFrame(() => dialogRef.current?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setDocument(null);
+        return;
+      }
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]):not([tabindex="-1"]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((element) => element.getClientRects().length > 0);
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialogRef.current.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable.at(-1)!;
+      if (event.shiftKey && (window.document.activeElement === first || window.document.activeElement === dialogRef.current)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && window.document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      backgroundElements.forEach((element) => { element.inert = false; });
+      window.removeEventListener("keydown", onKeyDown);
+      const restoreFocus = restoreFocusRef.current;
+      window.requestAnimationFrame(() => restoreFocus?.focus());
+    };
   }, [document]);
 
   if (!document) return null;
 
   return (
-    <div className="fixed inset-0 z-40 bg-black/18" role="dialog" aria-modal="true" aria-label="Project PDF viewer">
+    <div
+      ref={dialogRef}
+      className="fixed inset-0 z-40 bg-black/18 outline-none"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Project PDF viewer"
+      tabIndex={-1}
+    >
       <button
         type="button"
         className="absolute inset-0 cursor-default"
         onClick={() => setDocument(null)}
-        aria-label="Close PDF viewer"
+        aria-hidden="true"
+        tabIndex={-1}
       />
       <div className="absolute inset-y-0 right-0 w-full sm:w-1/2 sm:min-w-[560px] sm:max-w-[960px]">
         <PdfViewerPanel

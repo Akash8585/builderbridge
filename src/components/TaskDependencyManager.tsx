@@ -91,6 +91,7 @@ export function TaskDependencyManager({
               {canManage && addingFor === task.id ? (
                 <span className="inline-flex items-center gap-1">
                   <select
+                    aria-label={`Predecessor for ${task.name}`}
                     value={selectedPredecessor}
                     onChange={(e) => setSelectedPredecessor(e.target.value)}
                     className="h-8 rounded-md border border-hairline bg-canvas px-2 text-xs focus:outline-none focus:border-ink"

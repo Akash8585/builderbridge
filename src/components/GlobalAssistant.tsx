@@ -276,6 +276,8 @@ export function GlobalAssistant() {
   const [railOpen, setRailOpen] = useState(false);
   const [conversationQuery, setConversationQuery] = useState("");
   const [pdfDocument, setPdfDocument] = useState<PdfViewerDocument | null>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
 
   const loadConversation = useCallback(async (conversationId: string) => {
     setLoading(true);
@@ -323,17 +325,58 @@ export function GlobalAssistant() {
   useEffect(() => {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
+    restoreFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const backgroundElements = Array.from(
+      document.querySelectorAll<HTMLElement>(".app-shell > header, .app-shell > nav, .app-shell > main")
+    );
     document.body.style.overflow = "hidden";
+    backgroundElements.forEach((element) => { element.inert = true; });
+    const focusFrame = window.requestAnimationFrame(() => dialogRef.current?.focus());
+
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((element) => element.getClientRects().length > 0);
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialogRef.current.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable.at(-1)!;
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.body.style.overflow = previousOverflow;
+      backgroundElements.forEach((element) => { element.inert = false; });
+      window.removeEventListener("keydown", onKeyDown);
+      const restoreFocus = restoreFocusRef.current;
+      window.requestAnimationFrame(() => restoreFocus?.focus());
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (pdfDocument) setPdfDocument(null);
       else setOpen(false);
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", onKeyDown);
-    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
   }, [open, pdfDocument]);
 
   useEffect(() => {
@@ -661,8 +704,11 @@ export function GlobalAssistant() {
       {open && (
         <div className="assistant-theme fixed inset-0 z-50 h-dvh min-h-0 overflow-hidden bg-[var(--assistant-overlay)] backdrop-blur-[18px] backdrop-saturate-150">
           <aside
+            ref={dialogRef}
             role="dialog"
+            aria-modal="true"
             aria-label="Agent"
+            tabIndex={-1}
             className="relative flex h-full min-h-0 w-full overflow-hidden bg-transparent before:pointer-events-none before:absolute before:left-0 before:top-0 before:z-0 before:h-4 before:w-4 before:bg-[var(--assistant-rail)] before:backdrop-blur-[38px] before:backdrop-saturate-150 before:content-[''] md:grid md:grid-cols-[280px_minmax(0,1fr)] md:before:left-[280px] lg:grid-cols-[296px_minmax(0,1fr)] lg:before:left-[296px]"
           >
             <div

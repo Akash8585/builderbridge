@@ -52,6 +52,7 @@ export function InviteLinkGenerator({
       </p>
       <div className="flex flex-wrap items-center gap-3">
         <select
+          aria-label="Project role"
           value={role}
           onChange={(e) => setRole(e.target.value as ProjectRole)}
           className="h-10 rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink"
@@ -70,6 +71,7 @@ export function InviteLinkGenerator({
       {link && (
         <div className="mt-4 flex items-center gap-2">
           <input
+            aria-label="Invitation link"
             readOnly
             value={link}
             className="h-10 flex-1 min-w-0 rounded-md border border-hairline bg-canvas px-3 text-sm text-body"

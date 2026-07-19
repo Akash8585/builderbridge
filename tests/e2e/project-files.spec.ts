@@ -25,9 +25,12 @@ function searchablePdf(text: string): Buffer {
 }
 
 test("project files upload, index, open, filter, and delete securely", async ({ page }) => {
+  test.setTimeout(180_000);
   const marker = Date.now();
   const fileName = `door-spec-${marker}.pdf`;
-  const pdfBuffer = searchablePdf("Fire rated corridor doors require a 90 minute rating and smoke seals.");
+  const pdfBuffer = searchablePdf(
+    `Fire rated corridor doors require a 90 minute rating and smoke seals. Test run ${marker}.`
+  );
   let uploadedId: string | null = null;
   await signIn(page, PM_EMAIL);
   await openDemoProject(page);
@@ -64,7 +67,7 @@ test("project files upload, index, open, filter, and delete securely", async ({ 
       buffer: pdfBuffer,
     });
     expect((await duplicateResponsePromise).status()).toBe(409);
-    await expect(page.getByRole("alert")).toContainText("exact file is already stored");
+    await expect(page.getByRole("alert").filter({ hasText: "exact file is already stored" })).toBeVisible();
 
     const disguisedResponsePromise = page.waitForResponse(
       (response) =>
@@ -77,7 +80,7 @@ test("project files upload, index, open, filter, and delete securely", async ({ 
       buffer: Buffer.from("This is not a PDF."),
     });
     expect((await disguisedResponsePromise).status()).toBe(415);
-    await expect(page.getByRole("alert")).toContainText("contents must be PDF");
+    await expect(page.getByRole("alert").filter({ hasText: "contents must be PDF" })).toBeVisible();
 
     const row = page.locator("tbody tr").filter({ hasText: fileName });
     await expect(row).toBeVisible();
@@ -87,6 +90,15 @@ test("project files upload, index, open, filter, and delete securely", async ({ 
     const fileButton = row.getByRole("button", { name: fileName, exact: true });
     await fileButton.click();
     const pdfDialog = page.getByRole("dialog", { name: "Project PDF viewer" });
+    await expect(pdfDialog).toBeVisible();
+    await expect(pdfDialog).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(pdfDialog.locator(":focus")).toHaveCount(1);
+    await page.keyboard.press("Escape");
+    await expect(pdfDialog).toBeHidden();
+    await expect(fileButton).toBeFocused();
+
+    await fileButton.click();
     await expect(pdfDialog).toBeVisible();
     const pdfFrame = pdfDialog.locator("iframe");
     await expect(pdfFrame).toHaveAttribute("title", `${fileName}, page 1`);
@@ -99,6 +111,7 @@ test("project files upload, index, open, filter, and delete securely", async ({ 
     expect(rangeResponse.headers()["content-security-policy"]).toContain("frame-ancestors 'self'");
     await pdfDialog.getByRole("button", { name: "Close PDF viewer" }).click();
     await expect(pdfDialog).toBeHidden();
+    await expect(fileButton).toBeFocused();
 
     const downloadPromise = page.waitForEvent("download");
     await row.getByRole("link", { name: `Download ${fileName}` }).click();
@@ -112,13 +125,15 @@ test("project files upload, index, open, filter, and delete securely", async ({ 
     await page.goto(`/projects/${projectId}/files`);
 
     const refreshedRow = page.locator("tbody tr").filter({ hasText: fileName });
-    await refreshedRow.getByRole("button", { name: `Ask Agent about ${fileName}` }).click();
+    await refreshedRow.getByRole("button", { name: "Open in Agent" }).click();
     const assistantDialog = page.getByRole("dialog", { name: "Agent" });
     await expect(assistantDialog).toBeVisible();
-    await expect(assistantDialog.getByLabel("Message Agent")).toHaveValue(
-      `What does "${fileName}" say?`
-    );
-    await assistantDialog.getByRole("button", { name: "Close Agent" }).click();
+    await expect(
+      assistantDialog.getByRole("button", {
+        name: `Summarize "${fileName}" for the project team.`,
+      })
+    ).toBeVisible();
+    await assistantDialog.getByRole("button", { name: "Return to dashboard" }).click();
 
     await page.getByRole("button", { name: "Direct uploads" }).click();
     await expect(refreshedRow).toBeVisible();
@@ -140,7 +155,9 @@ test("project files upload, index, open, filter, and delete securely", async ({ 
     await expect(refreshedRow).toHaveCount(0);
   } finally {
     if (uploadedId) {
-      await page.request.delete(`/api/projects/${projectId}/files/${uploadedId}`);
+      await page.request
+        .delete(`/api/projects/${projectId}/files/${uploadedId}`, { timeout: 15_000 })
+        .catch(() => undefined);
     }
   }
 });

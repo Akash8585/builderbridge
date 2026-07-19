@@ -49,9 +49,10 @@ export function EditTaskForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 bg-surface-soft p-4 rounded-lg">
       <div className="flex-1 min-w-[160px]">
-        <Input value={name} onChange={(e) => setName(e.target.value)} required />
+        <Input aria-label="Task name" value={name} onChange={(e) => setName(e.target.value)} required />
       </div>
       <select
+        aria-label="Assignee"
         value={assignedToId}
         onChange={(e) => setAssignedToId(e.target.value)}
         className="h-10 rounded-md border border-hairline bg-canvas px-3 text-sm focus:outline-none focus:border-ink"
@@ -63,8 +64,8 @@ export function EditTaskForm({
           </option>
         ))}
       </select>
-      <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required className="w-40" />
-      <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required className="w-40" />
+      <Input aria-label="Task start date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required className="w-40" />
+      <Input aria-label="Task end date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required className="w-40" />
       <Button type="submit" disabled={loading} className="h-10">
         {loading ? "Saving…" : "Save"}
       </Button>

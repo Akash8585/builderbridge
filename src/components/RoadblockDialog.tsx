@@ -76,6 +76,7 @@ export function RoadblockDialog({ taskId, isRoadblock, roadblockNote, roadblockS
   return (
     <div className="flex flex-col gap-2 w-56">
       <select
+        aria-label="Roadblock type"
         value={type}
         onChange={(e) => setType(e.target.value as RoadblockType)}
         className="text-xs rounded-md border border-hairline px-2 py-1.5 focus:outline-none focus:border-ink"
@@ -87,6 +88,7 @@ export function RoadblockDialog({ taskId, isRoadblock, roadblockNote, roadblockS
         ))}
       </select>
       <textarea
+        aria-label="Roadblock details"
         value={note}
         onChange={(e) => setNote(e.target.value)}
         placeholder="What's blocking this task?"

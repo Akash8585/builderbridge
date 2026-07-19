@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/session";
 import { requireProjectMember } from "@/lib/permissions";
 import { uploadFile, buildStorageKey, deleteStoredFile } from "@/lib/storage";
 import { enforceUploadQuota, validateUploadedFile } from "@/lib/file-uploads";
+import { activityChanges, logActivity } from "@/lib/activity-log";
 import { ok, fail, type ActionResult } from "./schemas";
 import type { TaskUpdate } from "@prisma/client";
 
@@ -87,6 +88,18 @@ export async function addTaskUpdate(formData: FormData): Promise<ActionResult<Ta
       if (photoStorageKey) await deleteStoredFile(photoStorageKey).catch(() => undefined);
       throw error;
     }
+
+    await logActivity({
+      projectId: task.projectId,
+      taskId: task.id,
+      taskName: task.name,
+      userId: user.id,
+      action: "task_update_added",
+      detail: `Posted a field update on "${task.name}"${validatedPhoto ? " with a photo" : ""}`,
+      entityType: "TASK_UPDATE",
+      entityId: update.id,
+      changes: activityChanges({}, update, ["note", "fileName"]),
+    });
 
     revalidatePath(`/projects/${task.projectId}/tasks/${task.id}`);
     return ok(update);

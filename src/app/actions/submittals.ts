@@ -9,7 +9,7 @@ import {
   requireProjectTaskReference,
   requireScheduleEditAccess,
 } from "@/lib/permissions";
-import { logActivity } from "@/lib/activity-log";
+import { activityChanges, logActivity } from "@/lib/activity-log";
 import { ok, fail, submittalStatusSchema, type ActionResult } from "./schemas";
 import { SUBMITTAL_STATUS_LABELS } from "@/lib/utils";
 import type { Submittal } from "@prisma/client";
@@ -56,6 +56,9 @@ export async function createSubmittal(input: unknown): Promise<ActionResult<Subm
       userId: user.id,
       action: "submittal_created",
       detail: `Submitted "${submittal.title}" for review`,
+      entityType: "SUBMITTAL",
+      entityId: submittal.id,
+      changes: activityChanges({}, submittal, ["title", "specSection", "dueDate", "taskId", "status"]),
     });
 
     revalidatePath(`/projects/${parsed.data.projectId}/submittals`);
@@ -95,6 +98,9 @@ export async function updateSubmittalStatus(input: unknown): Promise<ActionResul
       userId: user.id,
       action: "submittal_status_changed",
       detail: `"${existing.title}" marked ${SUBMITTAL_STATUS_LABELS[parsed.data.status]}`,
+      entityType: "SUBMITTAL",
+      entityId: submittal.id,
+      changes: activityChanges(existing, submittal, ["status"]),
     });
 
     revalidatePath(`/projects/${existing.projectId}/submittals`);

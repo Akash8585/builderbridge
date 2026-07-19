@@ -8,6 +8,7 @@ import { requireUser } from "@/lib/session";
 import { requireProjectManager } from "@/lib/permissions";
 import { auth } from "@/lib/auth";
 import { generateInviteExpiry } from "@/lib/utils";
+import { activityChanges, logActivity } from "@/lib/activity-log";
 import { ok, fail, projectRoleSchema, type ActionResult } from "./schemas";
 import type { ProjectInvite, ProjectMember } from "@prisma/client";
 
@@ -32,6 +33,16 @@ export async function createInvite(input: unknown): Promise<ActionResult<Project
         role: parsed.data.role,
         expiresAt: generateInviteExpiry(),
       },
+    });
+
+    await logActivity({
+      projectId: parsed.data.projectId,
+      userId: user.id,
+      action: "project_invite_created",
+      detail: `Created a ${parsed.data.role.replaceAll("_", " ").toLowerCase()} project invitation`,
+      entityType: "PROJECT_INVITE",
+      entityId: invite.id,
+      changes: activityChanges({}, invite, ["role", "expiresAt"]),
     });
 
     revalidatePath(`/projects/${parsed.data.projectId}/members`);
@@ -104,6 +115,16 @@ export async function acceptInvite(input: unknown): Promise<ActionResult<Project
         // Non-fatal: the org switcher lets them pick it manually if this fails.
       });
 
+    await logActivity({
+      projectId: invite.projectId,
+      userId: user.id,
+      action: "project_member_joined",
+      detail: `Joined the project as ${member.role.replaceAll("_", " ").toLowerCase()}`,
+      entityType: "PROJECT_MEMBER",
+      entityId: member.id,
+      changes: activityChanges({}, member, ["userId", "role"]),
+    });
+
     revalidatePath(`/projects/${invite.projectId}`);
     return ok(member);
   } catch (error) {
@@ -126,9 +147,10 @@ export async function removeMember(input: unknown): Promise<ActionResult<null>> 
     const user = await requireUser();
     await requireProjectManager(user.id, parsed.data.projectId);
 
-    await prisma.$transaction(async (tx) => {
+    const removedMember = await prisma.$transaction(async (tx) => {
       const member = await tx.projectMember.findFirst({
         where: { id: parsed.data.memberId, projectId: parsed.data.projectId },
+        include: { user: { select: { name: true } } },
       });
       if (!member) throw new Error("Member not found on this project");
 
@@ -143,6 +165,17 @@ export async function removeMember(input: unknown): Promise<ActionResult<null>> 
 
       // onDelete: SetNull on Task.assignedToId automatically unassigns their tasks.
       await tx.projectMember.delete({ where: { id: member.id } });
+      return member;
+    });
+
+    await logActivity({
+      projectId: parsed.data.projectId,
+      userId: user.id,
+      action: "project_member_removed",
+      detail: `Removed ${removedMember.user.name} from the project`,
+      entityType: "PROJECT_MEMBER",
+      entityId: removedMember.id,
+      changes: activityChanges(removedMember, {}, ["userId", "role"]),
     });
 
     revalidatePath(`/projects/${parsed.data.projectId}/members`);

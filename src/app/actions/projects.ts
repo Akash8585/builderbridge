@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { requireOrganizationMember, requireProjectManager } from "@/lib/permissions";
-import { logActivity } from "@/lib/activity-log";
+import { activityChanges, logActivity } from "@/lib/activity-log";
 import { assertCanCreateProject } from "@/lib/billing";
 import { ok, fail, type ActionResult } from "./schemas";
 import type { Project } from "@prisma/client";
@@ -45,6 +45,16 @@ export async function createProject(input: unknown): Promise<ActionResult<Projec
       },
     });
 
+    await logActivity({
+      projectId: project.id,
+      userId: user.id,
+      action: "project_created",
+      detail: `Created project "${project.name}"`,
+      entityType: "PROJECT",
+      entityId: project.id,
+      changes: activityChanges({}, project, ["name", "startDate", "endDate", "isArchived"]),
+    });
+
     revalidatePath("/projects");
     return ok(project);
   } catch (error) {
@@ -74,6 +84,12 @@ export async function archiveProject(input: unknown): Promise<ActionResult<Proje
       userId: user.id,
       action: "project_archived",
       detail: `Archived project "${project.name}"`,
+      entityType: "PROJECT",
+      entityId: project.id,
+      changes: activityChanges({ isArchived: false, archivedAt: null }, project, [
+        "isArchived",
+        "archivedAt",
+      ]),
     });
 
     revalidatePath("/projects");
@@ -103,6 +119,9 @@ export async function unarchiveProject(input: unknown): Promise<ActionResult<Pro
       userId: user.id,
       action: "project_unarchived",
       detail: `Unarchived project "${project.name}"`,
+      entityType: "PROJECT",
+      entityId: project.id,
+      changes: activityChanges({ isArchived: true }, project, ["isArchived", "archivedAt"]),
     });
 
     revalidatePath("/projects");

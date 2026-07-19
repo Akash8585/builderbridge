@@ -14,7 +14,7 @@ import {
 } from "@/lib/permissions";
 import { ok, fail, taskStatusSchema, roadblockTypeSchema, type ActionResult } from "./schemas";
 import { wouldCreateCycle } from "@/lib/critical-path";
-import { logActivity } from "@/lib/activity-log";
+import { activityChanges, logActivity } from "@/lib/activity-log";
 import { notifyUser } from "@/lib/notifications";
 import { TASK_STATUS_LABELS, formatDate } from "@/lib/utils";
 import type { Task, TaskDependency } from "@prisma/client";
@@ -91,6 +91,16 @@ export async function createTask(input: unknown): Promise<ActionResult<Task>> {
       userId: user.id,
       action: "task_created",
       detail: `Created task "${task.name}"`,
+      entityType: "TASK",
+      entityId: task.id,
+      changes: activityChanges({}, task, [
+        "name",
+        "assignedToId",
+        "startDate",
+        "endDate",
+        "status",
+        "progress",
+      ]),
     });
 
     if (task.assignedToId) {
@@ -160,6 +170,9 @@ export async function updateTask(input: unknown): Promise<ActionResult<Task>> {
       userId: user.id,
       action: "task_updated",
       detail: `Updated dates/assignment for "${task.name}"`,
+      entityType: "TASK",
+      entityId: task.id,
+      changes: activityChanges(existing, task, ["name", "assignedToId", "startDate", "endDate"]),
     });
 
     // Only notify on a genuinely new assignment, not every edit.
@@ -227,6 +240,9 @@ export async function updateTaskDates(input: unknown): Promise<ActionResult<Task
       userId: user.id,
       action: "task_rescheduled",
       detail: `Rescheduled "${task.name}" to ${task.startDate.toDateString()} – ${task.endDate.toDateString()}`,
+      entityType: "TASK",
+      entityId: task.id,
+      changes: activityChanges(existing, task, ["startDate", "endDate"]),
     });
 
     revalidatePath(`/projects/${existing.projectId}`);
@@ -270,6 +286,9 @@ export async function updateTaskStatus(input: unknown): Promise<ActionResult<Tas
       userId: user.id,
       action: "status_changed",
       detail: `Status changed from ${TASK_STATUS_LABELS[existing.status]} to ${TASK_STATUS_LABELS[task.status]} on "${task.name}"`,
+      entityType: "TASK",
+      entityId: task.id,
+      changes: activityChanges(existing, task, ["status", "progress"]),
     });
 
     revalidatePath(`/projects/${existing.projectId}`);
@@ -330,6 +349,16 @@ export async function flagRoadblock(input: unknown): Promise<ActionResult<Task>>
       userId: user.id,
       action: "roadblock_flagged",
       detail: `Flagged a roadblock on "${task.name}": ${parsed.data.roadblockNote}`,
+      entityType: "TASK",
+      entityId: task.id,
+      changes: activityChanges(existing, task, [
+        "isRoadblock",
+        "roadblockStatus",
+        "roadblockNote",
+        "roadblockType",
+        "roadblockOwnerId",
+        "roadblockDueDate",
+      ]),
     });
 
     if (task.roadblockOwnerId) {
@@ -390,6 +419,22 @@ export async function updateRoadblockDetails(input: unknown): Promise<ActionResu
       },
     });
 
+    await logActivity({
+      projectId: existing.projectId,
+      taskId: task.id,
+      taskName: task.name,
+      userId: user.id,
+      action: "roadblock_updated",
+      detail: `Updated roadblock details for "${task.name}"`,
+      entityType: "TASK",
+      entityId: task.id,
+      changes: activityChanges(existing, task, [
+        "roadblockType",
+        "roadblockOwnerId",
+        "roadblockDueDate",
+      ]),
+    });
+
     if (task.roadblockOwnerId && task.roadblockOwnerId !== existing.roadblockOwnerId) {
       await notifyMember({
         projectId: existing.projectId,
@@ -439,6 +484,9 @@ export async function resolveRoadblock(input: unknown): Promise<ActionResult<Tas
       userId: user.id,
       action: "roadblock_resolved",
       detail: `Resolved the roadblock on "${task.name}"`,
+      entityType: "TASK",
+      entityId: task.id,
+      changes: activityChanges(existing, task, ["roadblockStatus", "resolvedAt"]),
     });
 
     revalidatePath(`/projects/${existing.projectId}`);
@@ -474,6 +522,16 @@ export async function deleteTask(input: unknown): Promise<ActionResult<null>> {
       userId: user.id,
       action: "task_deleted",
       detail: `Deleted task "${existing.name}"`,
+      entityType: "TASK",
+      entityId: existing.id,
+      changes: activityChanges(existing, {}, [
+        "name",
+        "assignedToId",
+        "startDate",
+        "endDate",
+        "status",
+        "progress",
+      ]),
     });
 
     revalidatePath(`/projects/${existing.projectId}`);
@@ -533,6 +591,9 @@ export async function addDependency(input: unknown): Promise<ActionResult<TaskDe
       userId: user.id,
       action: "dependency_added",
       detail: `"${successor.name}" now depends on "${predecessor.name}"`,
+      entityType: "TASK_DEPENDENCY",
+      entityId: dependency.id,
+      changes: activityChanges({}, dependency, ["predecessorId", "successorId"]),
     });
 
     revalidatePath(`/projects/${parsed.data.projectId}/gantt`);
@@ -572,6 +633,9 @@ export async function removeDependency(input: unknown): Promise<ActionResult<nul
       userId: user.id,
       action: "dependency_removed",
       detail: `Removed dependency: "${edge.successor.name}" no longer depends on "${edge.predecessor.name}"`,
+      entityType: "TASK_DEPENDENCY",
+      entityId: edge.id,
+      changes: activityChanges(edge, {}, ["predecessorId", "successorId"]),
     });
 
     revalidatePath(`/projects/${parsed.data.projectId}/gantt`);

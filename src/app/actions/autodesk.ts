@@ -19,7 +19,7 @@ import {
   tokenExpiresAt,
 } from "@/lib/autodesk";
 import { autodeskDrawingTitle, autodeskDisciplineFromName } from "@/lib/autodesk-sync";
-import { logActivity } from "@/lib/activity-log";
+import { activityChanges, logActivity } from "@/lib/activity-log";
 import { uploadFile, buildStorageKey, deleteStoredFile } from "@/lib/storage";
 import { enforceUploadQuota, validateUploadBytes } from "@/lib/file-uploads";
 import { ok, fail, type ActionResult } from "./schemas";
@@ -157,6 +157,23 @@ export async function setAutodeskProjectMapping(input: unknown): Promise<ActionR
       data: { autodeskProjectId: parsed.data.autodeskProjectId?.trim() || null },
     });
 
+    await logActivity({
+      projectId: project.id,
+      userId: user.id,
+      action: "autodesk_mapping_changed",
+      detail: parsed.data.autodeskProjectId
+        ? "Mapped this project to an Autodesk Construction Cloud project"
+        : "Removed the Autodesk project mapping",
+      entityType: "INTEGRATION_MAPPING",
+      entityId: project.id,
+      source: "INTEGRATION",
+      changes: activityChanges(
+        { autodeskProjectId: project.autodeskProjectId },
+        { autodeskProjectId: parsed.data.autodeskProjectId?.trim() || null },
+        ["autodeskProjectId"]
+      ),
+    });
+
     revalidatePath("/integrations");
     return ok(null);
   } catch (error) {
@@ -292,6 +309,13 @@ export async function syncAutodeskProject(input: unknown): Promise<ActionResult<
       userId: user.id,
       action: "autodesk_synced",
       detail: `Synced ${summary.created + summary.updated} drawings from ACC (${summary.skipped} skipped)`,
+      entityType: "INTEGRATION_SYNC",
+      entityId: project.id,
+      source: "INTEGRATION",
+      changes: {
+        drawingRecords: { before: null, after: summary.created + summary.updated },
+        skippedRecords: { before: null, after: summary.skipped },
+      },
     });
 
     revalidatePath(`/projects/${project.id}/drawings`);

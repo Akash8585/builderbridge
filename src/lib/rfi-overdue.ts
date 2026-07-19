@@ -32,6 +32,13 @@ export async function syncOverdueRfiFlags(projectId: string): Promise<void> {
       userId: rfi.raisedBy.userId,
       action: "roadblock_auto_flagged",
       detail: `Auto-flagged "${rfi.task.name}" as a roadblock - linked RFI is overdue`,
+      entityType: "TASK",
+      entityId: rfi.task.id,
+      source: "SYSTEM",
+      changes: {
+        isRoadblock: { before: false, after: true },
+        roadblockStatus: { before: null, after: "OPEN" },
+      },
     });
   }
 }

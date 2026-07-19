@@ -27,7 +27,7 @@ import {
   procoreSubmittalSpecSection,
   procoreSubmittalTitle,
 } from "@/lib/procore-sync";
-import { logActivity } from "@/lib/activity-log";
+import { activityChanges, logActivity } from "@/lib/activity-log";
 import { ok, fail, type ActionResult } from "./schemas";
 
 const OAUTH_STATE_COOKIE = "procore_oauth_state";
@@ -163,6 +163,23 @@ export async function setProcoreProjectMapping(input: unknown): Promise<ActionRe
       data: { procoreProjectId: parsed.data.procoreProjectId?.trim() || null },
     });
 
+    await logActivity({
+      projectId: project.id,
+      userId: user.id,
+      action: "procore_mapping_changed",
+      detail: parsed.data.procoreProjectId
+        ? "Mapped this project to a Procore project"
+        : "Removed the Procore project mapping",
+      entityType: "INTEGRATION_MAPPING",
+      entityId: project.id,
+      source: "INTEGRATION",
+      changes: activityChanges(
+        { procoreProjectId: project.procoreProjectId },
+        { procoreProjectId: parsed.data.procoreProjectId?.trim() || null },
+        ["procoreProjectId"]
+      ),
+    });
+
     revalidatePath("/integrations");
     return ok(null);
   } catch (error) {
@@ -282,6 +299,19 @@ export async function syncProcoreProject(input: unknown): Promise<ActionResult<P
       userId: user.id,
       action: "procore_synced",
       detail: `Synced ${summary.rfis.created + summary.rfis.updated} RFIs and ${summary.submittals.created + summary.submittals.updated} submittals from Procore`,
+      entityType: "INTEGRATION_SYNC",
+      entityId: project.id,
+      source: "INTEGRATION",
+      changes: {
+        rfiRecords: {
+          before: null,
+          after: summary.rfis.created + summary.rfis.updated,
+        },
+        submittalRecords: {
+          before: null,
+          after: summary.submittals.created + summary.submittals.updated,
+        },
+      },
     });
 
     revalidatePath(`/projects/${project.id}/rfis`);

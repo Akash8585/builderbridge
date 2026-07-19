@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { deleteStoredFile } from "@/lib/storage";
 import { requireActiveOrganization, requireUser } from "@/lib/session";
+import { activityChanges, logActivity } from "@/lib/activity-log";
 
 export const runtime = "nodejs";
 
@@ -18,7 +19,15 @@ export async function DELETE(
       messageId: null,
       conversation: { organizationId, createdById: user.id },
     },
-    select: { id: true, storageKey: true },
+    select: {
+      id: true,
+      projectId: true,
+      storageKey: true,
+      fileName: true,
+      mediaType: true,
+      sizeBytes: true,
+      extractionStatus: true,
+    },
   });
 
   if (!attachment) {
@@ -27,5 +36,20 @@ export async function DELETE(
 
   await deleteStoredFile(attachment.storageKey).catch(() => undefined);
   await prisma.assistantAttachment.delete({ where: { id: attachment.id } });
+  await logActivity({
+    projectId: attachment.projectId,
+    userId: user.id,
+    action: "assistant_file_removed",
+    detail: `Removed Agent attachment "${attachment.fileName}"`,
+    entityType: "PROJECT_FILE",
+    entityId: attachment.id,
+    source: "AGENT",
+    changes: activityChanges(attachment, {}, [
+      "fileName",
+      "mediaType",
+      "sizeBytes",
+      "extractionStatus",
+    ]),
+  });
   return new Response(null, { status: 204 });
 }

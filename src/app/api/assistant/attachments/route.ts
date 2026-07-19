@@ -11,6 +11,7 @@ import {
   UploadPolicyError,
   validateUploadedFile,
 } from "@/lib/file-uploads";
+import { activityChanges, logActivity } from "@/lib/activity-log";
 
 export const runtime = "nodejs";
 
@@ -80,6 +81,21 @@ export async function POST(request: Request) {
         },
       });
       const processed = await processProjectDocument(attachment, upload.bytes);
+      await logActivity({
+        projectId: conversation.projectId,
+        userId: user.id,
+        action: "assistant_file_uploaded",
+        detail: `Attached project file "${processed.fileName}" in Agent`,
+        entityType: "PROJECT_FILE",
+        entityId: processed.id,
+        source: "AGENT",
+        changes: activityChanges({}, processed, [
+          "fileName",
+          "mediaType",
+          "sizeBytes",
+          "extractionStatus",
+        ]),
+      });
       return Response.json(
         {
           id: processed.id,

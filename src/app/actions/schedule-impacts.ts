@@ -9,7 +9,7 @@ import {
   requireProjectTaskReference,
   canResolveRoadblocks,
 } from "@/lib/permissions";
-import { logActivity } from "@/lib/activity-log";
+import { activityChanges, logActivity } from "@/lib/activity-log";
 import { notifyUser } from "@/lib/notifications";
 import { ok, fail, sirStatusSchema, type ActionResult } from "./schemas";
 import type { ScheduleImpactRequest } from "@prisma/client";
@@ -54,6 +54,9 @@ export async function createScheduleImpactRequest(input: unknown): Promise<Actio
       userId: user.id,
       action: "sir_submitted",
       detail: `Submitted a Schedule Impact Request: ${parsed.data.description}`,
+      entityType: "SCHEDULE_IMPACT_REQUEST",
+      entityId: sir.id,
+      changes: activityChanges({}, sir, ["description", "proposedNewEndDate", "taskId", "status"]),
     });
 
     revalidatePath(`/projects/${parsed.data.projectId}/impacts`);
@@ -117,6 +120,9 @@ export async function reviewScheduleImpactRequest(input: unknown): Promise<Actio
       detail: `${parsed.data.status === "APPROVED" ? "Approved" : "Rejected"} a Schedule Impact Request${
         parsed.data.reviewNote ? `: ${parsed.data.reviewNote}` : ""
       }`,
+      entityType: "SCHEDULE_IMPACT_REQUEST",
+      entityId: sir.id,
+      changes: activityChanges(existing, sir, ["status", "reviewNote", "reviewedById", "reviewedAt"]),
     });
 
     const submitter = await prisma.projectMember.findUnique({

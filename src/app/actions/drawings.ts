@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { requireProjectTaskReference, requireScheduleEditAccess } from "@/lib/permissions";
-import { logActivity } from "@/lib/activity-log";
+import { activityChanges, logActivity } from "@/lib/activity-log";
 import { uploadFile, buildStorageKey, deleteStoredFile } from "@/lib/storage";
 import { enforceUploadQuota, validateUploadedFile } from "@/lib/file-uploads";
 import { ok, fail, type ActionResult } from "./schemas";
@@ -102,6 +102,15 @@ export async function uploadDrawing(formData: FormData): Promise<ActionResult<Dr
       detail: `Uploaded "${drawing.title}" (rev ${drawing.revision})${
         priorRevision ? ` — supersedes rev ${priorRevision.revision}` : ""
       }`,
+      entityType: "DRAWING",
+      entityId: drawing.id,
+      changes: activityChanges({}, drawing, [
+        "title",
+        "discipline",
+        "revision",
+        "taskId",
+        "fileName",
+      ]),
     });
 
     revalidatePath(`/projects/${parsed.data.projectId}/drawings`);

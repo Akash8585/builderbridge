@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { requireScheduleEditAccess } from "@/lib/permissions";
-import { logActivity } from "@/lib/activity-log";
+import { activityChanges, logActivity } from "@/lib/activity-log";
 import { ok, fail, type ActionResult } from "./schemas";
 import type { Baseline } from "@prisma/client";
 
@@ -56,6 +56,9 @@ export async function createBaseline(input: unknown): Promise<ActionResult<Basel
       userId: user.id,
       action: "baseline_created",
       detail: `Created baseline "${baseline.name}" with ${tasks.length} task snapshots`,
+      entityType: "BASELINE",
+      entityId: baseline.id,
+      changes: activityChanges({}, baseline, ["name", "createdById"]),
     });
 
     revalidatePath(`/projects/${parsed.data.projectId}/baselines`);

@@ -225,6 +225,13 @@ enum FileAccessOutcome {
   DENIED
 }
 
+enum ActivitySource {
+  UI
+  AGENT
+  SYSTEM
+  INTEGRATION
+}
+
 model Project {
   id                String       @id @default(cuid())
   organizationId    String
@@ -726,18 +733,24 @@ model BaselineTaskSnapshot {
 // Append-only audit trail of schedule-relevant changes (data traceability).
 // taskName is denormalized so entries survive task deletion.
 model ActivityLogEntry {
-  id        String   @id @default(cuid())
-  projectId String
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  taskId    String?
-  taskName  String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  action    String
-  detail    String?
-  createdAt DateTime @default(now())
+  id         String         @id @default(cuid())
+  projectId  String
+  project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId     String?
+  taskName   String?
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action     String
+  detail     String?
+  entityType String?
+  entityId   String?
+  source     ActivitySource @default(UI)
+  changes    Json?
+  createdAt  DateTime       @default(now())
 
   @@index([projectId, createdAt])
+  @@index([projectId, source, createdAt])
+  @@index([projectId, entityType, createdAt])
   @@map("activity_log_entry")
 }
 

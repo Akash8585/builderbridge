@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { processProjectDocument } from "@/lib/document-extraction";
 import { getProjectRole } from "@/lib/permissions";
 import { requireActiveOrganization, requireUser } from "@/lib/session";
+import { activityChanges, logActivity } from "@/lib/activity-log";
 
 export const runtime = "nodejs";
 
@@ -37,6 +38,15 @@ export async function POST(
   }
 
   const processed = await processProjectDocument(document);
+  await logActivity({
+    projectId,
+    userId: user.id,
+    action: "project_file_reprocessed",
+    detail: `Reprocessed project file "${processed.fileName}"`,
+    entityType: "PROJECT_FILE",
+    entityId: processed.id,
+    changes: activityChanges(document, processed, ["extractionStatus", "extractionError"]),
+  });
   return Response.json({
     id: processed.id,
     extractionStatus: processed.extractionStatus,

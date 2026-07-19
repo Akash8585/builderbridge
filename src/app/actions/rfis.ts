@@ -9,7 +9,7 @@ import {
   requireProjectTaskReference,
   requireScheduleEditAccess,
 } from "@/lib/permissions";
-import { logActivity } from "@/lib/activity-log";
+import { activityChanges, logActivity } from "@/lib/activity-log";
 import { notifyUser } from "@/lib/notifications";
 import { ok, fail, type ActionResult } from "./schemas";
 import type { RFI } from "@prisma/client";
@@ -82,6 +82,9 @@ export async function createRfi(input: unknown): Promise<ActionResult<RFI>> {
       userId: user.id,
       action: "rfi_raised",
       detail: `Raised an RFI: ${parsed.data.question}`,
+      entityType: "RFI",
+      entityId: rfi.id,
+      changes: activityChanges({}, rfi, ["question", "dueDate", "taskId", "status"]),
     });
 
     revalidatePath(`/projects/${parsed.data.projectId}/rfis`);
@@ -121,6 +124,9 @@ export async function answerRfi(input: unknown): Promise<ActionResult<RFI>> {
       userId: user.id,
       action: "rfi_answered",
       detail: `Answered RFI: ${existing.question}`,
+      entityType: "RFI",
+      entityId: rfi.id,
+      changes: activityChanges(existing, rfi, ["answer", "status"]),
     });
 
     const raiser = await prisma.projectMember.findUnique({
@@ -163,6 +169,17 @@ export async function closeRfi(input: unknown): Promise<ActionResult<RFI>> {
     const rfi = await prisma.rFI.update({
       where: { id: parsed.data.rfiId },
       data: { status: "CLOSED" },
+    });
+
+    await logActivity({
+      projectId: existing.projectId,
+      taskId: existing.taskId,
+      userId: user.id,
+      action: "rfi_closed",
+      detail: `Closed RFI: ${existing.question}`,
+      entityType: "RFI",
+      entityId: rfi.id,
+      changes: activityChanges(existing, rfi, ["status"]),
     });
 
     revalidatePath(`/projects/${existing.projectId}/rfis`);

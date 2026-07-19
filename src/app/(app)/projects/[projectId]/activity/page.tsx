@@ -4,6 +4,62 @@ import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
 import { Card } from "@/components/ui/Card";
 import { ProjectPageHeader } from "@/components/PageHeader";
+import type { ActivitySource, Prisma } from "@prisma/client";
+
+const ACTIVITY_VIEWS = [
+  { value: "all", label: "All" },
+  { value: "schedule", label: "Schedule" },
+  { value: "field", label: "Field controls" },
+  { value: "files", label: "Files" },
+  { value: "team", label: "Team" },
+  { value: "agent", label: "Agent" },
+  { value: "integrations", label: "Integrations" },
+] as const;
+
+type ActivityView = (typeof ACTIVITY_VIEWS)[number]["value"];
+
+const VIEW_ENTITY_TYPES: Partial<Record<ActivityView, string[]>> = {
+  schedule: ["TASK", "TASK_DEPENDENCY", "WEEKLY_COMMITMENT", "BASELINE", "PULL_PLAN"],
+  field: ["TASK_UPDATE", "RFI", "SUBMITTAL", "SCHEDULE_IMPACT_REQUEST"],
+  files: ["PROJECT_FILE", "DRAWING"],
+  team: ["PROJECT", "PROJECT_MEMBER", "PROJECT_INVITE"],
+};
+
+const SOURCE_LABELS: Record<ActivitySource, string> = {
+  UI: "App",
+  AGENT: "Agent",
+  SYSTEM: "Automatic",
+  INTEGRATION: "Integration",
+};
+
+function parseView(value: string | undefined): ActivityView {
+  return ACTIVITY_VIEWS.some((view) => view.value === value) ? (value as ActivityView) : "all";
+}
+
+function formatFieldName(value: string): string {
+  return value
+    .replace(/Id$/, "")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/^./, (character) => character.toUpperCase());
+}
+
+function formatChangeValue(value: Prisma.JsonValue | undefined): string {
+  if (value === null || value === undefined || value === "") return "Not set";
+  const text = String(value);
+  if (/^\d{4}-\d{2}-\d{2}T/.test(text)) return formatDateTime(new Date(text));
+  return text.length > 28 ? `${text.slice(0, 25)}...` : text;
+}
+
+function getChangeRows(changes: Prisma.JsonValue | null) {
+  if (!changes || typeof changes !== "object" || Array.isArray(changes)) return [];
+  return Object.entries(changes)
+    .flatMap(([field, value]) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+      const record = value as Prisma.JsonObject;
+      return [{ field, before: record.before, after: record.after }];
+    })
+    .slice(0, 4);
+}
 
 function formatDateTime(date: Date): string {
   return new Date(date).toLocaleString("en-US", {
@@ -17,25 +73,39 @@ function formatDateTime(date: Date): string {
 
 export default async function ProjectActivityPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ view?: string }>;
 }) {
   const { projectId } = await params;
+  const { view: requestedView } = await searchParams;
+  const view = parseView(requestedView);
   const { project } = await getProjectPageContext(projectId);
+
+  const sourceFilter =
+    view === "agent" ? "AGENT" : view === "integrations" ? "INTEGRATION" : undefined;
+  const entityTypes = VIEW_ENTITY_TYPES[view];
 
   const [entries, fileAccessEntries] = await Promise.all([
     prisma.activityLogEntry.findMany({
-      where: { projectId },
+      where: {
+        projectId,
+        ...(sourceFilter ? { source: sourceFilter } : {}),
+        ...(entityTypes ? { entityType: { in: entityTypes } } : {}),
+      },
       include: { user: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
       take: 200,
     }),
-    prisma.fileAccessAuditEntry.findMany({
-      where: { projectId },
-      include: { user: { select: { name: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    }),
+    view === "all" || view === "files"
+      ? prisma.fileAccessAuditEntry.findMany({
+          where: { projectId },
+          include: { user: { select: { name: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 200,
+        })
+      : Promise.resolve([]),
   ]);
   const activityItems = [
     ...entries.map((entry) => ({ kind: "PROJECT" as const, entry })),
@@ -53,7 +123,30 @@ export default async function ProjectActivityPage({
         description="A chronological record of project changes, decisions, and file access."
       />
 
-      <section aria-labelledby="recent-activity" className="mt-6">
+      <nav aria-label="Activity filters" className="mt-6 overflow-x-auto border-b border-hairline-soft">
+        <div className="flex min-w-max gap-6">
+          {ACTIVITY_VIEWS.map((activityView) => (
+            <Link
+              key={activityView.value}
+              href={
+                activityView.value === "all"
+                  ? `/projects/${projectId}/activity`
+                  : `/projects/${projectId}/activity?view=${activityView.value}`
+              }
+              aria-current={view === activityView.value ? "page" : undefined}
+              className={`border-b-2 px-0.5 pb-2 text-sm font-medium transition-colors ${
+                view === activityView.value
+                  ? "border-ink text-ink"
+                  : "border-transparent text-muted hover:text-ink"
+              }`}
+            >
+              {activityView.label}
+            </Link>
+          ))}
+        </div>
+      </nav>
+
+      <section aria-labelledby="recent-activity" className="mt-5">
         <div className="mb-3 flex items-end justify-between gap-4">
           <div>
             <h2 id="recent-activity" className="text-sm font-semibold text-ink">
@@ -87,12 +180,25 @@ export default async function ProjectActivityPage({
                         </p>
                         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                           <span>{formatDateTime(entry.createdAt)}</span>
+                          <span>{SOURCE_LABELS[entry.source]}</span>
                           {entry.taskId && entry.taskName && (
                             <Link href={`/projects/${projectId}/tasks/${entry.taskId}`} className="font-medium hover:text-ink">
                               View task: {entry.taskName}
                             </Link>
                           )}
                         </div>
+                        {getChangeRows(entry.changes).length > 0 && (
+                          <dl className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted">
+                            {getChangeRows(entry.changes).map((change) => (
+                              <div key={change.field} className="flex min-w-0 gap-1.5">
+                                <dt className="font-medium text-body">{formatFieldName(change.field)}:</dt>
+                                <dd className="min-w-0">
+                                  {formatChangeValue(change.before)} to {formatChangeValue(change.after)}
+                                </dd>
+                              </div>
+                            ))}
+                          </dl>
+                        )}
                       </div>
                     </li>
                   );

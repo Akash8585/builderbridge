@@ -2900,6 +2900,9 @@ async function confirmRoadblockAction(
           taskName: currentTask.name,
           userId: context.userId,
           action: snapshot.isRoadblock ? "assistant_roadblock_updated" : "assistant_roadblock_flagged",
+          entityType: "TASK",
+          entityId: taskId,
+          source: "AGENT",
           detail: `${snapshot.isRoadblock ? "Updated" : "Flagged"} roadblock via Agent confirmation: ${payload.note}${
             payload.fileName
               ? ` (from ${payload.fileName}${payload.pageNumber ? ` page ${payload.pageNumber}` : ""})`
@@ -3011,6 +3014,9 @@ async function confirmTaskChangeAction(
           taskName: task.name,
           userId: context.userId,
           action: payload.operation === "CREATE" ? "assistant_task_created" : "assistant_task_updated",
+          entityType: "TASK",
+          entityId: task.id,
+          source: "AGENT",
           detail: `${payload.operation === "CREATE" ? "Created" : "Updated"} task via Agent confirmation: ${task.name}`,
         },
       });
@@ -3125,6 +3131,9 @@ async function confirmTaskProgressAction(
           taskName: task.name,
           userId: context.userId,
           action: "assistant_task_progress_updated",
+          entityType: "TASK",
+          entityId: task.id,
+          source: "AGENT",
           detail: `Updated task progress via Agent confirmation: ${task.name}`,
         },
       });
@@ -3286,6 +3295,9 @@ async function confirmWeeklyCommitmentAction(
               : payload.operation === "REMOVE"
                 ? "assistant_commitment_removed"
                 : "assistant_commitment_status_changed",
+          entityType: "WEEKLY_COMMITMENT",
+          entityId: commitment.id,
+          source: "AGENT",
           detail:
             payload.operation === "CREATE"
               ? `${snapshot.removedAt ? "Restored" : "Committed"} "${task.name}" for the week of ${new Date(payload.weekStartDate).toDateString()} via Agent confirmation`
@@ -3435,6 +3447,9 @@ async function confirmScheduleImpactAction(
           taskName: payload.taskName,
           userId: context.userId,
           action: payload.operation === "CREATE" ? "assistant_sir_submitted" : "assistant_sir_reviewed",
+          entityType: "SCHEDULE_IMPACT_REQUEST",
+          entityId: sir.id,
+          source: "AGENT",
           detail:
             payload.operation === "CREATE"
               ? `Submitted a Schedule Impact Request via Agent confirmation: ${payload.description}`
@@ -3549,6 +3564,9 @@ async function confirmBaselineAction(
             projectId: proposal.projectId,
             userId: context.userId,
             action: "assistant_baseline_compared",
+            entityType: "BASELINE",
+            entityId: baseline.id,
+            source: "AGENT",
             detail: `Reviewed baseline comparison for "${baseline.name}" via Agent confirmation (${
               comparison.averageVarianceDays === null
                 ? "no overlapping tasks"
@@ -3623,6 +3641,9 @@ async function confirmBaselineAction(
           projectId: proposal.projectId,
           userId: context.userId,
           action: "assistant_baseline_created",
+          entityType: "BASELINE",
+          entityId: baseline.id,
+          source: "AGENT",
           detail: `Created baseline "${baseline.name}" with ${payload.snapshotCount} task snapshots via Agent confirmation`,
         },
       });
@@ -3816,6 +3837,9 @@ async function confirmScheduleChangeAction(
               taskName: shift.taskName,
               userId: context.userId,
               action: "assistant_task_rescheduled",
+              entityType: "TASK",
+              entityId: shift.taskId,
+              source: "AGENT",
               detail:
                 shift.reason === "DEPENDENCY_REFLOW"
                   ? `Reflowed "${shift.taskName}" by ${shift.days} day${Math.abs(shift.days) === 1 ? "" : "s"} to preserve dependency logic via Agent confirmation`
@@ -3852,6 +3876,9 @@ async function confirmScheduleChangeAction(
               dependency.action === "ADD"
                 ? "assistant_dependency_added"
                 : "assistant_dependency_removed",
+            entityType: "TASK_DEPENDENCY",
+            entityId: `${dependency.predecessorId}:${dependency.successorId}`,
+            source: "AGENT",
             detail:
               dependency.action === "ADD"
                 ? `"${dependency.successorName}" now depends on "${dependency.predecessorName}" via Agent confirmation`
@@ -3991,6 +4018,9 @@ async function confirmProjectControlAction(
               : payload.status === "CLOSED"
                 ? "assistant_rfi_closed"
                 : "assistant_rfi_answered",
+            entityType: "RFI",
+            entityId: rfi.id,
+            source: "AGENT",
             detail: payload.operation === "CREATE"
               ? `Raised RFI via Agent confirmation: ${payload.question}${
                   payload.fileName
@@ -4031,6 +4061,9 @@ async function confirmProjectControlAction(
             action: payload.operation === "CREATE"
               ? "assistant_submittal_created"
               : "assistant_submittal_status_changed",
+            entityType: "SUBMITTAL",
+            entityId: submittal.id,
+            source: "AGENT",
             detail: payload.operation === "CREATE"
               ? `Created submittal via Agent confirmation: ${payload.title}${
                   payload.fileName

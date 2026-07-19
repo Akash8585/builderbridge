@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { requireCommitAccess, requireCommitmentRemovalAccess } from "@/lib/permissions";
-import { logActivity } from "@/lib/activity-log";
+import { activityChanges, logActivity } from "@/lib/activity-log";
 import { COMMITMENT_STATUS_LABELS, getWeekStart } from "@/lib/utils";
 import { commitmentRemovalError } from "@/lib/weekly-commitments";
 import { ok, fail, commitmentStatusSchema, type ActionResult } from "./schemas";
@@ -63,6 +63,15 @@ export async function commitToWeek(input: unknown): Promise<ActionResult<WeeklyC
       userId: user.id,
       action: existing ? "commitment_restored" : "commitment_made",
       detail: `${existing ? "Restored" : "Committed"} "${task.name}" for the week of ${weekStartDate.toDateString()}`,
+      entityType: "WEEKLY_COMMITMENT",
+      entityId: commitment.id,
+      changes: activityChanges(existing ?? {}, commitment, [
+        "taskId",
+        "weekStartDate",
+        "committedById",
+        "status",
+        "removedAt",
+      ]),
     });
 
     revalidatePath(`/projects/${task.projectId}/weekly-plan`);
@@ -117,6 +126,9 @@ export async function updateCommitmentStatus(input: unknown): Promise<ActionResu
       detail: `Commitment on "${existing.task.name}" marked ${COMMITMENT_STATUS_LABELS[parsed.data.status]}${
         parsed.data.reasonForVariance ? ` — ${parsed.data.reasonForVariance}` : ""
       }`,
+      entityType: "WEEKLY_COMMITMENT",
+      entityId: commitment.id,
+      changes: activityChanges(existing, commitment, ["status", "reasonForVariance"]),
     });
 
     revalidatePath(`/projects/${existing.task.projectId}/weekly-plan`);
@@ -167,6 +179,13 @@ export async function removeFutureCommitment(input: unknown): Promise<ActionResu
           userId: user.id,
           action: "commitment_removed",
           detail: `Removed "${existing.task.name}" from the week of ${existing.weekStartDate.toDateString()}: ${reason}`,
+          entityType: "WEEKLY_COMMITMENT",
+          entityId: existing.id,
+          source: "UI",
+          changes: {
+            removedAt: { before: null, after: removedAt.toISOString() },
+            removalReason: { before: existing.removalReason, after: reason },
+          },
         },
       });
       return tx.weeklyCommitment.findUniqueOrThrow({ where: { id: existing.id } });

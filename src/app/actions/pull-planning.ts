@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { requireProjectMember, requireScheduleEditAccess } from "@/lib/permissions";
-import { logActivity } from "@/lib/activity-log";
+import { activityChanges, logActivity } from "@/lib/activity-log";
 import { ok, fail, type ActionResult } from "./schemas";
 import type { Task } from "@prisma/client";
 
@@ -63,6 +63,15 @@ export async function addPullPlanTask(input: unknown): Promise<ActionResult<Task
       userId: user.id,
       action: "pull_plan_task_added",
       detail: `Added "${task.name}" to the pull-planning board`,
+      entityType: "TASK",
+      entityId: task.id,
+      changes: activityChanges({}, task, [
+        "name",
+        "startDate",
+        "endDate",
+        "assignedToId",
+        "sequenceOrder",
+      ]),
     });
 
     revalidatePath(`/projects/${parsed.data.projectId}/pull-planning`);
@@ -106,6 +115,21 @@ export async function reorderPullPlanTasks(input: unknown): Promise<ActionResult
         prisma.task.update({ where: { id }, data: { sequenceOrder: index } })
       )
     );
+
+    await logActivity({
+      projectId: parsed.data.projectId,
+      userId: user.id,
+      action: "pull_plan_reordered",
+      detail: `Reordered ${parsed.data.orderedTaskIds.length} tasks on the pull-planning board`,
+      entityType: "PULL_PLAN",
+      entityId: parsed.data.projectId,
+      changes: {
+        taskOrder: {
+          before: tasks.map((task) => task.id).join(","),
+          after: parsed.data.orderedTaskIds.join(","),
+        },
+      },
+    });
 
     revalidatePath(`/projects/${parsed.data.projectId}/pull-planning`);
     return ok(null);

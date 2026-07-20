@@ -18,7 +18,7 @@ test("RFI commands create proposal cards without OpenRouter", async ({ page }) =
     const dialog = page.getByRole("dialog", { name: "Agent" });
     await dialog
       .getByRole("navigation", { name: "Project chats" })
-      .getByRole("button", { name: /Riverside Apartments/ })
+      .getByRole("button", { name: /Harborview Residences — Building A/ })
       .click();
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
     await dialog.getByLabel("Message Agent").fill(prompt);
@@ -78,7 +78,7 @@ test("what-if schedule prompts create proposal cards without OpenRouter", async 
     const dialog = page.getByRole("dialog", { name: "Agent" });
     await dialog
       .getByRole("navigation", { name: "Project chats" })
-      .getByRole("button", { name: /Riverside Apartments/ })
+      .getByRole("button", { name: /Harborview Residences — Building A/ })
       .click();
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
     await expect(dialog.locator("header").getByText("New conversation", { exact: true })).toBeVisible();

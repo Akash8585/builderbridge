@@ -4,7 +4,7 @@ import { signIn, PM_EMAIL } from "./helpers";
 test.describe("Authentication", () => {
   test("signs in with valid credentials and lands on projects", async ({ page }) => {
     await signIn(page, PM_EMAIL);
-    await expect(page.getByRole("link", { name: /Riverside Apartments/ }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /Harborview Residences — Building A/ }).first()).toBeVisible();
   });
 
   test("rejects invalid credentials", async ({ page }) => {

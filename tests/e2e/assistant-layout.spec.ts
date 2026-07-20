@@ -29,7 +29,7 @@ test("keeps the full Agent workspace contained at 100 percent zoom", async ({ pa
   await expectWorkspaceInsideViewport(page, dialog);
 
   const projectChats = dialog.getByRole("region", {
-    name: /Riverside Apartments.*chats/i,
+    name: /Harborview Residences — Building A.*chats/i,
   });
   const conversationButtons = projectChats.locator('button:not([aria-label^="Delete "])');
   if ((await conversationButtons.count()) > 1) {

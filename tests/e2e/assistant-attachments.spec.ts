@@ -35,7 +35,7 @@ test("project assistant attachments upload securely and persist across reloads",
     const dialog = page.getByRole("dialog", { name: "Agent" });
     await dialog
       .getByRole("navigation", { name: "Assistant project scopes" })
-      .getByRole("button", { name: /Riverside Apartments/ })
+      .getByRole("button", { name: /Harborview Residences — Building A/ })
       .click();
     const createResponsePromise = page.waitForResponse(
       (response) =>
@@ -86,7 +86,7 @@ test("project assistant attachments upload securely and persist across reloads",
     const reloadedDialog = page.getByRole("dialog", { name: "Agent" });
     await reloadedDialog
       .getByRole("navigation", { name: "Assistant project scopes" })
-      .getByRole("button", { name: /Riverside Apartments/ })
+      .getByRole("button", { name: /Harborview Residences — Building A/ })
       .click();
     await reloadedDialog.getByRole("button", { name: title }).click();
     await expect(

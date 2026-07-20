@@ -18,7 +18,7 @@ test("conversational RFI submit asks for the question then creates a proposal ca
     const dialog = page.getByRole("dialog", { name: "Agent" });
     await dialog
       .getByRole("navigation", { name: "Project chats" })
-      .getByRole("button", { name: /Riverside Apartments/ })
+      .getByRole("button", { name: /Harborview Residences — Building A/ })
       .click();
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
 

@@ -19,7 +19,7 @@ test("AI schedule impact requests create and approve through confirmation cards"
     const dialog = page.getByRole("dialog", { name: "Agent" });
     await dialog
       .getByRole("navigation", { name: "Project chats" })
-      .getByRole("button", { name: /Riverside Apartments/ })
+      .getByRole("button", { name: /Harborview Residences — Building A/ })
       .click();
     await dialog.getByRole("button", { name: "Start new conversation" }).click();
     await dialog

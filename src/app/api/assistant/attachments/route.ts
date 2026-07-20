@@ -12,10 +12,11 @@ import {
   validateUploadedFile,
 } from "@/lib/file-uploads";
 import { activityChanges, logActivity } from "@/lib/activity-log";
+import { observeApiRequest, reportException } from "@/lib/observability";
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request) {
+async function handlePost(request: Request) {
   const user = await requireUser();
   const { organizationId } = await requireActiveOrganization();
   const formData = await request.formData().catch(() => null);
@@ -103,6 +104,7 @@ export async function POST(request: Request) {
           mediaType: processed.mediaType,
           sizeBytes: processed.sizeBytes,
           url: processed.fileUrl,
+          viewerUrl: processed.searchableFileUrl ?? processed.fileUrl,
           extractionStatus: processed.extractionStatus,
           extractionError: processed.extractionError,
         },
@@ -112,7 +114,12 @@ export async function POST(request: Request) {
       await deleteStoredFile(storageKey).catch(() => undefined);
       throw error;
     }
-  } catch {
+  } catch (error) {
+    reportException(error, "assistant.attachment.upload.failed", { conversationId });
     return Response.json({ error: "The attachment could not be uploaded." }, { status: 500 });
   }
+}
+
+export async function POST(request: Request) {
+  return observeApiRequest(request, "assistant.attachment.upload", () => handlePost(request));
 }

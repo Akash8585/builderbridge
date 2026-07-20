@@ -60,6 +60,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { isProjectDocumentQuestion } from "@/lib/project-document-search";
 import { requireActiveOrganization, requireUser } from "@/lib/session";
+import { logger, observeApiRequest } from "@/lib/observability";
 
 const requestSchema = z.object({
   conversationId: z.string().min(1),
@@ -90,11 +91,7 @@ function assistantTraceLog(
   event: "start" | "deterministic-tool" | "stream-start" | "finish" | "error" | "replay" | "in-flight",
   metadata: Record<string, unknown>
 ) {
-  console.info("[assistant-chat]", {
-    event,
-    at: new Date().toISOString(),
-    ...metadata,
-  });
+  logger.info(`assistant.chat.${event}`, metadata);
 }
 
 function deterministicOutputText(output: unknown): string {
@@ -197,7 +194,7 @@ function createPersistedTextResponse({
   return createUIMessageStreamResponse({ stream });
 }
 
-export async function POST(request: Request) {
+async function handlePost(request: Request) {
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return Response.json({ error: "Invalid chat request." }, { status: 400 });
@@ -903,4 +900,8 @@ export async function POST(request: Request) {
   });
 
   return createUIMessageStreamResponse({ stream });
+}
+
+export async function POST(request: Request) {
+  return observeApiRequest(request, "assistant.chat", () => handlePost(request));
 }

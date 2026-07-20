@@ -7,10 +7,11 @@ import {
 } from "@/lib/assistant-actions";
 import { PermissionError } from "@/lib/permissions";
 import { requireActiveOrganization, requireUser } from "@/lib/session";
+import { logger, observeApiRequest, reportException } from "@/lib/observability";
 
 const requestSchema = z.object({ action: z.enum(["confirm", "cancel"]) });
 
-export async function PATCH(
+async function handlePatch(
   request: Request,
   { params }: { params: Promise<{ proposalId: string }> }
 ) {
@@ -50,6 +51,15 @@ export async function PATCH(
           ? 403
           : 500;
     const message = error instanceof Error ? error.message : "Could not update this proposal.";
+    if (status >= 500) reportException(error, "assistant.action.failed");
+    else logger.warn("assistant.action.rejected", { status, errorName: error instanceof Error ? error.name : "UnknownError" });
     return Response.json({ error: message }, { status });
   }
+}
+
+export async function PATCH(
+  request: Request,
+  context: { params: Promise<{ proposalId: string }> }
+) {
+  return observeApiRequest(request, "assistant.action", () => handlePatch(request, context));
 }

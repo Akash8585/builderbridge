@@ -23,6 +23,7 @@ export async function DELETE(
       id: true,
       projectId: true,
       storageKey: true,
+      searchableStorageKey: true,
       fileName: true,
       mediaType: true,
       sizeBytes: true,
@@ -35,6 +36,9 @@ export async function DELETE(
   }
 
   await deleteStoredFile(attachment.storageKey).catch(() => undefined);
+  if (attachment.searchableStorageKey) {
+    await deleteStoredFile(attachment.searchableStorageKey).catch(() => undefined);
+  }
   await prisma.assistantAttachment.delete({ where: { id: attachment.id } });
   await logActivity({
     projectId: attachment.projectId,

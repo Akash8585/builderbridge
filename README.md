@@ -1,145 +1,327 @@
-# BuilderBridge — Construction Scheduling & Collaboration (MVP)
+<p align="center">
+  <a href="https://builderbridge.vercel.app/">
+    <img src="public/icons/icon-192.png" width="88" alt="BuilderBridge logo" />
+  </a>
+</p>
 
-A simplified, Outbuild-style scheduling & collaboration tool for construction projects. Built with Next.js (App Router), TypeScript, Tailwind CSS, Prisma + PostgreSQL (Neon), Better Auth, and Zod.
+<h1 align="center">BuilderBridge</h1>
 
-## Features
+<p align="center">
+  <strong>The construction control room that keeps the schedule, the field, and every project decision connected.</strong>
+</p>
 
-### Foundation
-- **Auth**: email/password + Google OAuth sign-in (Better Auth)
-- **Organizations**: sign up, create/join an org; projects belong to an org
-- **Per-project roles**: a user can hold a different role on each project — `PROJECT_MANAGER` (full access), `SCHEDULER` (edit tasks/dates/dependencies), `SUPERINTENDENT` (edit tasks, own/resolve roadblocks), or `TRADE` (own assigned tasks only)
-- **Link-based invites**: generate a shareable `/invite/[token]` link with a preset role — no email sending in v1
-- **Tasks**: name, assigned trade/person, start/end dates, status (`NOT_STARTED` / `IN_PROGRESS` / `DONE` / `DELAYED`)
-- **View split**: all project members can view tasks; only Project Manager/Scheduler/Superintendent or the assigned Trade member can edit them
-- **Gantt view**: CSS-based timeline colored by status, with critical-path highlighting
-- **Dashboard**: total tasks, % complete, open roadblock count
-- **Archiving**: projects are soft-deleted (archived), not hard-deleted
+<p align="center">
+  <a href="https://builderbridge.vercel.app/"><img alt="Live demo" src="https://img.shields.io/badge/Live_demo-Open_BuilderBridge-111111?style=for-the-badge"></a>
+  <a href="https://github.com/Akash8585/builderbridge/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Akash8585/builderbridge/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-111111?logo=nextdotjs">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white">
+</p>
 
-### Planning loop (Phase 1)
-- **Task dependencies + Critical Path Method**: link predecessor/successor tasks (with cycle detection); the Gantt view highlights the critical path
-- **Lookahead**: rolling 2/4/6-week filtered view of upcoming work
-- **Weekly Work Plan**: commit tasks to a week, track completion, auto-calculated Percent Plan Complete (PPC)
-- **Roadblocks**: typed (change order, inspection, labor, material, weather, other) with an owner and due date; any member can flag, Project Manager/Superintendent/assigned Trade can resolve; dedicated Roadblock Log page
-- **Field Tracking**: post progress notes + photos against any task (mobile-friendly web, no native app)
-- **Analytics**: project dashboard adds a PPC trend chart (week over week), Promise Reliability Rate (PRR) per trade/member, and an S-Curve chart comparing planned vs. actual cumulative task completion
+Construction teams rarely fail because they lack a schedule. They fail because the schedule, field updates, commitments, RFIs, submittals, drawings, and risk decisions live in different places.
 
-### Planning depth & document tracking (Phase 2)
-- **Pull Planning**: a sequencing board for the upcoming weeks — any Trade partner can add their own task (self-assigned), and a Project Manager/Scheduler/Superintendent sequences the order of work
-- **Schedule Impact Requests (SIR)**: any member can submit a field-condition change request; a Project Manager or Superintendent reviews/approves it (approval can push out the linked task's end date)
-- **Submittals**: native tracking log (title, spec section, status, due date), optionally linked to a task, with overdue surfaced on the task detail page
-- **RFIs**: native Q&A log linked to a task; an open RFI past its due date automatically flags the linked task as a roadblock, the same way a manual flag does
-- **Drawings**: upload PDFs/images per project (optionally linked to a task); re-uploading the same title creates a new revision and marks the prior one superseded
-- **Baselines**: snapshot every task's dates/status at a point in time, then compare against the current schedule to see day-by-day variance
-- **Activity Log**: an append-only audit trail of schedule-relevant changes (status changes, roadblocks, dependencies, commitments, SIR reviews, submittal/RFI decisions, drawing uploads, archiving) — who, when, what changed
+BuilderBridge brings that operating loop into one product. Teams can plan the work, coordinate weekly commitments, surface blockers, understand portfolio health, and use a project-aware Agent to investigate or prepare changes without giving an AI silent write access.
 
-### Portfolio / executive layer (Phase 3)
-- **Executive Dashboard** (`/dashboard`): cross-project view for the whole organization — total tasks, open roadblocks, and average health score at a glance, plus a per-project table of % complete, PPC, PRR, schedule variance, roadblocks, and health score
-- **Project Timeline** (`/timeline`): every active project's schedule shown together on one shared timeline, color-coded by health score, with a "today" marker
-- **Composite health score**: a weighted blend of PPC (35%), PRR (30%), schedule variance vs. baseline (20%), and open roadblocks (15%) — components with no data yet (e.g. no commitments recorded) are excluded and the rest are renormalized rather than penalizing new projects
-- **Trade/Partner performance** (`/trade-performance`): commitment reliability (PRR) per person, aggregated across every active project they're on — not just one project at a time
+> BuilderBridge is a working hackathon beta, not a landing-page prototype. The live application includes persistent project data, role-aware workflows, private document storage, confirmation-gated Agent actions, OCR-backed document retrieval, activity auditing, and production monitoring.
 
-### Outbuild AI (Phase 4, scoped)
-- **Schedule Q&A Assistant**: a chat-style panel per project — ask natural-language questions ("what's blocking the schedule?", "which trades are behind on commitments?") and get answers grounded in that project's own tasks, roadblocks, PPC, submittals, and RFIs. Powered by [OpenRouter](https://openrouter.ai/) (`OPENROUTER_API_KEY` + `OPENROUTER_MODEL` env vars); gracefully shows a "not configured" message if no key is set. Chat history is session-only (not persisted).
+## Live Product
 
-## Tech Stack
+**Production:** [builderbridge.vercel.app](https://builderbridge.vercel.app/)
 
-- [Next.js](https://nextjs.org/) 16 (App Router, Server Actions)
-- TypeScript
-- Tailwind CSS v4 — design tokens sourced from `DESIGN.md` (Cal.com-inspired)
-- [Prisma](https://www.prisma.io/) 6 ORM + PostgreSQL ([Neon](https://neon.tech/))
-- [Better Auth](https://www.better-auth.com/) (email/password, Google OAuth, organization plugin)
-- [Zod](https://zod.dev/) for input validation on every Server Action
+Create an account and a project, or seed the repository locally for a complete Riverside Apartments demo workspace.
 
-## Getting Started
+## The Product in One Minute
 
-### 1. Install dependencies
+| Layer | What BuilderBridge delivers |
+| --- | --- |
+| Plan | Master schedule, dependencies, critical path, Gantt, lookahead, pull planning, and weekly work plans |
+| Control | Roadblocks, schedule impact requests, RFIs, submittals, drawings, baselines, and field updates |
+| Learn | PPC, PRR, S-curves, schedule variance, portfolio health, and trade performance |
+| Act | A persistent Agent that reads live project data and prepares reviewable changes |
+| Trust | Role permissions, stale-change detection, explicit confirmation, idempotency, private files, and append-only audit history |
+
+## Why the Agent Is Different
+
+BuilderBridge does not treat AI as a text box floating beside the product. The Agent is connected to the same project controls the team uses every day.
+
+### It can understand the live project
+
+- Search tasks and resolve natural task names.
+- Inspect members, schedule risk, open roadblocks, RFIs, submittals, impacts, and portfolio health.
+- Keep separate, persistent conversations under each project or at portfolio level.
+- Accept project files and retain their connection to the conversation.
+- Search extracted document text and return secure, exact-page sources.
+- Open citations in the in-app PDF viewer and highlight the supporting passage.
+- OCR scanned PDFs and images through a private OCRmyPDF worker.
+
+### It can prepare real project changes
+
+The Agent can prepare proposals for:
+
+- Creating or updating tasks.
+- Recording status, actual dates, and percent complete.
+- Adding, assigning, or resolving roadblocks.
+- Creating and completing weekly commitments with variance reasons.
+- Creating or reviewing schedule impact requests.
+- Creating and comparing schedule baselines.
+- Adding or removing dependencies and shifting schedules.
+- Creating or updating RFIs and submittals.
+- Turning a cited document page into an RFI, submittal, or roadblock.
+
+### It cannot silently mutate the project
+
+Every write follows the same guarded path:
+
+```mermaid
+flowchart LR
+  A[User request] --> B[Project-scoped tool]
+  B --> C[Resolve live records]
+  C --> D[Proposal card with changes and warnings]
+  D -->|Confirm| E[Recheck permissions and stale data]
+  D -->|Cancel| F[No mutation]
+  E --> G[Atomic database transaction]
+  G --> H[Activity log and linked result]
+```
+
+This design gives the speed of natural language without replacing accountability. A proposal can expire, be cancelled, be rejected if its source data changed, and be safely confirmed only once.
+
+## Five-Minute Judge Walkthrough
+
+1. Open a seeded project and scan the project dashboard, Gantt, weekly plan, and roadblock log.
+2. Open **Agent** and ask: `What needs attention on this project this week?`
+3. Upload a PDF and ask: `What does this document say about the inspection requirement?`
+4. Follow the page citation into the split-screen viewer and inspect the highlighted evidence.
+5. Ask: `Add a roadblock to Rough electrical wiring for the pending city inspection and assign it to Sam.`
+6. Review the proposed before/after card, confirm it, and follow the result back to the project record.
+7. Open Activity to see the confirmed change in the project audit trail.
+
+More useful prompts:
+
+```text
+Commit Rough plumbing install for next week.
+Update Rough electrical wiring to 65% complete.
+What happens downstream if Rough plumbing finishes on August 5?
+Create an RFI from page 4 asking the architect to confirm the membrane detail.
+Compare the current schedule with the latest baseline.
+Which projects in the portfolio need executive attention?
+```
+
+## Core Workflows
+
+### Schedule and planning
+
+- Task ownership, dates, status, actual progress, and notes.
+- Finish-to-start dependencies with cycle detection.
+- Critical Path Method analysis and critical-path Gantt highlighting.
+- Rolling 2, 4, and 6 week lookaheads.
+- Pull-planning sequencing for GC and trade collaboration.
+- Weekly commitments with PPC and protected historical records.
+- Dependency-aware what-if schedule reflow before any dates are changed.
+
+### Field and project controls
+
+- Typed roadblocks with ownership, due dates, and resolution rules.
+- Mobile-friendly task progress notes and photo updates.
+- Schedule impact requests with review and proposed date effects.
+- RFIs with linked tasks, answers, due dates, and overdue blocking behavior.
+- Submittal workflow with spec sections, decisions, and due dates.
+- Drawing revisions that preserve and supersede earlier versions.
+- Baseline snapshots with task-level schedule variance.
+
+### Portfolio intelligence
+
+- Organization-wide executive dashboard.
+- Shared multi-project timeline.
+- Composite project health using PPC, PRR, variance, and open risk.
+- Trade reliability across every active project.
+- New-project onboarding checklist and purposeful empty states.
+
+## Architecture
+
+```mermaid
+flowchart TB
+  UI[Next.js 16 web app and PWA] --> SA[Server Actions and API routes]
+  SA --> AUTH[Better Auth and project permissions]
+  SA --> DB[(Neon PostgreSQL via Prisma)]
+  SA --> FILES[(Private Supabase S3 storage)]
+
+  UI --> AGENT[BuilderBridge Agent]
+  AGENT --> SDK[Vercel AI SDK]
+  SDK --> OR[OpenRouter models with fallback and retry]
+  AGENT --> TOOLS[Read tools and confirmation-gated proposals]
+  TOOLS --> DB
+  TOOLS --> FILES
+
+  FILES --> DOCS[PDF extraction and page chunks]
+  DOCS --> OCR[Private OCRmyPDF worker on Cloud Run]
+  DOCS --> VIEWER[PDF.js citation viewer]
+
+  SA --> OBS[Structured logs and request IDs]
+  OBS --> SENTRY[Sentry error monitoring]
+```
+
+### Technology choices
+
+| Area | Technology | Why |
+| --- | --- | --- |
+| Product | Next.js 16, React 19, TypeScript, Tailwind CSS 4 | One typed full-stack application with responsive server-rendered workflows |
+| Agent | Vercel AI SDK, OpenRouter | Streaming tool use with provider flexibility, retry, and free-model fallback |
+| Data | Prisma 6, Neon PostgreSQL | Relational integrity for schedules, permissions, proposals, and audit history |
+| Identity | Better Auth | Email/password, Google OAuth, organizations, and durable sessions |
+| Documents | Supabase Storage, PDF.js, unpdf, OCRmyPDF | Private files, browser-native review, extraction, and scanned-document support |
+| Operations | Vercel, Google Cloud Run, Sentry | Deployable web and OCR services with correlated production diagnostics |
+| Quality | Vitest, Playwright, GitHub Actions | Business-logic, real-database, and browser-level coverage |
+
+## Security and Reliability
+
+- Every project read and mutation is scoped by organization membership and project role.
+- Agent tools use the same permission matrix as the UI and recheck access at confirmation time.
+- Cross-project task, member, dependency, conversation, and attachment references are rejected.
+- Private files are streamed through authenticated routes; storage credentials never reach the browser.
+- File signatures, MIME types, names, duplicates, per-file limits, and organization quotas are validated.
+- Views, downloads, and denied file requests are audited.
+- Agent requests have per-user burst limits and organization monthly quotas.
+- OpenRouter uses ordered model fallback and bounded retry for transient failures.
+- Operational logs redact credentials, cookies, prompts, messages, document text, and personal email addresses.
+- Sentry captures client, server, edge, and root React failures with production source maps.
+- Request IDs correlate Vercel application logs with the OCR worker in Google Cloud Logging.
+
+## Quality Evidence
+
+BuilderBridge currently defines **263 automated checks**:
+
+| Layer | Coverage |
+| --- | ---: |
+| Unit | 141 tests across permissions, scheduling math, intent parsing, uploads, PDF citations, telemetry privacy, and analytics |
+| Integration | 94 real PostgreSQL/Supabase tests covering Agent reads and writes, stale proposals, cancellation, idempotency, role enforcement, files, and project controls |
+| End-to-end | 28 Playwright flows across authentication, scheduling, weekly planning, files, PDFs, Agent behavior, navigation, accessibility, and mobile layouts |
+
+The standard quality gate is:
 
 ```bash
+npm run lint
+npx tsc --noEmit
+npx vitest run tests/unit
+npx vitest run tests/integration --maxWorkers=1
+npm run build
+```
+
+GitHub Actions runs lint, type checking, unit tests, and a production build on pushes and pull requests. Database integration tests run against an isolated database when `TEST_DATABASE_URL` is configured; Playwright runs through the manual CI workflow.
+
+## Run Locally
+
+### Prerequisites
+
+- Node.js 20 or newer.
+- A PostgreSQL database; Neon works well.
+- Optional Docker installation for scanned-document OCR.
+
+### 1. Install
+
+```bash
+git clone https://github.com/Akash8585/builderbridge.git
+cd builderbridge
 npm install
 ```
 
-### 2. Configure environment variables
+### 2. Configure
 
-Copy `.env.example` to `.env` and fill in real values:
+Create your local environment file:
+
+```powershell
+Copy-Item .env.example .env
+```
 
 ```bash
 cp .env.example .env
 ```
 
-- `DATABASE_URL` — a [Neon](https://neon.tech/) PostgreSQL connection string. Use the **pooled** connection string if available, and keep `?sslmode=require`.
-- `BETTER_AUTH_SECRET` — any random 32-byte string (e.g. `openssl rand -base64 32`).
-- `BETTER_AUTH_URL` — `http://localhost:3000` for local dev.
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — create OAuth credentials at the [Google Cloud Console](https://console.cloud.google.com/apis/credentials). Redirect URI for local dev: `http://localhost:3000/api/auth/callback/google`.
-- `OPENROUTER_API_KEY` — optional. Get one at [openrouter.ai/keys](https://openrouter.ai/keys) to enable the Schedule Q&A Assistant. Leave blank to skip — the rest of the app works fine without it.
-- `OPENROUTER_MODEL` — optional, defaults to `openrouter/free` (OpenRouter's auto-router — picks whichever free model is currently available, with automatic failover if one is rate-limited). Set to a specific model ID like `openai/gpt-oss-20b:free` if you'd rather pin one.
-- `S3_ENDPOINT` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_BUCKET` / `S3_REGION` — optional in development (uploads fall back to local disk), **required in production** for private Field Tracking photos, drawings, and AI documents. The recommended backend is a private Supabase Storage bucket; see [DEPLOYMENT.md](./DEPLOYMENT.md).
-- `RESEND_API_KEY` / `EMAIL_FROM` — optional. Enables email notifications (task assignments, roadblock ownership, RFI answers, SIR decisions) via [Resend](https://resend.com). Unset = notifications are skipped; users can also opt out individually in Settings.
-- `PROCORE_CLIENT_ID` / `PROCORE_CLIENT_SECRET` — optional. Enables the Procore integration on the **Pro** plan (RFI/Submittal sync). Get sandbox credentials at [developers.procore.com](https://developers.procore.com). Set the app's Redirect URI to `http://localhost:3000/api/integrations/procore/callback` for local dev.
-- `AUTODESK_CLIENT_ID` / `AUTODESK_CLIENT_SECRET` — optional. Enables the Autodesk ACC integration on the **Pro** plan (PDF drawing sync). Create a free app at [aps.autodesk.com](https://aps.autodesk.com). Callback URL: `http://localhost:3000/api/integrations/autodesk/callback`.
+Minimum required configuration:
 
-### 3. Run database migrations
-
-```bash
-npx prisma migrate dev --name init
+```dotenv
+DATABASE_URL="postgresql://..."
+BETTER_AUTH_SECRET="replace-with-at-least-32-random-bytes"
+BETTER_AUTH_URL="http://localhost:3000"
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
 ```
 
-### 4. (Optional) Seed demo data
+Optional capabilities are enabled only when their variables are present:
+
+| Capability | Variables |
+| --- | --- |
+| Agent | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` |
+| Private production files | `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_REGION` |
+| OCR | `OCR_SERVICE_URL`, `OCR_SERVICE_TOKEN` |
+| Error monitoring | `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` |
+| Email | `RESEND_API_KEY`, `EMAIL_FROM` |
+| Billing | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, Stripe price IDs |
+| Integrations | Procore or Autodesk OAuth credentials |
+
+See [.env.example](./.env.example) for the complete documented configuration.
+
+### 3. Prepare the database
 
 ```bash
+npx prisma migrate deploy
 npm run db:seed
 ```
 
-This creates a demo organization ("Acme Construction Co."), a project ("Riverside Apartments — Phase 1"), and five accounts you can sign in with (password: `password123`):
+The seed creates a local demo organization, one complete project, and role-specific users. Seed credentials are intended for local development only and are printed by the seed script.
 
-- `jane@buildflow.dev` — Project Manager
-- `mike@buildflow.dev` — Scheduler
-- `sam@buildflow.dev` — Superintendent
-- `tom@buildflow.dev` — Trade (electrical)
-- `sara@buildflow.dev` — Trade (plumbing)
-
-### 5. Run the dev server
+### 4. Start BuilderBridge
 
 ```bash
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000).
+
+### Optional: start OCR locally
+
+Set the same long random `OCR_SERVICE_TOKEN` in `.env` and Docker Compose, then run:
+
+```bash
+docker compose -f docker-compose.ocr.yml up --build
+```
+
+Searchable PDFs work without OCR. The worker is used only for scans and images that contain no extractable text.
+
+## Repository Map
+
+```text
+src/app/                       App Router pages, APIs, and Server Actions
+src/components/                Product UI, Agent workspace, and PDF viewer
+src/lib/assistant-tools.ts     Project-scoped Agent read and proposal tools
+src/lib/assistant-actions.ts   Confirmation, stale checks, transactions, audit
+src/lib/permissions.ts         Audited project capability matrix
+src/lib/document-extraction.ts PDF extraction, page chunks, and OCR pipeline
+src/lib/observability.ts       Structured logs, request context, and Sentry
+prisma/schema.prisma           Auth, planning, controls, Agent, and audit models
+ocr-worker/                    Private OCRmyPDF Cloud Run service
+tests/                         Unit, integration, and Playwright suites
+```
 
 ## Deployment
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for the full production guide (Vercel + Neon + Cloudflare R2, env checklist, migrations, and security notes).
+The production topology uses Vercel, Neon PostgreSQL, a private Supabase Storage bucket, and a private OCR worker on Google Cloud Run.
 
-## Testing
+Read [DEPLOYMENT.md](./DEPLOYMENT.md) for environment setup, migrations, storage security, OAuth callbacks, monitoring, and the post-deploy checklist.
 
-```bash
-npm test          # Vitest: unit + integration, run once
-npm run test:watch # Vitest watch mode
-npm run test:e2e   # Playwright browser tests (needs a seeded database)
-```
+## Hackathon Build Story
 
-The suite has three layers:
+BuilderBridge was developed with Codex as an engineering collaborator across product design, repository exploration, implementation, debugging, migrations, tests, browser verification, deployment, and production monitoring.
 
-- **`tests/unit/`** (Vitest) — pure business logic with no I/O: permission rules, Critical Path Method + cycle detection, PPC/PRR/S-Curve math, portfolio health-score math.
-- **`tests/integration/`** (Vitest) — real round trips against the database (tasks, dependencies, roadblocks, weekly commitments, Schedule Impact Requests, Submittals, RFIs incl. the overdue auto-flag behavior, Drawing revision handling, Baselines, Activity Log). Every test creates its own isolated organization/project/users with a random suffix and tears them down afterward — your demo seed data is never touched.
-- **`tests/e2e/`** (Playwright) — real browser flows against the seeded demo data: sign-in (valid + rejected), public landing page, full task lifecycle (create → status change → roadblock flag/resolve → delete), Weekly Work Plan commit → complete → PPC, and role-gated Gantt (PM can drag, Trade is read-only). Tests create disposable `E2E ...`-prefixed records and clean up after themselves; a global-setup sweeper removes leftovers from aborted runs. Locally it reuses your running dev server.
+The important outcome is not simply that AI helped write code. The product applies the same lesson to construction operations: an agent becomes useful when it can understand the real system, use constrained tools, expose its intended changes, and remain accountable to a human decision.
 
-CI (`.github/workflows/ci.yml`): lint + typecheck + unit tests + build run on every push/PR. Integration tests run when a `TEST_DATABASE_URL` repo secret is configured (use a dedicated test database, not production). E2E runs on manual dispatch with the same secret.
+## Status and Roadmap
 
-## Project Structure
+BuilderBridge is a controlled-beta candidate. The hackathon scope concentrates on the complete planning loop, trustworthy Agent actions, document intelligence, security, accessibility, and production observability.
 
-```
-prisma/schema.prisma        Database schema (Better Auth + app models)
-prisma/seed.ts               Demo data seed script
-tests/unit/                  Pure-logic unit tests (Vitest)
-tests/integration/           Real-DB integration tests with isolated fixtures (Vitest)
-src/proxy.ts                 Route protection (redirects unauthenticated users)
-src/app/                     Next.js App Router pages
-src/app/actions/             Server Actions (Zod-validated, role-enforced mutations)
-src/components/              React components
-src/lib/                     Prisma client, Better Auth config, permissions, env validation
-DESIGN.md                    Design tokens/reference used for all UI styling
-```
+Next product milestones include comments and mentions, notification workflows, field reports, meeting action items, hybrid semantic search, schedule imports/exports, and hardened production integrations. See [ROADMAP.md](./ROADMAP.md) for the full delivery plan.
 
-## Design System
+---
 
-All UI styling follows [`DESIGN.md`](./DESIGN.md) — a Cal.com-inspired visual language (clean neutral palette, Inter typography, soft-rounded cards). Its tokens are wired into `src/app/globals.css` via Tailwind v4's CSS-first `@theme` configuration.
+<p align="center">
+  <strong>BuilderBridge</strong><br />
+  One schedule. One field plan. One accountable Agent.
+</p>

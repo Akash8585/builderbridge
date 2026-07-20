@@ -6,6 +6,7 @@ import { syncOverdueRfiFlags } from "@/lib/rfi-overdue";
 import { RoadblockLogTable } from "@/components/RoadblockLogTable";
 import { ProjectPageHeader } from "@/components/PageHeader";
 import type { RoadblockStatus } from "@prisma/client";
+import { privateStoredFileUrl } from "@/lib/storage";
 
 export default async function ProjectRoadblocksPage({
   params,
@@ -32,7 +33,9 @@ export default async function ProjectRoadblocksPage({
       },
       include: {
         assignedTo: { select: { userId: true } },
-        roadblockAttachment: { select: { fileName: true, fileUrl: true } },
+        roadblockAttachment: {
+          select: { fileName: true, fileUrl: true, searchableFileUrl: true },
+        },
       },
       orderBy: { roadblockDueDate: "asc" },
     }),
@@ -51,7 +54,14 @@ export default async function ProjectRoadblocksPage({
     roadblockType: t.roadblockType,
     roadblockOwnerId: t.roadblockOwnerId,
     roadblockDueDate: t.roadblockDueDate,
-    roadblockAttachment: t.roadblockAttachment,
+    roadblockAttachment: t.roadblockAttachment
+      ? {
+          fileName: t.roadblockAttachment.fileName,
+          fileUrl: privateStoredFileUrl(
+            t.roadblockAttachment.searchableFileUrl ?? t.roadblockAttachment.fileUrl
+          ),
+        }
+      : null,
     roadblockPageNumber: t.roadblockPageNumber,
     roadblockCitationExcerpt: t.roadblockCitationExcerpt,
     raisedByName: (t.roadblockRaisedBy && memberNameByUserId.get(t.roadblockRaisedBy)) || "Unknown",

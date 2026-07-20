@@ -36,8 +36,8 @@ export async function storedFileAccessContext(key: string): Promise<StoredFileAc
         where: { id: scope.projectId },
         select: { id: true, name: true, organizationId: true },
       }),
-      prisma.assistantAttachment.findUnique({
-        where: { storageKey: key },
+      prisma.assistantAttachment.findFirst({
+        where: { OR: [{ storageKey: key }, { searchableStorageKey: key }] },
         select: { fileName: true },
       }),
       prisma.drawing.findUnique({

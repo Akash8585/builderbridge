@@ -172,7 +172,10 @@ function SubmittalCard({ submittal, canDecide }: { submittal: SubmittalRow; canD
               submittal.attachment!.fileUrl,
               submittal.attachment!.fileName,
               "dashboard",
-              { page: submittal.pageNumber ?? 1 }
+              {
+                page: submittal.pageNumber ?? 1,
+                highlight: submittal.citationExcerpt,
+              }
             )}
             className="inline-flex items-center gap-1 font-medium text-body hover:text-ink"
           >

@@ -17,6 +17,7 @@ describe("PDF viewer navigation", () => {
       title: "Report",
       page: 7,
       pageCount: undefined,
+      highlight: undefined,
     });
   });
 
@@ -32,5 +33,13 @@ describe("PDF viewer navigation", () => {
 
   it("falls back to the first page for invalid citation fragments", () => {
     expect(pdfViewerDocument("/api/files/project/report.pdf#page=nope", "Report").page).toBe(1);
+  });
+
+  it("carries a citation passage into the viewer request", () => {
+    expect(
+      pdfViewerDocument("/api/files/project/report.pdf#page=3", "Report", {
+        highlight: "Install fire-rated sealant at every penetration.",
+      }).highlight
+    ).toBe("Install fire-rated sealant at every penetration.");
   });
 });

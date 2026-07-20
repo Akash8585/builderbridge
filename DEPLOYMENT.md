@@ -1,6 +1,6 @@
 # Deploying BuilderBridge
 
-This guide covers Vercel, Neon PostgreSQL, and a private Supabase Storage bucket.
+This guide covers Vercel, Neon PostgreSQL, a private Supabase Storage bucket, and production monitoring.
 
 ## 1. Prerequisites
 
@@ -74,7 +74,30 @@ vercel
 vercel --prod
 ```
 
-## 5. Post-deploy checklist
+## 5. Production monitoring
+
+BuilderBridge writes one-line JSON operational logs to Vercel and propagates an
+`X-Request-ID` from the browser-facing request into the OCR worker. Search that
+ID in both Vercel logs and Google Cloud Logging to follow one failed workflow.
+Logs contain IDs, status codes, durations, and byte counts; they intentionally
+exclude prompts, message contents, file names, document text, credentials, and
+cookies.
+
+Sentry is configured for errors only. Add these variables to Vercel Production:
+
+```text
+NEXT_PUBLIC_SENTRY_DSN=https://...
+SENTRY_ORG=your-sentry-organization
+SENTRY_PROJECT=builderbridge
+SENTRY_AUTH_TOKEN=sntrys_...
+```
+
+The auth token needs source-map/release permissions and must never be committed.
+The application disables tracing, session replay, default PII, and Sentry log
+forwarding. The `BuilderBridge OCR 5xx errors` policy in Google Cloud Monitoring
+alerts on any Cloud Run server error; application errors alert from Sentry.
+
+## 6. Post-deploy checklist
 
 - [ ] Email and Google sign-in work on the production origin.
 - [ ] `BETTER_AUTH_URL` exactly matches the deployed origin.
@@ -84,7 +107,7 @@ vercel --prod
 - [ ] Verify PDF preview supports seeking between pages.
 - [ ] `npx prisma migrate status` reports that production is up to date.
 
-## 6. Security notes
+## 7. Security notes
 
 - The Supabase bucket must remain private.
 - BuilderBridge performs authorization in the file route using project membership.
@@ -92,7 +115,7 @@ vercel --prod
 - Rotate any secret immediately if it is exposed.
 - Global security headers are configured in `next.config.ts`.
 
-## 7. Production considerations
+## 8. Production considerations
 
 - OpenRouter free models have shared rate limits. Add credit or pin a paid model when reliability matters.
 - Session cookie cache is five minutes, so a revoked session may briefly remain usable on another device.

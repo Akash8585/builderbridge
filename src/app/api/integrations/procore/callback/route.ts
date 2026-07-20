@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { completeProcoreOAuth } from "@/app/actions/procore";
 import { env } from "@/lib/env";
+import { observeApiRequest, reportException } from "@/lib/observability";
 
-export async function GET(request: Request) {
+async function handleGet(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
@@ -21,7 +22,12 @@ export async function GET(request: Request) {
     await completeProcoreOAuth(code, state);
     return NextResponse.redirect(`${base}/integrations?connected=1`);
   } catch (err) {
+    reportException(err, "integration.procore.oauth_failed");
     const message = err instanceof Error ? err.message : "Procore connection failed";
     return NextResponse.redirect(`${base}/integrations?error=${encodeURIComponent(message)}`);
   }
+}
+
+export async function GET(request: Request) {
+  return observeApiRequest(request, "integration.procore.callback", () => handleGet(request));
 }

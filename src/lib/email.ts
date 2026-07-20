@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { logger, reportException } from "@/lib/observability";
 
 /**
  * Email notifications via Resend's HTTP API. Fire-and-forget by design:
@@ -37,7 +38,7 @@ export function renderEmailHtml(heading: string, bodyLines: string[], ctaUrl?: s
 export async function sendEmail(params: { to: string; subject: string; html: string }): Promise<void> {
   if (!env.RESEND_API_KEY) {
     if (process.env.NODE_ENV === "development") {
-      console.log(`[email skipped — RESEND_API_KEY unset] to=${params.to} subject="${params.subject}"`);
+      logger.info("email.skipped", { reason: "not-configured" });
     }
     return;
   }
@@ -56,10 +57,13 @@ export async function sendEmail(params: { to: string; subject: string; html: str
         html: params.html,
       }),
     });
-    if (!res.ok && process.env.NODE_ENV === "development") {
-      console.warn(`[email failed] ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    if (!res.ok) {
+      logger.warn("email.delivery.rejected", { status: res.status });
+    } else {
+      logger.info("email.delivery.completed", { status: res.status });
     }
-  } catch {
+  } catch (error) {
+    reportException(error, "email.delivery.failed");
     // Never propagate email failures into the calling mutation.
   }
 }

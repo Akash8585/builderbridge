@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { completeAutodeskOAuth } from "@/app/actions/autodesk";
 import { env } from "@/lib/env";
+import { observeApiRequest, reportException } from "@/lib/observability";
 
-export async function GET(request: Request) {
+async function handleGet(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
@@ -21,7 +22,12 @@ export async function GET(request: Request) {
     await completeAutodeskOAuth(code, state);
     return NextResponse.redirect(`${base}/integrations?autodesk_connected=1`);
   } catch (err) {
+    reportException(err, "integration.autodesk.oauth_failed");
     const message = err instanceof Error ? err.message : "Autodesk connection failed";
     return NextResponse.redirect(`${base}/integrations?autodesk_error=${encodeURIComponent(message)}`);
   }
+}
+
+export async function GET(request: Request) {
+  return observeApiRequest(request, "integration.autodesk.callback", () => handleGet(request));
 }

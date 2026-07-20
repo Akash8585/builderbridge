@@ -155,6 +155,7 @@ export async function searchProjectDocuments(projectId: string, query: string) {
           id: true,
           fileName: true,
           fileUrl: true,
+          searchableFileUrl: true,
           pageCount: true,
         },
       },
@@ -166,7 +167,7 @@ export async function searchProjectDocuments(projectId: string, query: string) {
     chunks.map((chunk) => ({
       id: chunk.document.id,
       fileName: chunk.document.fileName,
-      fileUrl: chunk.document.fileUrl,
+      fileUrl: chunk.document.searchableFileUrl ?? chunk.document.fileUrl,
       text: chunk.text,
       pageCount: chunk.document.pageCount,
       pageNumber: chunk.pageNumber,

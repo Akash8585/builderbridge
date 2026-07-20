@@ -6,6 +6,10 @@ const envSchema = z.object({
   BETTER_AUTH_URL: z.string().min(1, "BETTER_AUTH_URL is required"),
   GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
   GOOGLE_CLIENT_SECRET: z.string().min(1, "GOOGLE_CLIENT_SECRET is required"),
+  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+  SENTRY_ORG: z.string().optional(),
+  SENTRY_PROJECT: z.string().optional(),
+  SENTRY_AUTH_TOKEN: z.string().optional(),
   // Optional: powers the Schedule Q&A Assistant. Left unset, the app still
   // runs fine — the assistant just shows a "not configured" message.
   OPENROUTER_API_KEY: z.string().optional(),
@@ -38,6 +42,11 @@ const envSchema = z.object({
   // Deprecated compatibility setting. New uploads are served through the
   // authenticated /api/files route and do not require a public bucket URL.
   S3_PUBLIC_URL: z.string().optional(),
+  // Optional self-hosted OCRmyPDF worker. Both values are required to enable
+  // scanned-PDF and image OCR; ordinary searchable PDFs do not use it.
+  OCR_SERVICE_URL: z.string().optional(),
+  OCR_SERVICE_TOKEN: z.string().optional(),
+  OCR_SERVICE_TIMEOUT_MS: z.coerce.number().int().min(5_000).max(300_000).default(120_000),
   // Optional: Stripe billing (test mode is fine). All unset = billing UI
   // shows a "not configured" state and every org stays on the FREE tier.
   STRIPE_SECRET_KEY: z.string().optional(),

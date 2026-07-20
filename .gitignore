@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -49,9 +50,16 @@ DESIGN.md
 # Field Tracking photo uploads (local disk storage — dev only, not durable storage)
 /public/uploads/
 
+# PDF.js browser runtime copied from node_modules during install/build
+/public/pdfjs/
+
 # Third-party UI design references (copyrighted assets — private reference only)
 /design-refs/
 
 # Playwright artifacts
 /test-results/
 /playwright-report/
+
+.vercel
+.env*
+!.env.example

@@ -1,7 +1,9 @@
 import type { AssistantAttachment, DocumentProcessingStatus } from "@prisma/client";
 import { extractText } from "unpdf";
 import { prisma } from "@/lib/prisma";
-import { readStoredFile } from "@/lib/storage";
+import { createSearchablePdf, ocrServiceConfig } from "@/lib/ocr-service";
+import { deleteStoredFile, readStoredFile, uploadFile } from "@/lib/storage";
+import { logger, reportException } from "@/lib/observability";
 
 export const MAX_EXTRACTED_TEXT_CHARS = 250_000;
 export const MAX_DOCUMENT_CHUNK_CHARS = 1_500;
@@ -68,7 +70,7 @@ export async function extractDocumentText(
       status: "UNSUPPORTED",
       text: null,
       pageCount: null,
-      error: "Text extraction currently supports searchable PDF files. Image OCR is not enabled yet.",
+      error: "This image needs OCR before its text can be searched.",
       chunks: [],
     };
   }
@@ -104,7 +106,7 @@ export async function extractDocumentText(
       chunks,
     };
   } catch (error) {
-    console.error("Project PDF text extraction failed", error);
+    reportException(error, "document.extraction.failed", { mediaType, sizeBytes: bytes.byteLength });
     return {
       status: "FAILED",
       text: null,
@@ -116,9 +118,26 @@ export async function extractDocumentText(
 }
 
 export async function processProjectDocument(
-  document: Pick<AssistantAttachment, "id" | "storageKey" | "mediaType">,
+  document: Pick<
+    AssistantAttachment,
+    | "id"
+    | "projectId"
+    | "fileName"
+    | "storageKey"
+    | "mediaType"
+    | "searchableStorageKey"
+    | "searchableFileUrl"
+    | "ocrEngine"
+    | "ocrProcessedAt"
+  >,
   providedBytes?: Uint8Array
 ): Promise<AssistantAttachment> {
+  const startedAt = performance.now();
+  logger.info("document.processing.started", {
+    documentId: document.id,
+    projectId: document.projectId,
+    mediaType: document.mediaType,
+  });
   await prisma.assistantAttachment.update({
     where: { id: document.id },
     data: {
@@ -127,10 +146,43 @@ export async function processProjectDocument(
     },
   });
 
+  let uploadedSearchableKey: string | null = null;
   try {
     const bytes = providedBytes ?? (await readStoredFile(document.storageKey)).bytes;
-    const result = await extractDocumentText(bytes, document.mediaType);
-    return prisma.$transaction(async (transaction) => {
+    let result = await extractDocumentText(bytes, document.mediaType);
+    let searchableStorageKey = document.searchableStorageKey;
+    let searchableFileUrl = document.searchableFileUrl;
+    let ocrEngine = document.ocrEngine;
+    let ocrProcessedAt = document.ocrProcessedAt;
+
+    if (result.status === "UNSUPPORTED") {
+      if (searchableStorageKey) {
+        const existingSearchablePdf = await readStoredFile(searchableStorageKey);
+        result = await extractDocumentText(existingSearchablePdf.bytes, "application/pdf");
+      } else if (!ocrServiceConfig()) {
+        result = {
+          ...result,
+          error: "No searchable text was found. Configure the free OCR worker to process scanned PDFs and images.",
+        };
+      } else {
+        const searchablePdf = await createSearchablePdf(bytes, document.mediaType, document.fileName);
+        result = await extractDocumentText(searchablePdf, "application/pdf");
+        if (result.status !== "READY") {
+          throw new Error("OCR output did not contain searchable text");
+        }
+        searchableStorageKey =
+          document.searchableStorageKey ?? `${document.storageKey}.searchable.pdf`;
+        searchableFileUrl = await uploadFile(
+          searchableStorageKey,
+          Buffer.from(searchablePdf),
+          "application/pdf"
+        );
+        uploadedSearchableKey = searchableStorageKey;
+        ocrEngine = "ocrmypdf";
+        ocrProcessedAt = new Date();
+      }
+    }
+    const processed = await prisma.$transaction(async (transaction) => {
       await transaction.documentChunk.deleteMany({ where: { documentId: document.id } });
       if (result.chunks.length > 0) {
         await transaction.documentChunk.createMany({
@@ -145,10 +197,31 @@ export async function processProjectDocument(
           extractionError: result.error,
           pageCount: result.pageCount,
           processedAt: new Date(),
+          searchableStorageKey,
+          searchableFileUrl,
+          ocrEngine,
+          ocrProcessedAt,
         },
       });
     });
-  } catch {
+    logger.info("document.processing.completed", {
+      documentId: document.id,
+      projectId: document.projectId,
+      status: processed.extractionStatus,
+      pageCount: processed.pageCount,
+      durationMs: Math.round(performance.now() - startedAt),
+    });
+    return processed;
+  } catch (error) {
+    reportException(error, "document.processing.failed", {
+      documentId: document.id,
+      projectId: document.projectId,
+      mediaType: document.mediaType,
+      durationMs: Math.round(performance.now() - startedAt),
+    });
+    if (uploadedSearchableKey) {
+      await deleteStoredFile(uploadedSearchableKey).catch(() => undefined);
+    }
     return prisma.$transaction(async (transaction) => {
       await transaction.documentChunk.deleteMany({ where: { documentId: document.id } });
       return transaction.assistantAttachment.update({
@@ -156,7 +229,7 @@ export async function processProjectDocument(
         data: {
           extractionStatus: "FAILED",
           extractedText: null,
-          extractionError: "BuilderBridge could not access or process this file.",
+          extractionError: "BuilderBridge could not access, extract, or OCR this file.",
           pageCount: null,
           processedAt: new Date(),
         },

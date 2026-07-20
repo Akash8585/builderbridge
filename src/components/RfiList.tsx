@@ -208,7 +208,9 @@ function RfiCard({ rfi, canAnswer }: { rfi: RfiRow; canAnswer: boolean }) {
         {rfi.attachment && sourceHref && (
           <button
             type="button"
-            onClick={() => openPdfViewer(sourceHref, rfi.attachment!.fileName, "dashboard")}
+            onClick={() => openPdfViewer(sourceHref, rfi.attachment!.fileName, "dashboard", {
+              highlight: rfi.citationExcerpt,
+            })}
             className="hover:text-ink hover:underline"
           >
             From {rfi.attachment.fileName}

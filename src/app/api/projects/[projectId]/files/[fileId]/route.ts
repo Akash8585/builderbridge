@@ -26,6 +26,7 @@ export async function DELETE(
       id: true,
       uploadedById: true,
       storageKey: true,
+      searchableStorageKey: true,
       fileName: true,
       mediaType: true,
       sizeBytes: true,
@@ -40,6 +41,9 @@ export async function DELETE(
   }
 
   await deleteStoredFile(document.storageKey).catch(() => undefined);
+  if (document.searchableStorageKey) {
+    await deleteStoredFile(document.searchableStorageKey).catch(() => undefined);
+  }
   await prisma.assistantAttachment.delete({ where: { id: document.id } });
   await logActivity({
     projectId,

@@ -3,13 +3,14 @@ import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { getStripe, tierForPriceId } from "@/lib/billing";
+import { logger, observeApiRequest, reportException } from "@/lib/observability";
 
 /**
  * Stripe subscription lifecycle webhook. Configure the endpoint in the Stripe
  * dashboard (or `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
  * in dev) and set STRIPE_WEBHOOK_SECRET.
  */
-export async function POST(request: Request) {
+async function handlePost(request: Request) {
   if (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET) {
     return NextResponse.json({ error: "Billing not configured" }, { status: 503 });
   }
@@ -21,7 +22,10 @@ export async function POST(request: Request) {
   try {
     const rawBody = await request.text();
     event = await getStripe().webhooks.constructEventAsync(rawBody, signature, env.STRIPE_WEBHOOK_SECRET);
-  } catch {
+  } catch (error) {
+    logger.warn("stripe.webhook.invalid_signature", {
+      errorName: error instanceof Error ? error.name : "UnknownError",
+    });
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
@@ -77,10 +81,18 @@ export async function POST(request: Request) {
         break;
       }
     }
-  } catch {
+  } catch (error) {
+    reportException(error, "stripe.webhook.handler_failed", {
+      eventType: event.type,
+      stripeEventId: event.id,
+    });
     // Return 500 so Stripe retries — e.g. transient DB failure.
     return NextResponse.json({ error: "Handler failed" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });
+}
+
+export async function POST(request: Request) {
+  return observeApiRequest(request, "stripe.webhook", () => handlePost(request));
 }

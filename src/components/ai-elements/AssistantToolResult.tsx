@@ -8,7 +8,7 @@ import { AssistantActionProposal } from "@/components/ai-elements/AssistantActio
 import type { AssistantActionProposalView } from "@/lib/assistant-types";
 import { openPdfViewer } from "@/lib/pdf-viewer";
 
-type SourceLink = { label: string; href: string };
+type SourceLink = { label: string; href: string; highlight?: string };
 
 const TOOL_LABELS: Record<string, string> = {
   searchProjectDocuments: "Project documents searched",
@@ -55,6 +55,7 @@ function readSources(output: unknown): SourceLink[] {
       "href" in source &&
       typeof source.label === "string" &&
       typeof source.href === "string" &&
+      (!("highlight" in source) || typeof source.highlight === "string") &&
       source.href.startsWith("/")
   );
 }
@@ -113,7 +114,12 @@ export function AssistantToolResult({ part }: { part: ToolUIPart | DynamicToolUI
               <button
                 type="button"
                 key={`${part.toolCallId}-${source.href}-${source.label}`}
-                onClick={() => openPdfViewer(source.href, source.label.replace(/\s+-\s+Page\s+\d+$/i, ""), "agent")}
+                onClick={() => openPdfViewer(
+                  source.href,
+                  source.label.replace(/\s+-\s+Page\s+\d+$/i, ""),
+                  "agent",
+                  { highlight: source.highlight }
+                )}
                 className={className}
               >
                 <span className="max-w-48 truncate">{source.label}</span>

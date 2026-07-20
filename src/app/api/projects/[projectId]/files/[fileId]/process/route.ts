@@ -3,10 +3,11 @@ import { processProjectDocument } from "@/lib/document-extraction";
 import { getProjectRole } from "@/lib/permissions";
 import { requireActiveOrganization, requireUser } from "@/lib/session";
 import { activityChanges, logActivity } from "@/lib/activity-log";
+import { observeApiRequest } from "@/lib/observability";
 
 export const runtime = "nodejs";
 
-export async function POST(
+async function handlePost(
   _request: Request,
   { params }: { params: Promise<{ projectId: string; fileId: string }> }
 ) {
@@ -52,4 +53,11 @@ export async function POST(
     extractionStatus: processed.extractionStatus,
     extractionError: processed.extractionError,
   });
+}
+
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ projectId: string; fileId: string }> }
+) {
+  return observeApiRequest(request, "project.file.process", () => handlePost(request, context));
 }

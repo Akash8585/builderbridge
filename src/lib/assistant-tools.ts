@@ -145,7 +145,11 @@ export function createAssistantTools(context: AssistantToolContext) {
           ...new Map(
             matches.map((match) => [
               `${match.documentId}:${match.pageNumber}`,
-              { label: `${match.fileName} - Page ${match.pageNumber}`, href: match.href },
+              {
+                label: `${match.fileName} - Page ${match.pageNumber}`,
+                href: match.href,
+                highlight: match.snippet,
+              },
             ])
           ).values(),
         ];

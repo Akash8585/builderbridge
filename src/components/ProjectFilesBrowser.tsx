@@ -32,6 +32,7 @@ export type ProjectFileRecord = {
   originalFileName: string;
   mediaType: string;
   url: string;
+  viewerUrl?: string;
   sizeBytes: number | null;
   uploadedBy: string;
   uploadedAt: string;
@@ -128,11 +129,11 @@ function FileThumb({ file }: { file: ProjectFileRecord }) {
 }
 
 function FileNameAction({ file }: { file: ProjectFileRecord }) {
-  if (file.mediaType === "application/pdf") {
+  if (file.mediaType === "application/pdf" || file.viewerUrl) {
     return (
       <button
         type="button"
-        onClick={() => openPdfViewer(file.url, file.name, "dashboard")}
+        onClick={() => openPdfViewer(file.viewerUrl ?? file.url, file.name, "dashboard")}
         className="block max-w-full truncate text-left font-medium text-ink hover:underline"
       >
         {file.name}

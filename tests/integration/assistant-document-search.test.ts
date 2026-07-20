@@ -32,6 +32,10 @@ describe("Assistant project document retrieval", () => {
         sizeBytes: 512,
         storageKey: `documents/${fixture.project.id}/files/door-specifications.pdf`,
         fileUrl: `/api/files/documents/${fixture.project.id}/files/door-specifications.pdf`,
+        searchableStorageKey: `documents/${fixture.project.id}/files/door-specifications.searchable.pdf`,
+        searchableFileUrl: `/api/files/documents/${fixture.project.id}/files/door-specifications.searchable.pdf`,
+        ocrEngine: "ocrmypdf",
+        ocrProcessedAt: new Date(),
         source: "DIRECT_UPLOAD",
         extractionStatus: "READY",
         extractedText: "Fire-rated corridor doors require a 90 minute rating and smoke seals.",
@@ -75,7 +79,8 @@ describe("Assistant project document retrieval", () => {
       sources: [
         {
           label: "Door Specifications.pdf - Page 3",
-          href: `/api/files/documents/${fixture.project.id}/files/door-specifications.pdf#page=3`,
+          href: `/api/files/documents/${fixture.project.id}/files/door-specifications.searchable.pdf#page=3`,
+          highlight: expect.stringContaining("90 minute rating"),
         },
       ],
     });

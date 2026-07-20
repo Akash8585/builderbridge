@@ -63,14 +63,19 @@ export async function DELETE(
   await requireAssistantConversation(conversationId, user.id, organizationId);
   const pendingAttachments = await prisma.assistantAttachment.findMany({
     where: { conversationId, messageId: null },
-    select: { storageKey: true },
+    select: { storageKey: true, searchableStorageKey: true },
   });
   await prisma.assistantAttachment.deleteMany({
     where: { conversationId, messageId: null },
   });
   await prisma.assistantConversation.delete({ where: { id: conversationId } });
   await Promise.allSettled(
-    pendingAttachments.map((attachment) => deleteStoredFile(attachment.storageKey))
+    pendingAttachments.flatMap((attachment) => [
+      deleteStoredFile(attachment.storageKey),
+      ...(attachment.searchableStorageKey
+        ? [deleteStoredFile(attachment.searchableStorageKey)]
+        : []),
+    ])
   );
   return new Response(null, { status: 204 });
 }

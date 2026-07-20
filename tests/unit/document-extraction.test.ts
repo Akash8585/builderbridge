@@ -45,10 +45,10 @@ describe("document extraction", () => {
     ]);
   });
 
-  it("marks images as stored-only until OCR is enabled", async () => {
+  it("identifies images that require OCR", async () => {
     const result = await extractDocumentText(new Uint8Array([1, 2, 3]), "image/png");
     expect(result.status).toBe("UNSUPPORTED");
-    expect(result.error).toContain("Image OCR is not enabled");
+    expect(result.error).toContain("needs OCR");
     expect(result.chunks).toEqual([]);
   });
 });

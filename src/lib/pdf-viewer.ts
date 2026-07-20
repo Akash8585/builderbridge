@@ -5,6 +5,7 @@ export type PdfViewerDocument = {
   title: string;
   page: number;
   pageCount?: number | null;
+  highlight?: string | null;
 };
 
 export type PdfViewerRequest = PdfViewerDocument & {
@@ -12,6 +13,44 @@ export type PdfViewerRequest = PdfViewerDocument & {
 };
 
 export const PDF_VIEWER_EVENT = "builderbridge:open-pdf-viewer";
+
+const COMMON_CITATION_WORDS = new Set([
+  "about", "after", "before", "could", "document", "from", "have", "into", "page",
+  "project", "shall", "should", "that", "their", "there", "these", "this", "with",
+]);
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+export function highlightPdfTextItem(text: string, excerpt?: string | null): string {
+  if (!excerpt?.trim()) return escapeHtml(text);
+  const terms = [
+    ...new Set(
+      excerpt
+        .toLocaleLowerCase()
+        .match(/[\p{L}\p{N}][\p{L}\p{N}'-]*/gu)
+        ?.filter((term) => term.length >= 4 && !COMMON_CITATION_WORDS.has(term)) ?? []
+    ),
+  ]
+    .sort((left, right) => right.length - left.length)
+    .slice(0, 18);
+  if (terms.length === 0) return escapeHtml(text);
+
+  const pattern = new RegExp(
+    `(${terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
+    "giu"
+  );
+  return escapeHtml(text).replace(
+    pattern,
+    '<mark data-pdf-citation-highlight="true" style="border-radius:2px;background:#ffe58a;color:#181611">$1</mark>'
+  );
+}
 
 function positivePage(value: string | null | undefined): number | null {
   if (!value) return null;
@@ -22,7 +61,7 @@ function positivePage(value: string | null | undefined): number | null {
 export function pdfViewerDocument(
   url: string,
   title: string,
-  options?: { page?: number; pageCount?: number | null }
+  options?: { page?: number; pageCount?: number | null; highlight?: string | null }
 ): PdfViewerDocument {
   const [baseUrl, hash = ""] = url.split("#", 2);
   const hashPage = positivePage(new URLSearchParams(hash).get("page"));
@@ -31,6 +70,7 @@ export function pdfViewerDocument(
     title,
     page: options?.page ?? hashPage ?? 1,
     pageCount: options?.pageCount,
+    highlight: options?.highlight,
   };
 }
 
@@ -48,7 +88,7 @@ export function openPdfViewer(
   url: string,
   title: string,
   placement: PdfViewerPlacement,
-  options?: { page?: number; pageCount?: number | null }
+  options?: { page?: number; pageCount?: number | null; highlight?: string | null }
 ) {
   window.dispatchEvent(
     new CustomEvent<PdfViewerRequest>(PDF_VIEWER_EVENT, {

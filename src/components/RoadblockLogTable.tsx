@@ -146,7 +146,10 @@ function RoadblockRowView({
               roadblock.roadblockAttachment!.fileUrl,
               roadblock.roadblockAttachment!.fileName,
               "dashboard",
-              { page: roadblock.roadblockPageNumber ?? 1 }
+              {
+                page: roadblock.roadblockPageNumber ?? 1,
+                highlight: roadblock.roadblockCitationExcerpt,
+              }
             )}
             className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-muted hover:text-ink"
           >

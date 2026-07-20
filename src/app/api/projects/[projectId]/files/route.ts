@@ -8,10 +8,11 @@ import {
   validateUploadedFile,
 } from "@/lib/file-uploads";
 import { activityChanges, logActivity } from "@/lib/activity-log";
+import { observeApiRequest, reportException } from "@/lib/observability";
 
 export const runtime = "nodejs";
 
-export async function POST(
+async function handlePost(
   request: Request,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
@@ -89,6 +90,7 @@ export async function POST(
           mediaType: processed.mediaType,
           sizeBytes: processed.sizeBytes,
           url: processed.fileUrl,
+          viewerUrl: processed.searchableFileUrl ?? processed.fileUrl,
           extractionStatus: processed.extractionStatus,
           extractionError: processed.extractionError,
         },
@@ -98,7 +100,15 @@ export async function POST(
       await deleteStoredFile(storageKey).catch(() => undefined);
       throw error;
     }
-  } catch {
+  } catch (error) {
+    reportException(error, "project.file.upload.failed", { projectId });
     return Response.json({ error: "The project file could not be uploaded." }, { status: 500 });
   }
+}
+
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ projectId: string }> }
+) {
+  return observeApiRequest(request, "project.file.upload", () => handlePost(request, context));
 }

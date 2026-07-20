@@ -30,7 +30,9 @@ export default async function ProjectRfisPage({
       include: {
         raisedBy: { include: { user: { select: { name: true } } } },
         task: { select: { id: true, name: true } },
-        attachment: { select: { id: true, fileName: true, fileUrl: true } },
+        attachment: {
+          select: { id: true, fileName: true, fileUrl: true, searchableFileUrl: true },
+        },
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -75,7 +77,9 @@ export default async function ProjectRfisPage({
               ? {
                   id: rfi.attachment.id,
                   fileName: rfi.attachment.fileName,
-                  url: privateStoredFileUrl(rfi.attachment.fileUrl),
+                  url: privateStoredFileUrl(
+                    rfi.attachment.searchableFileUrl ?? rfi.attachment.fileUrl
+                  ),
                 }
               : null,
           }))}

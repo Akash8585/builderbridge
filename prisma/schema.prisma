@@ -390,6 +390,10 @@ model AssistantAttachment {
   contentHash      String?
   storageKey       String                   @unique
   fileUrl          String
+  searchableStorageKey String?              @unique
+  searchableFileUrl String?
+  ocrEngine         String?
+  ocrProcessedAt    DateTime?
   source           ProjectFileSource        @default(AI_UPLOAD)
   extractionStatus DocumentProcessingStatus @default(PENDING)
   extractedText    String?                  @db.Text

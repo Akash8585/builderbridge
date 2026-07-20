@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { ChevronLeft, ChevronRight, Download, ExternalLink, X } from "lucide-react";
 import {
   fileDownloadUrl,
@@ -9,6 +10,14 @@ import {
   type PdfViewerDocument,
   type PdfViewerRequest,
 } from "@/lib/pdf-viewer";
+
+const PdfCanvasViewer = dynamic(
+  () => import("@/components/PdfCanvasViewer").then((module) => module.PdfCanvasViewer),
+  {
+    ssr: false,
+    loading: () => <div className="min-h-0 flex-1 bg-[#e8eaed]" />,
+  }
+);
 
 export function PdfViewerPanel({
   document,
@@ -20,8 +29,7 @@ export function PdfViewerPanel({
   variant?: "dashboard" | "agent";
 }) {
   const [page, setPage] = useState(document.page);
-
-  const pageCount = document.pageCount ?? null;
+  const [pageCount, setPageCount] = useState<number | null>(document.pageCount ?? null);
   const currentDocument = { ...document, page };
   const setValidPage = (nextPage: number) => {
     setPage(Math.max(1, pageCount ? Math.min(pageCount, nextPage) : nextPage));
@@ -113,11 +121,10 @@ export function PdfViewerPanel({
           </button>
         </div>
       </header>
-      <iframe
-        key={`${document.url}:${page}`}
-        src={pdfPageUrl(currentDocument)}
-        title={`${document.title}, page ${page}`}
-        className="min-h-0 w-full flex-1 border-0 bg-[#525659]"
+      <PdfCanvasViewer
+        document={currentDocument}
+        page={page}
+        onPageCountChange={setPageCount}
       />
     </section>
   );

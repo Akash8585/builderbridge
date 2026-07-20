@@ -5,6 +5,7 @@ import { canManageSchedule } from "@/lib/permissions";
 import { SubmittalList } from "@/components/SubmittalList";
 import type { SubmittalStatus } from "@prisma/client";
 import { ProjectPageHeader } from "@/components/PageHeader";
+import { privateStoredFileUrl } from "@/lib/storage";
 
 export default async function ProjectSubmittalsPage({
   params,
@@ -26,7 +27,7 @@ export default async function ProjectSubmittalsPage({
       include: {
         submittedBy: { include: { user: { select: { name: true } } } },
         task: { select: { id: true, name: true } },
-        attachment: { select: { fileName: true, fileUrl: true } },
+        attachment: { select: { fileName: true, fileUrl: true, searchableFileUrl: true } },
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -57,7 +58,22 @@ export default async function ProjectSubmittalsPage({
           ))}
         </div>
 
-        <SubmittalList projectId={projectId} submittals={submittals} tasks={tasks} canDecide={canManageSchedule(role)} />
+        <SubmittalList
+          projectId={projectId}
+          submittals={submittals.map((submittal) => ({
+            ...submittal,
+            attachment: submittal.attachment
+              ? {
+                  fileName: submittal.attachment.fileName,
+                  fileUrl: privateStoredFileUrl(
+                    submittal.attachment.searchableFileUrl ?? submittal.attachment.fileUrl
+                  ),
+                }
+              : null,
+          }))}
+          tasks={tasks}
+          canDecide={canManageSchedule(role)}
+        />
       </div>
     </div>
   );

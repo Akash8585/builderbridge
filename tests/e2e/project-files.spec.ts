@@ -55,6 +55,7 @@ test("project files upload, index, open, filter, and delete securely", async ({ 
     const uploaded = await uploadResponse.json();
     uploadedId = uploaded.id;
     expect(uploaded.extractionStatus).toBe("READY");
+    expect(uploaded.viewerUrl).toMatch(/^\/api\/files\/documents\//);
 
     const duplicateResponsePromise = page.waitForResponse(
       (response) =>
@@ -91,6 +92,7 @@ test("project files upload, index, open, filter, and delete securely", async ({ 
     await fileButton.click();
     const pdfDialog = page.getByRole("dialog", { name: "Project PDF viewer" });
     await expect(pdfDialog).toBeVisible();
+    await expect(pdfDialog.locator("canvas")).toBeVisible();
     await expect(pdfDialog).toBeFocused();
     await page.keyboard.press("Shift+Tab");
     await expect(pdfDialog.locator(":focus")).toHaveCount(1);
@@ -100,11 +102,10 @@ test("project files upload, index, open, filter, and delete securely", async ({ 
 
     await fileButton.click();
     await expect(pdfDialog).toBeVisible();
-    const pdfFrame = pdfDialog.locator("iframe");
-    await expect(pdfFrame).toHaveAttribute("title", `${fileName}, page 1`);
-    const href = (await pdfFrame.getAttribute("src"))?.split("#", 1)[0];
-    expect(href).toMatch(/^\/api\/files\/documents\//);
-    const rangeResponse = await page.request.get(href!, { headers: { Range: "bytes=0-7" } });
+    await expect(pdfDialog.locator("canvas")).toBeVisible();
+    const rangeResponse = await page.request.get(uploaded.viewerUrl, {
+      headers: { Range: "bytes=0-7" },
+    });
     expect(rangeResponse.status()).toBe(206);
     expect((await rangeResponse.body()).toString()).toBe("%PDF-1.4");
     expect(rangeResponse.headers()["x-frame-options"]).toBe("SAMEORIGIN");
@@ -112,6 +113,28 @@ test("project files upload, index, open, filter, and delete securely", async ({ 
     await pdfDialog.getByRole("button", { name: "Close PDF viewer" }).click();
     await expect(pdfDialog).toBeHidden();
     await expect(fileButton).toBeFocused();
+
+    await page.evaluate(
+      ({ url, title }) => {
+        window.dispatchEvent(
+          new CustomEvent("builderbridge:open-pdf-viewer", {
+            detail: {
+              url,
+              title,
+              page: 1,
+              highlight: "corridor doors require a 90 minute rating and smoke seals",
+              placement: "dashboard",
+            },
+          })
+        );
+      },
+      { url: uploaded.viewerUrl, title: fileName }
+    );
+    await expect(pdfDialog).toBeVisible();
+    const citationHighlight = pdfDialog.locator('[data-pdf-citation-highlight="true"]');
+    await expect(citationHighlight.first()).toBeVisible();
+    await expect(citationHighlight.first()).toHaveCSS("background-color", "rgb(255, 229, 138)");
+    await pdfDialog.getByRole("button", { name: "Close PDF viewer" }).click();
 
     const downloadPromise = page.waitForEvent("download");
     await row.getByRole("link", { name: `Download ${fileName}` }).click();
@@ -142,6 +165,11 @@ test("project files upload, index, open, filter, and delete securely", async ({ 
     await expect(page.getByRole("button", { name: "Upload", exact: true })).toBeVisible();
     const mobileFile = page.getByRole("listitem").filter({ hasText: fileName });
     await expect(mobileFile).toContainText("Search ready");
+    await mobileFile.getByRole("button", { name: fileName, exact: true }).click();
+    await expect(pdfDialog).toBeVisible();
+    await expect(pdfDialog.locator("canvas")).toBeVisible();
+    expect((await pdfDialog.boundingBox())?.width).toBeLessThanOrEqual(390);
+    await pdfDialog.getByRole("button", { name: "Close PDF viewer" }).click();
 
     page.once("dialog", (dialog) => dialog.accept());
     const deleteResponsePromise = page.waitForResponse(

@@ -78,6 +78,7 @@ export default async function ProjectFilesPage({
       originalFileName: attachment.fileName,
       mediaType: attachment.mediaType,
       url: privateStoredFileUrl(attachment.fileUrl),
+      viewerUrl: privateStoredFileUrl(attachment.searchableFileUrl ?? attachment.fileUrl),
       sizeBytes: attachment.sizeBytes,
       uploadedBy: attachment.uploadedBy.name,
       uploadedAt: attachment.createdAt.toISOString(),

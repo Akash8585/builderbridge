@@ -1,6 +1,6 @@
 # BuilderBridge
 
-**An AI-assisted construction control room for project managers, schedulers, superintendents, and trade partners who need the office schedule and field plan to stay aligned.**
+> **BuilderBridge gives construction teams one AI-assisted control room for schedules, field commitments, project documents, and risk, so the office plan and jobsite reality stay aligned.**
 
 **Live Demo:** [https://builderbridge.vercel.app/](https://builderbridge.vercel.app/)
 
@@ -12,63 +12,75 @@
 
 ## Screenshots
 
+### Critical-path Gantt
+
 ![Gantt view](./docs/screenshot-gantt.png)
+
+Dependencies, schedule dates, progress, and critical-path work in one operational view.
+
+### Weekly Work Plan
 
 ![Weekly Work Plan and project dashboard](./docs/screenshot-weekly-plan.png)
 
+Turn lookahead work into weekly commitments, track completion, and understand PPC variance.
+
+### Project-aware Agent
+
 ![BuilderBridge Agent chat panel](./docs/screenshot-agent.png)
+
+Ask questions against live project data and documents, then review proposed changes before anything is written.
 
 ## Built By
 
-**Team:** [ADD NAME OR TEAM]
+- **Solo builder:** Akash Kumar Prasad
+- **Hackathon:** OpenAI Build Week
+- **Recommended category:** Work and Productivity
 
-Built for OpenAI Build Week. Recommended DevPost category: **Work and Productivity**.
+BuilderBridge was built and meaningfully extended with Codex and GPT-5.6 during the submission period.
 
 ## Features
 
 ### Foundation
 
-- Email/password and Google sign-in, organizations, project invites, and soft archiving.
-- Per-project roles for Project Managers, Schedulers, Superintendents, and Trades.
-- Task ownership, dates, status, actual progress, notes, and mobile field updates.
-- Responsive dashboard and installable PWA experience.
+- Email/password and Google sign-in, organizations, invites, and project archiving.
+- Project-level roles for managers, schedulers, superintendents, and trades.
+- Task ownership, dates, status, actual progress, notes, and field updates.
+- Responsive dashboards and an installable PWA.
 
 ### Phase 1 - Planning Loop
 
-- Dependencies with cycle detection, Critical Path Method, and critical-path Gantt highlighting.
-- Rolling 2, 4, and 6 week lookaheads plus collaborative pull planning.
-- Weekly commitments with PPC, completion tracking, and protected historical records.
-- Roadblocks with type, owner, due date, status, and role-aware resolution.
+- Dependencies, cycle detection, Critical Path Method, and critical-path Gantt highlighting.
+- Rolling 2, 4, and 6 week lookaheads with collaborative pull planning.
+- Weekly commitments, PPC, completion tracking, and protected history.
+- Owned, dated, role-aware roadblock resolution.
 
 ### Phase 2 - Project Controls and Documents
 
-- Schedule Impact Requests, RFIs, submittals, drawings, and schedule baselines.
-- Overdue RFIs can automatically flag linked tasks as blocked.
-- Drawing revisions preserve and supersede earlier versions.
-- Private project files, PDF preview, exact-page citations, passage highlighting, and OCR for scans.
+- Schedule impacts, RFIs, submittals, drawings, and baselines.
+- Automatic task blocking from overdue linked RFIs.
+- Drawing revision and superseded-file history.
+- Private files, PDF preview, exact-page citations, highlighting, and OCR.
 
 ### Phase 3 - Portfolio Intelligence
 
-- Organization-wide executive dashboard and shared project timeline.
-- PPC trends, PRR by trade, S-curves, baseline variance, and composite project health.
-- Cross-project trade performance and project-level activity history.
-- First-project onboarding and useful empty states.
+- Executive dashboard and shared portfolio timeline.
+- PPC, PRR, S-curves, baseline variance, and project health.
+- Cross-project trade performance and project activity history.
+- Guided first-project onboarding and useful empty states.
 
 ### Phase 4 - BuilderBridge Agent
 
-- Persistent project and portfolio conversations grounded in live BuilderBridge data.
-- Reads tasks, members, schedule risk, roadblocks, RFIs, submittals, impacts, documents, and portfolio health.
-- Prepares reviewable proposals for task, progress, commitment, roadblock, schedule, baseline, RFI, and submittal changes.
-- Requires explicit confirmation, rechecks permissions and stale data, applies changes atomically, and records the result.
-- Uses the Vercel AI SDK with OpenRouter model routing, ordered fallback, bounded retries, and usage limits.
+- Persistent project and portfolio conversations grounded in live data.
+- Project, schedule, risk, RFI, submittal, document, and portfolio tools.
+- Reviewable proposals for planning and project-control changes.
+- Explicit confirmation, permission checks, stale-data protection, and atomic writes.
+- OpenRouter routing with ordered fallbacks, bounded retries, and usage limits.
 
 > **Runtime provider note:** The shipped Agent currently calls OpenRouter through its OpenAI-compatible API using `OPENROUTER_API_KEY`. `OPENROUTER_MODEL` may target an OpenAI-hosted model available through OpenRouter, such as `openai/gpt-4o-mini`, but this is not the same as calling `api.openai.com` directly.
 
 ## How It Works / Inspiration
 
-BuilderBridge is inspired by Outbuild-style construction planning: one connected operating loop for the master schedule, field coordination, weekly commitments, and project controls. It addresses a common gap where schedule changes, site updates, RFIs, submittals, and risk decisions are scattered across separate tools and conversations. The Agent sits inside that loop, using project-scoped tools and human-confirmed proposals instead of acting as an unaccountable chatbot.
-
-OpenAI Build Week eligibility is based on how the project was built: BuilderBridge was meaningfully extended with Codex during the submission period, with session history and dated commits as evidence. The current application runtime remains OpenRouter-based; the [official rules](https://openai.devpost.com/rules) allow any runtime tooling while requiring the project itself to be built with Codex and/or GPT-5.6.
+BuilderBridge is inspired by [Outbuild](https://www.outbuild.com/)'s connected approach to construction planning. It addresses a real coordination gap: master schedules, weekly promises, field updates, RFIs, submittals, and risk decisions often live in separate systems. BuilderBridge brings them into one operating loop and places a permission-aware Agent inside it, where every proposed write remains under human control.
 
 ### Agent write path
 

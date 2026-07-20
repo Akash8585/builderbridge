@@ -173,7 +173,7 @@ BuilderBridge was developed with **Codex** and **GPT-5.6** during OpenAI Build W
 | **AI helped generate** | Agent tool surface and proposal/confirm handlers; page-chunk document extraction and search; PDF viewer wiring; permission and activity-log hardening; TypeScript/build fixes for Vercel + Prisma; responsive Agent/nav layouts; Sentry and structured logging |
 | **AI reviewed** | Permission rechecks on confirm; stale snapshot rejection paths; proposal expiry and one-time claim updates; OpenRouter free-model fallback/retry behavior; file access through authenticated routes |
 | **Builder manually tested** | Seeded Harborview walkthrough (Gantt, weekly plan, Agent Q&A, propose → confirm → activity); local OCR worker path; production deploy on Vercel/Neon/Supabase; role differences (PM vs trade) |
-| **Human product decisions** | Proposal-first writes (never silent mutation); OpenRouter free models as the runtime LLM path; private storage by default; hackathon priority order in [`ROADMAP.md`](./ROADMAP.md); which controls the Agent may propose |
+| **Human product decisions** | Proposal-first writes (never silent mutation); OpenRouter free models as the runtime LLM path; private storage by default; which controls the Agent may propose |
 
 Examples from Build Week work: exploring the Phase 1–3 codebase before extending the Agent; designing tools in `assistant-tools.ts`; implementing proposal confirmation and stale-data protection in `assistant-actions.ts`; improving document extraction/citations; hardening deployment and observability.
 
@@ -342,7 +342,7 @@ Production shape:
 npx prisma migrate deploy
 ```
 
-Do **not** run `npm run db:seed` against a customer production database. See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for storage, OAuth callbacks, monitoring, security headers, and the post-deploy checklist.
+Do **not** run `npm run db:seed` against a customer production database. Configure OAuth callbacks, private storage, and monitoring in the Vercel project settings before going live.
 
 ## Security and permissions
 

@@ -3,7 +3,7 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 // Baseline security headers for every route. A strict Content-Security-Policy
 // is intentionally omitted: Next.js relies on inline scripts for hydration, so
-// a meaningful CSP needs per-request nonces — see DEPLOYMENT.md for guidance
+// a meaningful CSP needs per-request nonces — configure carefully for production
 // before adding one in production.
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },

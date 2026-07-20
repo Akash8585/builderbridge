@@ -46,6 +46,8 @@ next-env.d.ts
 AGENTS.md
 CLAUDE.md
 DESIGN.md
+DEPLOYMENT.md
+ROADMAP.md
 .agents/
 
 # Local agent review notes / scratch

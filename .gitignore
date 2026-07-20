@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+Thumbs.db
 
 # debug
 npm-debug.log*
@@ -45,7 +46,19 @@ next-env.d.ts
 AGENTS.md
 CLAUDE.md
 DESIGN.md
+.agents/
 
+# Local agent review notes / scratch
+agent-runtime-review*.txt
+*-review*.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
 
 # Field Tracking photo uploads (local disk storage — dev only, not durable storage)
 /public/uploads/
@@ -59,7 +72,5 @@ DESIGN.md
 # Playwright artifacts
 /test-results/
 /playwright-report/
-
-.vercel
-.env*
-!.env.example
+/blob-report/
+/playwright/.cache/

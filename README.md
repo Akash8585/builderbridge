@@ -2,15 +2,29 @@
 
 **BuilderBridge turns construction schedules, weekly commitments, field progress, and project documents into one agent-controlled operating loop where every AI write is cited, reviewable, permission-checked, and auditable.**
 
+Built for project managers, schedulers, superintendents, and trade partners who need the office plan and the jobsite to stay aligned — without letting an AI silently change project records.
+
 [![CI](https://github.com/Akash8585/builderbridge/actions/workflows/ci.yml/badge.svg)](https://github.com/Akash8585/builderbridge/actions/workflows/ci.yml)
 ![Next.js 16](https://img.shields.io/badge/Next.js-16-111111?logo=nextdotjs)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 
-## Live demo
+<p align="center">
+  <img
+    src="./docs/builderbridge-hero.svg"
+    alt="BuilderBridge turns construction project risks into cited and reviewable actions"
+    width="100%"
+  />
+</p>
 
-**App:** [https://builderbridge.vercel.app/](https://builderbridge.vercel.app/)
+<p align="center">
+  <a href="https://builderbridge.vercel.app/"><strong>Live Demo</strong></a>
+  ·
+  <a href="ADD_PUBLIC_YOUTUBE_LINK"><strong>Demo Video</strong></a>
+  ·
+  <a href="#judge-it-in-five-minutes"><strong>Judge Walkthrough</strong></a>
+</p>
 
-## Demo video
+> **Quick context:** BuilderBridge is a construction operations platform where an AI agent reads live schedules and project documents, cites its evidence, prepares operational changes, and executes them only after human approval.
 
 **Demo Video:** [ADD PUBLIC YOUTUBE LINK]
 
@@ -43,11 +57,11 @@ If the Agent panel says it is not configured, the deployment is missing `OPENROU
 
 ## The problem
 
-Construction teams usually keep the master schedule, weekly promises, field updates, RFIs, submittals, drawings, and risk decisions in separate tools. When something slips, the office plan and the jobsite diverge, and nobody has one place to ask *what changed*, *why*, and *what should we do next* with an auditable answer.
+Construction schedules, weekly promises, field updates, RFIs, submittals, drawings, and risk decisions usually live in separate tools. When something slips, the office plan and the jobsite diverge — and teams lose a single place to ask what changed, why it matters, and what should happen next with an auditable answer.
 
 ## The solution
 
-BuilderBridge is an AI-assisted construction control room. It connects:
+BuilderBridge is an AI-assisted construction control room for the people running the job. It connects:
 
 - Project schedules and task dependencies
 - Critical-path planning and lookaheads
@@ -55,7 +69,7 @@ BuilderBridge is an AI-assisted construction control room. It connects:
 - RFIs, submittals, drawings, and project documents
 - Schedule risks and portfolio analytics
 
-A project-aware Agent sits inside that loop. It can answer from live data, search uploaded documents with page citations, and prepare proposed writes — but it never silently mutates project records.
+The Agent works inside that live system. It answers from current project data, searches uploaded documents with exact-page citations, and prepares operational changes — then stops until a human reviews and confirms.
 
 ## Core product workflow
 
@@ -119,7 +133,17 @@ The Agent does **not** silently modify project data.
 
 ## What makes BuilderBridge different
 
-Most construction tools stop at dashboards or chat over static exports. BuilderBridge keeps planning and controls in one product, then puts a **reviewable write path** on top: the Agent can propose RFIs, commitments, roadblocks, and schedule changes, but a human must confirm after seeing sources, warnings, and impacts — with permission and stale-state checks before the database write.
+Most construction tools stop at dashboards, or at chat over static exports. BuilderBridge keeps planning and project controls in one product, then adds a **review-before-write** Agent path:
+
+- Reads **live project data**, not a pasted schedule dump
+- Returns **exact-page document citations** when evidence comes from files
+- Creates a **reviewable proposal** with changes, sources, warnings, and impacts
+- Requires **explicit human confirmation** before any write
+- Re-checks **permissions** and **stale snapshots** at confirm time
+- Applies the change in an **atomic transaction**
+- Records the result in the **activity log**
+
+The Agent does not silently modify project data.
 
 ## Built during OpenAI Build Week
 

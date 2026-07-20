@@ -150,13 +150,13 @@ The Agent does not silently modify project data.
 - **Hackathon:** [OpenAI Build Week](https://openai.devpost.com/) (submission window Jul 13–21, 2026)
 - **Track focus:** Work and Productivity
 - **Solo builder:** Akash Kumar Prasad
-- **Codex Session ID:** [ADD SESSION ID BEFORE SUBMISSION]
+- **Codex Session ID:** `019f6232-3b29-7de1-b9e2-0cf7b69cdf42`
 
 During Build Week the product was extended into a Codex-style agent with document intelligence, reviewable writes, PDF viewing, permission/activity hardening, onboarding, responsive polish, and production monitoring — running Agent inference on OpenRouter free models.
 
 ## How Codex and GPT-5.6 were used
 
-BuilderBridge was developed with **Codex** and **GPT-5.6** during OpenAI Build Week. The notes below map to concrete repository work; fill in the Codex Session ID above before Devpost submission.
+BuilderBridge was developed with **Codex** and **GPT-5.6** during OpenAI Build Week. The notes below map to concrete repository work.
 
 | Kind of work | What happened |
 | --- | --- |

@@ -2,7 +2,7 @@
 
 **BuilderBridge turns construction schedules, weekly commitments, field progress, and project documents into one agent-controlled operating loop where every AI write is cited, reviewable, permission-checked, and auditable.**
 
-Built for project managers, schedulers, superintendents, and trade partners who need the office plan and the jobsite to stay aligned — without letting an AI silently change project records.
+Built for project managers, schedulers, superintendents, and trade partners who need the office plan and the jobsite to stay aligned -- without letting an AI silently change project records.
 
 [![CI](https://github.com/Akash8585/builderbridge/actions/workflows/ci.yml/badge.svg)](https://github.com/Akash8585/builderbridge/actions/workflows/ci.yml)
 ![Next.js 16](https://img.shields.io/badge/Next.js-16-111111?logo=nextdotjs)
@@ -18,15 +18,43 @@ Built for project managers, schedulers, superintendents, and trade partners who 
 
 <p align="center">
   <a href="https://builderbridge.vercel.app/"><strong>Live Demo</strong></a>
-  ·
+  |
   <a href="ADD_PUBLIC_YOUTUBE_LINK"><strong>Demo Video</strong></a>
-  ·
+  |
   <a href="#judge-it-in-five-minutes"><strong>Judge Walkthrough</strong></a>
 </p>
 
 > **Quick context:** BuilderBridge is a construction operations platform where an AI agent reads live schedules and project documents, cites its evidence, prepares operational changes, and executes them only after human approval.
 
 **Demo Video:** [ADD PUBLIC YOUTUBE LINK]
+
+## Screenshots
+
+Only screenshots present under [`docs/`](./docs/) are listed below.
+
+### Critical-path Gantt
+
+![Gantt view](./docs/screenshot-gantt.png)
+
+Dependencies, dates, progress, and critical-path highlighting in one operational schedule view.
+
+### Weekly Work Plan
+
+![Weekly Work Plan and project dashboard](./docs/screenshot-weekly-plan.png)
+
+Lookahead work becomes weekly commitments with completion tracking and PPC-oriented project context.
+
+### Project-aware Agent
+
+![BuilderBridge Agent chat panel](./docs/screenshot-agent.png)
+
+Ask questions against live project data and documents, then review a proposal card before any write is applied.
+
+### Proposal card
+
+![Agent proposal card requiring confirmation before write](./docs/screenshot-proposal.png)
+
+Reviewable proposal with proposed field changes shown before any write -- Confirm change applies it; Cancel leaves project data untouched.
 
 ## Judge it in five minutes
 
@@ -40,7 +68,7 @@ Use the live demo first. For the full seeded Harborview Residences walkthrough (
 
 1. Open the [live demo](https://builderbridge.vercel.app/) (or `http://localhost:3000` after local setup).
 2. Sign in with the Project Manager account above, or create an account / use Google sign-in if that user is not present on the deployment.
-3. Open **Harborview Residences — Building A** (seeded), or create a project and add a few tasks if you are on a fresh account.
+3. Open **Harborview Residences -- Building A** (seeded), or create a project and add a few tasks if you are on a fresh account.
 4. Review the **Gantt** (critical path, dependencies, progress) and **Weekly Plan** (commitments and completion).
 5. Open the **BuilderBridge Agent** from the app chrome.
 6. Ask: *What is threatening this project's completion date?* The agent reads live schedule risks, roadblocks, and open items.
@@ -57,11 +85,11 @@ If the Agent panel says it is not configured, the deployment is missing `OPENROU
 
 ## The problem
 
-A project manager often needs one answer — what is actually threatening completion — and has to stitch it together from the schedule, the RFI log, and field notes that may not match what the Gantt still shows. Schedulers, superintendents, and trade partners feel the same fragmentation when weekly promises, roadblocks, and document questions live in separate places with no single auditable path from “what changed?” to “what should we do next?”
+A project manager often needs one answer -- what is actually threatening completion -- and has to stitch it together from the schedule, the RFI log, and field notes that may not match what the Gantt still shows. Schedulers, superintendents, and trade partners feel the same fragmentation when weekly promises, roadblocks, and document questions live in separate places with no single auditable path from "what changed?" to "what should we do next?"
 
-That fragmentation shows up in industry research. Global construction spending is projected to grow from about **$13 trillion in 2023 to $22 trillion by 2040**, while productivity in the sector grew only around **0.4% annually from 2000 to 2022 (about 10% total over two decades)** — well behind manufacturing.[^mckinsey-productivity] Procore’s 2025 research reports that roughly **18% of project time is lost searching for data** and **28% is wasted on rework**, and a large share of builders say they are still not fully using the potential of their project data.[^procore-future] Autodesk and FMI estimated that bad or inaccessible construction data may have cost the global industry **$1.85 trillion in 2020**.[^autodesk-data]
+That fragmentation shows up in industry research. Global construction spending is projected to grow from about **$13 trillion in 2023 to $22 trillion by 2040**, while productivity in the sector grew only around **0.4% annually from 2000 to 2022 (about 10% total over two decades)** -- well behind manufacturing.[^mckinsey-productivity] Procore's 2025 research reports that roughly **18% of project time is lost searching for data** and **28% is wasted on rework**, and a large share of builders say they are still not fully using the potential of their project data.[^procore-future] Autodesk and FMI estimated that bad or inaccessible construction data may have cost the global industry **$1.85 trillion in 2020**.[^autodesk-data]
 
-In short: the industry is huge, coordination is still expensive, and teams need fewer disconnected tools — not another place to hunt for the same facts.
+In short: the industry is huge, coordination is still expensive, and teams need fewer disconnected tools -- not another place to hunt for the same facts.
 
 ## The solution
 
@@ -73,11 +101,11 @@ BuilderBridge is an AI-assisted construction control room for the people running
 - RFIs, submittals, drawings, and project documents
 - Schedule risks and portfolio analytics
 
-The Agent works inside that live system. It answers from current project data, searches uploaded documents with exact-page citations, and prepares operational changes — then stops until a human reviews and confirms.
+The Agent works inside that live system. It answers from current project data, searches uploaded documents with exact-page citations, and prepares operational changes -- then stops until a human reviews and confirms.
 
-**Before / after:** Today, answering “what is threatening this project's completion date?” means opening the schedule, then the RFI log, then field notes or roadblocks separately and reconciling them yourself. In BuilderBridge, that same judge walkthrough is one Agent question against live project data — schedule risks, roadblocks, and open items — with citations in the reply, in the same session where you can ask the Agent to prepare a reviewable change (RFI, commitment, roadblock, or schedule slip) before anything is written.
+**Before / after:** Today, answering "what is threatening this project's completion date?" means opening the schedule, then the RFI log, then field notes or roadblocks separately and reconciling them yourself. In BuilderBridge, that same judge walkthrough is one Agent question against live project data -- schedule risks, roadblocks, and open items -- with citations in the reply, in the same session where you can ask the Agent to prepare a reviewable change (RFI, commitment, roadblock, or schedule slip) before anything is written.
 
-That design matches where construction AI is heading. Autodesk’s 2025 research found that **68% of construction leaders believe AI will enhance the industry**, while only **32% reported approaching or achieving their AI goals**, and trust often drops once teams move from demos into real workflows.[^autodesk-ai] BuilderBridge therefore treats AI as a controlled operator inside the project loop: investigate, cite, propose, wait for approval — not silent automation beside another dashboard.
+That design matches where construction AI is heading. Autodesk's 2025 research found that **68% of construction leaders believe AI will enhance the industry**, while only **32% reported approaching or achieving their AI goals**, and trust often drops once teams move from demos into real workflows.[^autodesk-ai] BuilderBridge therefore treats AI as a controlled operator inside the project loop: investigate, cite, propose, wait for approval -- not silent automation beside another dashboard.
 
 > The AI proposes. The project team decides. Confirmed actions stay permission-checked, traceable, and auditable.
 
@@ -111,9 +139,9 @@ The Agent is implemented with the Vercel AI SDK and project-scoped tools in [`sr
 
 **Read tools include:** project overview, schedule risks, open items, portfolio health, task search, member lookup, and page-aware document search.
 
-**Proposal tools include (prepare only — no write until confirm):** roadblocks, RFIs, submittals, task create/update, field progress, weekly commitments, schedule changes, schedule impact requests, and baselines.
+**Proposal tools include (prepare only -- no write until confirm):** roadblocks, RFIs, submittals, task create/update, field progress, weekly commitments, schedule changes, schedule impact requests, and baselines.
 
-**Runtime provider:** the Agent calls **OpenRouter** through its OpenAI-compatible API (`https://openrouter.ai/api/v1`) using `OPENROUTER_API_KEY`. This deployment uses **OpenRouter free models** — default `OPENROUTER_MODEL=openrouter/free`, with `openrouter/free` as the fallback and bounded pre-stream retries. That is not the same as calling `api.openai.com` directly.
+**Runtime provider:** the Agent calls **OpenRouter** through its OpenAI-compatible API (`https://openrouter.ai/api/v1`) using `OPENROUTER_API_KEY`. This deployment uses **OpenRouter free models** -- default `OPENROUTER_MODEL=openrouter/free`, with `openrouter/free` as the fallback and bounded pre-stream retries. That is not the same as calling `api.openai.com` directly.
 
 ## Safe AI action workflow
 
@@ -134,7 +162,7 @@ The Agent does **not** silently modify project data.
 | --- | --- |
 | Permission checks | Confirm path re-runs the same role/capability checks used by manual server actions |
 | Proposal expiry | Pending proposals expire after 30 minutes |
-| One-time confirmation | Status moves `PENDING` → `CONFIRMED` with a claim update; repeats are rejected or no-ops |
+| One-time confirmation | Status moves `PENDING` -> `CONFIRMED` with a claim update; repeats are rejected or no-ops |
 | Stale-data protection | Snapshot comparison rejects confirm when the underlying record or cited file changed |
 | Transactional writes | Confirms run inside Prisma transactions (including serializable isolation where required) |
 | Isolation | Conversations and proposals are scoped to organization + creating user; tools resolve the active project |
@@ -168,56 +196,28 @@ The Agent does not silently modify project data.
 
 ## Built during OpenAI Build Week
 
-- **Hackathon:** [OpenAI Build Week](https://openai.devpost.com/) (submission window Jul 13–21, 2026)
+- **Hackathon:** [OpenAI Build Week](https://openai.devpost.com/) (submission window Jul 13-21, 2026)
 - **Track focus:** Work and Productivity
 - **Solo builder:** Akash Kumar Prasad
 - **Codex Session ID:** `019f6232-3b29-7de1-b9e2-0cf7b69cdf42`
 
-During Build Week the product was extended into a Codex-style agent with document intelligence, reviewable writes, PDF viewing, permission/activity hardening, onboarding, responsive polish, and production monitoring — running Agent inference on OpenRouter free models.
+During Build Week the product was extended into a Codex-style agent with document intelligence, reviewable writes, PDF viewing, permission/activity hardening, onboarding, responsive polish, and production monitoring -- running Agent inference on OpenRouter free models.
 
 ## How Codex and GPT-5.6 were used
 
-There is no separate ledger in this repo that tags every prompt as “Codex-only” vs “GPT-5.6-only.” During OpenAI Build Week they were used together, not as two cleanly separated workstreams:
+There is no separate ledger in this repo that tags every prompt as "Codex-only" vs "GPT-5.6-only." During OpenAI Build Week they were used together, not as two cleanly separated workstreams:
 
 - **Codex** was the primary **implementation agent** for in-repo coding sessions (Session ID above). It drove multi-file work such as Agent tools and proposal/confirm handlers (`assistant-tools.ts`, `assistant-actions.ts`), page-aware document extraction/search, PDF viewer wiring, permission and activity-log hardening, Vitest/Playwright coverage for Agent flows, TypeScript/build fixes for Vercel + Prisma, responsive Agent/nav layouts, and structured logging/Sentry.
 - **GPT-5.6** is the **model that powered those Codex sessions**, and was also used in chat/planning turns for product decisions (proposal-first writes, OpenRouter as runtime gateway, what the Agent may mutate), design review of permission/stale-data/confirm paths, and debugging strategy when builds or Agent flows failed.
 
-In practice the loop was interleaved: plan or review with GPT-5.6 → implement or refactor in Codex → manually test → iterate. There was not a strict “Codex only writes code / GPT-5.6 only writes prose” split.
+In practice the loop was interleaved: plan or review with GPT-5.6 -> implement or refactor in Codex -> manually test -> iterate. There was not a strict "Codex only writes code / GPT-5.6 only writes prose" split.
 
 | Kind of work | What happened |
 | --- | --- |
-| **Codex + GPT-5.6 generated** | Agent tool surface; proposal/confirm flows; document chunks and citations; PDF viewer; permission/activity hardening; tests for propose→confirm paths; deploy/build fixes; UI responsiveness |
+| **Codex + GPT-5.6 generated** | Agent tool surface; proposal/confirm flows; document chunks and citations; PDF viewer; permission/activity hardening; tests for propose->confirm paths; deploy/build fixes; UI responsiveness |
 | **GPT-5.6 / Codex reviewed** | Permission rechecks on confirm; stale snapshot rejection; proposal expiry and one-time claim updates; OpenRouter free-model fallback/retry; authenticated file access |
-| **Builder manually tested** | Seeded Harborview walkthrough (Gantt, weekly plan, Agent Q&A, propose → confirm → activity); OCR worker path; Vercel/Neon/Supabase deploy; PM vs trade role differences |
+| **Builder manually tested** | Seeded Harborview walkthrough (Gantt, weekly plan, Agent Q&A, propose -> confirm -> activity); OCR worker path; Vercel/Neon/Supabase deploy; PM vs trade role differences |
 | **Human product decisions** | Never silent mutation; OpenRouter free models at runtime; private storage by default; which controls the Agent may propose |
-
-## Screenshots
-
-Only screenshots present under [`docs/`](./docs/) are listed below.
-
-### Critical-path Gantt
-
-![Gantt view](./docs/screenshot-gantt.png)
-
-Dependencies, dates, progress, and critical-path highlighting in one operational schedule view.
-
-### Weekly Work Plan
-
-![Weekly Work Plan and project dashboard](./docs/screenshot-weekly-plan.png)
-
-Lookahead work becomes weekly commitments with completion tracking and PPC-oriented project context.
-
-### Project-aware Agent
-
-![BuilderBridge Agent chat panel](./docs/screenshot-agent.png)
-
-Ask questions against live project data and documents, then review a proposal card before any write is applied.
-
-### Proposal card
-
-![Agent proposal card requiring confirmation before write](./docs/screenshot-proposal.png)
-
-Reviewable proposal with proposed field changes shown before any write — Confirm change applies it; Cancel leaves project data untouched.
 
 ## Technical architecture
 
@@ -312,7 +312,7 @@ npx prisma migrate deploy
 npm run db:seed
 ```
 
-Seed creates **Harborview Construction LLC**, **Harborview Residences — Building A** (plus a garage portfolio project), public construction PDFs under `prisma/seed-assets/`, and the demo users listed in the judge walkthrough.
+Seed creates **Harborview Construction LLC**, **Harborview Residences -- Building A** (plus a garage portfolio project), public construction PDFs under `prisma/seed-assets/`, and the demo users listed in the judge walkthrough.
 
 ### 4. Run
 
@@ -341,7 +341,7 @@ Full placeholders live in [`.env.example`](./.env.example). Summary:
 | Core | `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | Required. Prefer a pooled Neon URL with `sslmode=require`. |
 | Google sign-in | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Required by the env schema. Local callback: `/api/auth/callback/google`. |
 | Agent | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` | Optional. Defaults to free model `openrouter/free`. |
-| Agent resilience | `OPENROUTER_FALLBACK_MODELS`, `OPENROUTER_MAX_RETRIES` | Defaults to `openrouter/free` fallbacks; retries 0–5. |
+| Agent resilience | `OPENROUTER_FALLBACK_MODELS`, `OPENROUTER_MAX_RETRIES` | Defaults to `openrouter/free` fallbacks; retries 0-5. |
 | Agent limits | `AI_CHAT_RATE_LIMIT_PER_MINUTE`, `AI_MONTHLY_LIMIT_FREE`, `AI_MONTHLY_LIMIT_CORE`, `AI_MONTHLY_LIMIT_PRO` | Per-user burst and per-org monthly model limits. |
 | Private files | `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_REGION` | Optional locally; required in production. |
 | Legacy files | `S3_PUBLIC_URL` | Optional compatibility for older public-bucket URLs. |
@@ -356,11 +356,11 @@ Full placeholders live in [`.env.example`](./.env.example). Summary:
 
 Production shape:
 
-- **Vercel** — Next.js app
-- **Neon PostgreSQL** — relational data
-- **Private Supabase Storage** — documents and photos
-- **Google Cloud Run** — optional OCR worker
-- **Sentry** + structured Vercel/Cloud Run logs — diagnostics
+- **Vercel** -- Next.js app
+- **Neon PostgreSQL** -- relational data
+- **Private Supabase Storage** -- documents and photos
+- **Google Cloud Run** -- optional OCR worker
+- **Sentry** + structured Vercel/Cloud Run logs -- diagnostics
 
 ```bash
 npx prisma migrate deploy
@@ -386,10 +386,10 @@ Do **not** run `npm run db:seed` against a customer production database. Configu
 
 ## Sources
 
-[^mckinsey-productivity]: [McKinsey — Delivering on construction productivity is no longer optional](https://www.mckinsey.com/capabilities/operations/our-insights/delivering-on-construction-productivity-is-no-longer-optional)
-[^procore-future]: [Procore — Future State of Construction Report](https://www.procore.com/press/future-state-of-construction-report)
-[^autodesk-data]: [Autodesk and FMI — Harnessing the Data Advantage in Construction](https://investors.autodesk.com/news-releases/news-release-details/study-autodesk-and-fmi-finds-better-data-strategies-could-save)
-[^autodesk-ai]: [Autodesk — 2025 State of Design & Make: Construction Spotlight](https://construction.autodesk.com/go/design-and-make-construction-spotlight-report/)
+[^mckinsey-productivity]: [McKinsey -- Delivering on construction productivity is no longer optional](https://www.mckinsey.com/capabilities/operations/our-insights/delivering-on-construction-productivity-is-no-longer-optional)
+[^procore-future]: [Procore -- Future State of Construction Report](https://www.procore.com/press/future-state-of-construction-report)
+[^autodesk-data]: [Autodesk and FMI -- Harnessing the Data Advantage in Construction](https://investors.autodesk.com/news-releases/news-release-details/study-autodesk-and-fmi-finds-better-data-strategies-could-save)
+[^autodesk-ai]: [Autodesk -- 2025 State of Design & Make: Construction Spotlight](https://construction.autodesk.com/go/design-and-make-construction-spotlight-report/)
 
 ## License
 

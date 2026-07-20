@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getProjectPageContext } from "@/lib/project-context";
 import { Card } from "@/components/ui/Card";
 import { ProjectPageHeader } from "@/components/PageHeader";
+import { LocalDateTime } from "@/components/LocalDateTime";
 import type { ActivitySource, Prisma } from "@prisma/client";
 
 const ACTIVITY_VIEWS = [
@@ -46,7 +47,16 @@ function formatFieldName(value: string): string {
 function formatChangeValue(value: Prisma.JsonValue | undefined): string {
   if (value === null || value === undefined || value === "") return "Not set";
   const text = String(value);
-  if (/^\d{4}-\d{2}-\d{2}T/.test(text)) return formatDateTime(new Date(text));
+  if (/^\d{4}-\d{2}-\d{2}T/.test(text)) {
+    // Calendar/schedule values in change diffs — keep date-only to avoid TZ day shifts.
+    const date = new Date(text);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  }
   return text.length > 28 ? `${text.slice(0, 25)}...` : text;
 }
 
@@ -59,16 +69,6 @@ function getChangeRows(changes: Prisma.JsonValue | null) {
       return [{ field, before: record.before, after: record.after }];
     })
     .slice(0, 4);
-}
-
-function formatDateTime(date: Date): string {
-  return new Date(date).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 }
 
 export default async function ProjectActivityPage({
@@ -179,7 +179,7 @@ export default async function ProjectActivityPage({
                           {entry.detail ?? entry.action}
                         </p>
                         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-                          <span>{formatDateTime(entry.createdAt)}</span>
+                          <LocalDateTime value={entry.createdAt} />
                           <span>{SOURCE_LABELS[entry.source]}</span>
                           {entry.taskId && entry.taskName && (
                             <Link href={`/projects/${projectId}/tasks/${entry.taskId}`} className="font-medium hover:text-ink">
@@ -227,7 +227,7 @@ export default async function ProjectActivityPage({
                         <span className="font-medium text-ink">{entry.fileName}</span>
                       </p>
                       <p className="mt-1 text-xs text-muted">
-                        {formatDateTime(entry.createdAt)}
+                        <LocalDateTime value={entry.createdAt} />
                         {entry.rangeRequested ? " - ranged file request" : ""}
                         {denied && entry.denialReason ? ` - ${entry.denialReason}` : ""}
                       </p>

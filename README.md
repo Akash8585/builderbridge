@@ -59,6 +59,10 @@ If the Agent panel says it is not configured, the deployment is missing `OPENROU
 
 Construction schedules, weekly promises, field updates, RFIs, submittals, drawings, and risk decisions usually live in separate tools. When something slips, the office plan and the jobsite diverge — and teams lose a single place to ask what changed, why it matters, and what should happen next with an auditable answer.
 
+That fragmentation shows up in industry research. Global construction spending is projected to grow from about **$13 trillion in 2023 to $22 trillion by 2040**, while productivity in the sector grew only around **1% annually from 2000 to 2022** — well behind manufacturing.[^mckinsey-productivity] Procore’s 2025 research reports that roughly **18% of project time is lost searching for data** and **28% is wasted on rework**, and a large share of builders say they are still not fully using the potential of their project data.[^procore-future] Autodesk and FMI estimated that bad or inaccessible construction data may have cost the global industry **$1.85 trillion in 2020**.[^autodesk-data]
+
+In short: the industry is huge, coordination is still expensive, and teams need fewer disconnected tools — not another place to hunt for the same facts.
+
 ## The solution
 
 BuilderBridge is an AI-assisted construction control room for the people running the job. It connects:
@@ -70,6 +74,10 @@ BuilderBridge is an AI-assisted construction control room for the people running
 - Schedule risks and portfolio analytics
 
 The Agent works inside that live system. It answers from current project data, searches uploaded documents with exact-page citations, and prepares operational changes — then stops until a human reviews and confirms.
+
+That design matches where construction AI is heading. Autodesk’s 2025 research found that **68% of construction leaders believe AI will enhance the industry**, while only **32% reported approaching or achieving their AI goals**, and trust often drops once teams move from demos into real workflows.[^autodesk-ai] BuilderBridge therefore treats AI as a controlled operator inside the project loop: investigate, cite, propose, wait for approval — not silent automation beside another dashboard.
+
+> The AI proposes. The project team decides. Confirmed actions stay permission-checked, traceable, and auditable.
 
 ## Core product workflow
 
@@ -133,7 +141,7 @@ The Agent does **not** silently modify project data.
 
 ## What makes BuilderBridge different
 
-Most construction tools stop at dashboards, or at chat over static exports. BuilderBridge keeps planning and project controls in one product, then adds a **review-before-write** Agent path:
+Most construction tools stop at dashboards, or at chat over static exports. BuilderBridge keeps planning and project controls in one product, then adds a **review-before-write** Agent path that connects evidence to execution:
 
 - Reads **live project data**, not a pasted schedule dump
 - Returns **exact-page document citations** when evidence comes from files
@@ -142,6 +150,8 @@ Most construction tools stop at dashboards, or at chat over static exports. Buil
 - Re-checks **permissions** and **stale snapshots** at confirm time
 - Applies the change in an **atomic transaction**
 - Records the result in the **activity log**
+
+A normal chatbot stops at an answer. BuilderBridge ties that answer to evidence, authority, impact, and an auditable write path — so the Agent behaves like an operational decision layer, not a side panel.
 
 The Agent does not silently modify project data.
 
@@ -349,6 +359,13 @@ Do **not** run `npm run db:seed` against a customer production database. See [`D
 - **GitHub:** [Akash8585/builderbridge](https://github.com/Akash8585/builderbridge)
 - **Hackathon:** OpenAI Build Week (Devpost)
 - **Recommended category:** Work and Productivity
+
+## Sources
+
+[^mckinsey-productivity]: [McKinsey — Delivering on construction productivity is no longer optional](https://www.mckinsey.com/capabilities/operations/our-insights/delivering-on-construction-productivity-is-no-longer-optional)
+[^procore-future]: [Procore — Future State of Construction Report](https://www.procore.com/press/future-state-of-construction-report)
+[^autodesk-data]: [Autodesk and FMI — Harnessing the Data Advantage in Construction](https://investors.autodesk.com/news-releases/news-release-details/study-autodesk-and-fmi-finds-better-data-strategies-could-save)
+[^autodesk-ai]: [Autodesk — 2025 State of Design & Make: Construction Spotlight](https://construction.autodesk.com/go/design-and-make-construction-spotlight-report/)
 
 ## License
 

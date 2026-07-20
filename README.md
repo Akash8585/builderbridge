@@ -57,9 +57,9 @@ If the Agent panel says it is not configured, the deployment is missing `OPENROU
 
 ## The problem
 
-Construction schedules, weekly promises, field updates, RFIs, submittals, drawings, and risk decisions usually live in separate tools. When something slips, the office plan and the jobsite diverge — and teams lose a single place to ask what changed, why it matters, and what should happen next with an auditable answer.
+A project manager often needs one answer — what is actually threatening completion — and has to stitch it together from the schedule, the RFI log, and field notes that may not match what the Gantt still shows. Schedulers, superintendents, and trade partners feel the same fragmentation when weekly promises, roadblocks, and document questions live in separate places with no single auditable path from “what changed?” to “what should we do next?”
 
-That fragmentation shows up in industry research. Global construction spending is projected to grow from about **$13 trillion in 2023 to $22 trillion by 2040**, while productivity in the sector grew only around **1% annually from 2000 to 2022** — well behind manufacturing.[^mckinsey-productivity] Procore’s 2025 research reports that roughly **18% of project time is lost searching for data** and **28% is wasted on rework**, and a large share of builders say they are still not fully using the potential of their project data.[^procore-future] Autodesk and FMI estimated that bad or inaccessible construction data may have cost the global industry **$1.85 trillion in 2020**.[^autodesk-data]
+That fragmentation shows up in industry research. Global construction spending is projected to grow from about **$13 trillion in 2023 to $22 trillion by 2040**, while productivity in the sector grew only around **0.4% annually from 2000 to 2022 (about 10% total over two decades)** — well behind manufacturing.[^mckinsey-productivity] Procore’s 2025 research reports that roughly **18% of project time is lost searching for data** and **28% is wasted on rework**, and a large share of builders say they are still not fully using the potential of their project data.[^procore-future] Autodesk and FMI estimated that bad or inaccessible construction data may have cost the global industry **$1.85 trillion in 2020**.[^autodesk-data]
 
 In short: the industry is huge, coordination is still expensive, and teams need fewer disconnected tools — not another place to hunt for the same facts.
 
@@ -74,6 +74,8 @@ BuilderBridge is an AI-assisted construction control room for the people running
 - Schedule risks and portfolio analytics
 
 The Agent works inside that live system. It answers from current project data, searches uploaded documents with exact-page citations, and prepares operational changes — then stops until a human reviews and confirms.
+
+**Before / after:** Today, answering “what is threatening this project's completion date?” means opening the schedule, then the RFI log, then field notes or roadblocks separately and reconciling them yourself. In BuilderBridge, that same judge walkthrough is one Agent question against live project data — schedule risks, roadblocks, and open items — with citations in the reply, in the same session where you can ask the Agent to prepare a reviewable change (RFI, commitment, roadblock, or schedule slip) before anything is written.
 
 That design matches where construction AI is heading. Autodesk’s 2025 research found that **68% of construction leaders believe AI will enhance the industry**, while only **32% reported approaching or achieving their AI goals**, and trust often drops once teams move from demos into real workflows.[^autodesk-ai] BuilderBridge therefore treats AI as a controlled operator inside the project loop: investigate, cite, propose, wait for approval — not silent automation beside another dashboard.
 
@@ -141,7 +143,16 @@ The Agent does **not** silently modify project data.
 
 ## What makes BuilderBridge different
 
-Most construction tools stop at dashboards, or at chat over static exports. BuilderBridge keeps planning and project controls in one product, then adds a **review-before-write** Agent path that connects evidence to execution:
+Established construction platforms already solve large pieces of project delivery, but they stop short of a permission-checked Agent that can write back into the operating loop:
+
+| Comparable | What it typically covers | What BuilderBridge adds |
+| --- | --- | --- |
+| **Procore** | RFIs, submittals, documents, and project workflows at scale | An Agent that can propose reviewable, permission-checked writes (RFIs, commitments, schedule changes) with citations and activity logging |
+| **Autodesk Construction Cloud** | Drawings, document control, and design/construction coordination | Page-aware document search tied to live schedule risk and confirm-before-write actions |
+| **Buildertrend** | Residential GC scheduling, budgets, and client communication | Critical-path + weekly-plan ops with an Agent that prepares changes instead of only reporting status |
+| **Fieldwire** | Field task lists, punch, and plan markup | Office/field planning loop (lookahead, PPC, roadblocks) plus cited Agent proposals that update project records only after approval |
+
+BuilderBridge keeps planning and project controls in one product, then adds a **review-before-write** Agent path:
 
 - Reads **live project data**, not a pasted schedule dump
 - Returns **exact-page document citations** when evidence comes from files
@@ -151,7 +162,7 @@ Most construction tools stop at dashboards, or at chat over static exports. Buil
 - Applies the change in an **atomic transaction**
 - Records the result in the **activity log**
 
-A normal chatbot stops at an answer. BuilderBridge ties that answer to evidence, authority, impact, and an auditable write path — so the Agent behaves like an operational decision layer, not a side panel.
+Generic chat assistants stop at an answer. BuilderBridge ties that answer to evidence, authority, impact, and an auditable write path.
 
 The Agent does not silently modify project data.
 
@@ -166,16 +177,19 @@ During Build Week the product was extended into a Codex-style agent with documen
 
 ## How Codex and GPT-5.6 were used
 
-BuilderBridge was developed with **Codex** and **GPT-5.6** during OpenAI Build Week. The notes below map to concrete repository work.
+There is no separate ledger in this repo that tags every prompt as “Codex-only” vs “GPT-5.6-only.” During OpenAI Build Week they were used together, not as two cleanly separated workstreams:
+
+- **Codex** was the primary **implementation agent** for in-repo coding sessions (Session ID above). It drove multi-file work such as Agent tools and proposal/confirm handlers (`assistant-tools.ts`, `assistant-actions.ts`), page-aware document extraction/search, PDF viewer wiring, permission and activity-log hardening, Vitest/Playwright coverage for Agent flows, TypeScript/build fixes for Vercel + Prisma, responsive Agent/nav layouts, and structured logging/Sentry.
+- **GPT-5.6** is the **model that powered those Codex sessions**, and was also used in chat/planning turns for product decisions (proposal-first writes, OpenRouter as runtime gateway, what the Agent may mutate), design review of permission/stale-data/confirm paths, and debugging strategy when builds or Agent flows failed.
+
+In practice the loop was interleaved: plan or review with GPT-5.6 → implement or refactor in Codex → manually test → iterate. There was not a strict “Codex only writes code / GPT-5.6 only writes prose” split.
 
 | Kind of work | What happened |
 | --- | --- |
-| **AI helped generate** | Agent tool surface and proposal/confirm handlers; page-chunk document extraction and search; PDF viewer wiring; permission and activity-log hardening; TypeScript/build fixes for Vercel + Prisma; responsive Agent/nav layouts; Sentry and structured logging |
-| **AI reviewed** | Permission rechecks on confirm; stale snapshot rejection paths; proposal expiry and one-time claim updates; OpenRouter free-model fallback/retry behavior; file access through authenticated routes |
-| **Builder manually tested** | Seeded Harborview walkthrough (Gantt, weekly plan, Agent Q&A, propose → confirm → activity); local OCR worker path; production deploy on Vercel/Neon/Supabase; role differences (PM vs trade) |
-| **Human product decisions** | Proposal-first writes (never silent mutation); OpenRouter free models as the runtime LLM path; private storage by default; which controls the Agent may propose |
-
-Examples from Build Week work: exploring the Phase 1–3 codebase before extending the Agent; designing tools in `assistant-tools.ts`; implementing proposal confirmation and stale-data protection in `assistant-actions.ts`; improving document extraction/citations; hardening deployment and observability.
+| **Codex + GPT-5.6 generated** | Agent tool surface; proposal/confirm flows; document chunks and citations; PDF viewer; permission/activity hardening; tests for propose→confirm paths; deploy/build fixes; UI responsiveness |
+| **GPT-5.6 / Codex reviewed** | Permission rechecks on confirm; stale snapshot rejection; proposal expiry and one-time claim updates; OpenRouter free-model fallback/retry; authenticated file access |
+| **Builder manually tested** | Seeded Harborview walkthrough (Gantt, weekly plan, Agent Q&A, propose → confirm → activity); OCR worker path; Vercel/Neon/Supabase deploy; PM vs trade role differences |
+| **Human product decisions** | Never silent mutation; OpenRouter free models at runtime; private storage by default; which controls the Agent may propose |
 
 ## Screenshots
 
@@ -198,6 +212,12 @@ Lookahead work becomes weekly commitments with completion tracking and PPC-orien
 ![BuilderBridge Agent chat panel](./docs/screenshot-agent.png)
 
 Ask questions against live project data and documents, then review a proposal card before any write is applied.
+
+### Proposal card
+
+![Agent proposal card requiring confirmation before write](./docs/screenshot-proposal.png)
+
+Reviewable proposal with proposed field changes shown before any write — Confirm change applies it; Cancel leaves project data untouched.
 
 ## Technical architecture
 
@@ -238,6 +258,10 @@ Browser (Next.js App Router UI + Agent panel + PDF.js viewer)
 | Files | Private S3-compatible storage (Supabase Storage), PDF.js, unpdf, optional OCRmyPDF |
 | Integrations (optional) | Stripe, Resend, Procore sandbox OAuth, Autodesk APS/ACC OAuth |
 | Ops | Vercel, Google Cloud Run (OCR), Sentry, structured request logs |
+
+## Testing
+
+The repo uses **Vitest** for `tests/unit` (pure logic: permissions, critical path, document extraction, Agent intent parsing, and similar) and `tests/integration` (real PostgreSQL fixtures for Agent propose/confirm, document search, storage, and planning writes). **Playwright** covers browser flows under `tests/e2e`, including auth, Gantt, weekly plan, project files, onboarding, and Agent paths such as RFI creation, document-linked RFIs, task progress, weekly commitments, baselines, and schedule-impact proposals through the confirmation UI. GitHub Actions (`.github/workflows/ci.yml`) runs lint, typecheck, unit tests, and a production build on every push and pull request; integration tests run when `TEST_DATABASE_URL` is configured, and Playwright is available via manual `workflow_dispatch` against a seeded database.
 
 ## Local setup
 

@@ -14,6 +14,8 @@ export default async function LandingPage() {
       <LandingMegaNav isSignedIn={isSignedIn} />
       <LandingHero isSignedIn={isSignedIn} />
       <ProductSystemBand />
+      <DifferentiatorBand />
+      <SafeAiWriteBand />
       <OperatingLoopBand />
       <RiskControlBand />
       <RolesBand />
@@ -64,6 +66,99 @@ function ProductSystemBand() {
               <p className="mt-2 text-xs leading-5 text-muted">{detail}</p>
             </div>
           ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const DIFFERENTIATORS = [
+  {
+    title: "Live project data",
+    body: "Answers and proposals use the current schedule, commitments, and controls — not a pasted export.",
+  },
+  {
+    title: "Exact-page citations",
+    body: "When evidence comes from a file, the Agent shows the document, page, and excerpt.",
+  },
+  {
+    title: "Reviewable proposals",
+    body: "Proposed RFIs, commitments, roadblocks, and schedule changes appear as cards with impacts and warnings.",
+  },
+  {
+    title: "Human confirm + audit",
+    body: "Nothing is written until approval. Permissions and stale data are rechecked, then the activity log records it.",
+  },
+] as const;
+
+const SAFE_AI_STEPS = [
+  { number: "01", title: "Risk detected", body: "A slip, roadblock, or open control item appears on the live plan." },
+  { number: "02", title: "Agent reads", body: "Live tasks, commitments, and uploaded project documents are queried in context." },
+  { number: "03", title: "Exact-page cite", body: "Sources show the file, page number, and excerpt when documents back the answer." },
+  { number: "04", title: "Proposal ready", body: "Changes, warnings, and expected impact are shown — still no write." },
+  { number: "05", title: "Human confirms", body: "Explicit approval only. Permissions and stale snapshots are rechecked." },
+  { number: "06", title: "Logged result", body: "The schedule, RFI, or commitment updates atomically and lands in the activity log." },
+] as const;
+
+function DifferentiatorBand() {
+  return (
+    <section aria-labelledby="differentiator-title" className="border-b border-hairline bg-[#111111] text-white">
+      <div className="mx-auto max-w-[1400px] px-6 py-16 sm:px-10 lg:px-12 lg:py-20">
+        <div className="max-w-2xl">
+          <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.12em] text-[#fb923c]">
+            What sets BuilderBridge apart
+          </p>
+          <h2 id="differentiator-title" className="text-3xl font-semibold leading-[1.1] tracking-[0] sm:text-4xl">
+            AI that proposes. People who decide.
+          </h2>
+        </div>
+        <div className="mt-12 grid gap-px border border-white/15 bg-white/15 sm:grid-cols-2 xl:grid-cols-4">
+          {DIFFERENTIATORS.map((item) => (
+            <article key={item.title} className="bg-[#171717] px-6 py-7">
+              <h3 className="text-sm font-semibold text-white">{item.title}</h3>
+              <p className="mt-3 text-xs leading-5 text-white/58">{item.body}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SafeAiWriteBand() {
+  return (
+    <section id="agent-workflow" className="scroll-mt-24 border-b border-hairline bg-canvas">
+      <div className="mx-auto max-w-[1400px] px-6 py-24 sm:px-10 lg:px-12 lg:py-32">
+        <div className="grid items-end gap-10 lg:grid-cols-[1.2fr_0.8fr]">
+          <div>
+            <p className="mb-5 text-[11px] font-bold uppercase tracking-[0.12em] text-[#d85d0b]">
+              Review before write
+            </p>
+            <h2 className="max-w-[18ch] text-4xl font-semibold leading-[1.05] tracking-[0] text-ink sm:text-5xl">
+              From project risk to a confirmed action.
+            </h2>
+          </div>
+          <p className="max-w-md text-base leading-7 text-body lg:justify-self-end">
+            The Agent never silently changes project records. Every operational write is cited where possible,
+            reviewable as a proposal, and applied only after explicit confirmation.
+          </p>
+        </div>
+
+        <ol className="mt-14 grid gap-px border border-hairline bg-hairline sm:grid-cols-2 xl:grid-cols-3">
+          {SAFE_AI_STEPS.map((step) => (
+            <li key={step.number} className="min-h-[180px] bg-canvas px-6 py-7">
+              <p className="text-[10px] font-bold text-[#d85d0b]">{step.number}</p>
+              <h3 className="mt-4 text-base font-semibold text-ink">{step.title}</h3>
+              <p className="mt-3 max-w-[34ch] text-xs leading-5 text-muted">{step.body}</p>
+            </li>
+          ))}
+        </ol>
+
+        <div className="mt-8 flex flex-wrap gap-x-8 gap-y-2 border-t border-hairline pt-6 text-xs font-semibold text-muted">
+          <span>Permission recheck</span>
+          <span>Stale-data protection</span>
+          <span>Atomic apply</span>
+          <span>Activity history</span>
         </div>
       </div>
     </section>
@@ -360,19 +455,22 @@ function RolesBand() {
 
 function AiBand() {
   return (
-    <section className="border-y border-[#cad9e0] bg-[#e7f0f4]">
+    <section id="agent" className="scroll-mt-24 border-y border-[#cad9e0] bg-[#e7f0f4]">
       <div className="mx-auto grid max-w-[1400px] gap-14 px-6 py-24 sm:px-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:px-12 lg:py-32">
         <div>
           <p className="mb-5 text-[11px] font-bold uppercase tracking-[0.12em] text-[#245c75]">Agent</p>
-          <h2 className="max-w-[12ch] text-4xl font-semibold leading-[1.06] tracking-[0] sm:text-5xl">
-            Ask the project. Get an answer grounded in the work.
+          <h2 className="max-w-[14ch] text-4xl font-semibold leading-[1.06] tracking-[0] sm:text-5xl">
+            Cite the evidence. Propose the change. Wait for confirmation.
           </h2>
           <p className="mt-6 max-w-md text-base leading-7 text-[#40545d]">
-            The assistant reads live tasks, roadblocks, commitments, and portfolio health. It brings the signal to you
-            without sending the team hunting through reports.
+            The Agent reads live schedules, roadblocks, commitments, and project documents. It can prepare RFIs,
+            commitments, and schedule updates as reviewable proposals — then stops until someone confirms.
           </p>
           <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-xs font-semibold text-[#40545d]">
-            <span>Project-aware</span><span>Portfolio-aware</span><span>Plain-language answers</span>
+            <span>Live data</span>
+            <span>Page citations</span>
+            <span>Proposal cards</span>
+            <span>Confirm before write</span>
           </div>
         </div>
 
@@ -388,37 +486,64 @@ function AiAssistantPreview() {
       <div className="flex min-h-14 items-center justify-between bg-[#18313d] px-5 text-white">
         <div className="flex items-center gap-3">
           <span className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-[10px] font-bold">AI</span>
-          <div><p className="text-xs font-semibold">Project Assistant</p><p className="text-[9px] text-white/50">Riverside Apartments context</p></div>
+          <div>
+            <p className="text-xs font-semibold">BuilderBridge Agent</p>
+            <p className="text-[9px] text-white/50">Harborview Residences — Building A</p>
+          </div>
         </div>
-        <span className="flex items-center gap-2 text-[9px] text-white/48"><span className="h-1.5 w-1.5 rounded-full bg-success" />Live data</span>
+        <span className="flex items-center gap-2 text-[9px] text-white/48">
+          <span className="h-1.5 w-1.5 rounded-full bg-success" />
+          Live data
+        </span>
       </div>
-      <div className="space-y-5 bg-[#f8fbfc] p-4 sm:p-6">
-        <div className="ml-auto max-w-[78%] rounded-lg bg-[#18313d] px-4 py-3 text-xs leading-5 text-white">
-          What is most likely to delay the project this week?
+      <div className="space-y-4 bg-[#f8fbfc] p-4 sm:p-6">
+        <div className="ml-auto max-w-[82%] rounded-lg bg-[#18313d] px-4 py-3 text-xs leading-5 text-white">
+          Raise an RFI about panel clearance for Electrical panel inspection, citing the architectural plans.
         </div>
-        <div className="max-w-[92%] rounded-lg border border-[#d3e0e5] bg-canvas p-4 sm:p-5">
-          <p className="text-xs font-semibold text-ink">The plumbing permit is the clearest near-term schedule risk.</p>
-          <p className="mt-3 text-xs leading-5 text-body">
-            It is blocking Rough plumbing install, which sits on the current critical path and is due to finish Jul 26.
-            The owner is Sara Plumbing and the constraint is due today.
+
+        <div className="max-w-[94%] rounded-lg border border-[#d3e0e5] bg-canvas p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#245c75]">Action proposal</p>
+            <span className="rounded-md bg-[#fff7ed] px-2 py-0.5 text-[10px] font-semibold text-[#c2410c]">
+              Pending confirmation
+            </span>
+          </div>
+          <p className="mt-3 text-xs font-semibold text-ink">Raise RFI — panel clearance</p>
+          <p className="mt-2 text-xs leading-5 text-body">
+            Confirm required working clearances at the main electrical panel before re-inspection. Linked to
+            Electrical panel inspection.
           </p>
-          <div className="mt-4 grid grid-cols-3 border-y border-hairline">
-            {[["1", "Critical risk"], ["2d", "Potential slip"], ["Today", "Due"]].map(([value, label]) => (
-              <div key={label} className="border-r border-hairline py-3 last:border-r-0">
-                <p className="text-sm font-semibold text-ink">{value}</p>
-                <p className="mt-1 text-[9px] text-muted">{label}</p>
-              </div>
-            ))}
+
+          <div className="mt-4 rounded-md border border-[#e2e8f0] bg-[#f8fafc] px-3 py-2.5">
+            <p className="text-[10px] font-semibold text-muted">Source</p>
+            <p className="mt-1 text-xs text-ink">A000 NIST NZERTF Architectural Plans.pdf · page 1</p>
+            <p className="mt-1 text-[11px] leading-4 text-muted">
+              “Confirm required working clearances at main distribution panel.”
+            </p>
           </div>
-          <div className="mt-4 flex flex-wrap gap-2 text-[9px] font-semibold text-[#245c75]">
-            <span className="rounded-md border border-[#c7dbe3] px-2 py-1">Roadblock log</span>
-            <span className="rounded-md border border-[#c7dbe3] px-2 py-1">Critical path</span>
-            <span className="rounded-md border border-[#c7dbe3] px-2 py-1">4-week lookahead</span>
+
+          <dl className="mt-4 grid grid-cols-2 gap-3 border-y border-hairline py-3 text-xs">
+            <div>
+              <dt className="text-[10px] text-muted">Change</dt>
+              <dd className="mt-1 font-medium text-ink">Create open RFI</dd>
+            </div>
+            <div>
+              <dt className="text-[10px] text-muted">Impact</dt>
+              <dd className="mt-1 font-medium text-ink">Unblocks inspection path</dd>
+            </div>
+          </dl>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="inline-flex h-8 items-center rounded-md bg-[#18313d] px-3 text-[11px] font-semibold text-white">
+              Confirm change
+            </span>
+            <span className="inline-flex h-8 items-center rounded-md border border-[#cbdbe2] px-3 text-[11px] font-semibold text-muted">
+              Cancel
+            </span>
           </div>
-        </div>
-        <div className="flex min-h-11 items-center justify-between rounded-md border border-[#cbdbe2] bg-canvas px-4 text-xs text-muted">
-          <span>Ask anything about this project...</span>
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#18313d] text-white" aria-hidden>↑</span>
+          <p className="mt-3 text-[10px] leading-4 text-muted">
+            No write yet. Confirm rechecks permissions and stale data, then logs the action.
+          </p>
         </div>
       </div>
     </div>

@@ -10,7 +10,7 @@ Built for project managers, schedulers, superintendents, and trade partners who 
 
 <p align="center">
   <img
-    src="./docs/builderbridge-hero.svg"
+    src="./docs/builderbridge-hero.png"
     alt="BuilderBridge turns construction project risks into cited and reviewable actions"
     width="100%"
   />

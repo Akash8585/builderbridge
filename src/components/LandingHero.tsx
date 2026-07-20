@@ -53,6 +53,10 @@ export function LandingHero({ isSignedIn }: LandingHeroProps) {
               One connected platform for the master schedule, lookaheads, weekly commitments, and
               roadblocks so office and field teams finally plan the same project.
             </p>
+            <p className="mt-4 text-sm leading-relaxed text-white/85 drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)]">
+              A project-aware Agent can cite live data and documents, prepare reviewable actions, and
+              write only after human confirmation.
+            </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Link
                 href={isSignedIn ? "/projects" : "/sign-up"}

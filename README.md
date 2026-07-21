@@ -221,6 +221,47 @@ In practice the loop was interleaved: plan or review with GPT-5.6 -> implement o
 
 ## Technical architecture
 
+### System data flow
+
+```mermaid
+flowchart LR
+    U["User / Project Team"] -->|"Ask / Action Request"| UI["BuilderBridge Frontend<br/>(Next.js App Router)"]
+    UI -->|"Messages + context"| ASSIST["Assistant Router"]
+    ASSIST --> LLM["OpenRouter-compatible LLM<br/>(OpenAI-compatible endpoint)"]
+    ASSIST --> TOOL["Tooling Layer<br/>(project, schedule, tasks, files)"]
+    TOOL --> DB[("Prisma + PostgreSQL")]
+    TOOL --> FILES[("Supabase/S3 Storage")]
+    ASSIST -->|"Proposal"| UI
+    UI --> CONFIRM["User Confirmation"]
+    CONFIRM --> EXEC["Server Action Executor"]
+    EXEC --> AUDIT[("Activity Log + Audit Tables")]
+    EXEC --> DB
+```
+
+### Human-controlled action flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as User
+    participant UI as Agent Chat
+    participant B as Planner/Tools
+    participant P as Permission Service
+    participant S as State Store (Prisma)
+    participant L as Activity Log
+
+    A->>UI: Ask for change
+    UI->>B: Build structured proposal
+    B->>S: Read current records + build diffs
+    B->>UI: Proposal card (impact + evidence)
+    A->>UI: Confirm
+    UI->>P: Recheck role + action rights
+    UI->>S: Snapshot + stale data check + transaction
+    S-->>UI: Persist changes
+    UI->>L: Write audit trail
+    UI->>A: Success + updated links
+```
+
 ```text
 Browser (Next.js App Router UI + Agent panel + PDF.js viewer)
   -> Better Auth session

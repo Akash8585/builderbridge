@@ -4,20 +4,22 @@ import { ProjectRouteSubNav } from "@/components/ProjectSubNav";
 import { DashboardPdfViewer } from "@/components/PdfViewer";
 import { AppThemeProvider } from "@/components/AppThemeProvider";
 
+/* Light is the default. Dark only if the user previously chose it. */
 const appShellThemeScript = `
 try {
   var shell = document.currentScript && document.currentScript.parentElement;
-  var theme = window.localStorage.getItem("builderbridge:theme");
-  if (shell && (theme === "light" || theme === "dark")) {
-    shell.dataset.appTheme = theme;
-    shell.style.colorScheme = theme;
+  if (shell) {
+    var theme = window.localStorage.getItem("builderbridge:theme");
+    var resolved = theme === "dark" ? "dark" : "light";
+    shell.dataset.appTheme = resolved;
+    shell.style.colorScheme = resolved;
   }
 } catch (_) {}
 `;
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-app-theme="light" style={{ colorScheme: "light" }}>
       <script dangerouslySetInnerHTML={{ __html: appShellThemeScript }} />
       <AppThemeProvider>
         <a

@@ -225,7 +225,9 @@ async function main() {
     data: {
       name: "Harborview Construction LLC",
       slug: ORG_SLUG,
-      planTier: "FREE",
+      // Demo org is Pro so judges get full Agent limits + integrations access.
+      planTier: "PRO",
+      subscriptionStatus: "active",
       members: {
         create: [
           { userId: pm.id, role: "owner" },
@@ -1025,6 +1027,7 @@ async function main() {
   console.log("Organization: %s", organization.name);
   console.log("Primary project: %s", PROJECT_NAME);
   console.log("Portfolio project: %s", SECOND_PROJECT_NAME);
+  console.log("Org plan:         PRO (full Agent limits + integrations)");
   console.log("Agent conversation: %s", conversation.title);
   console.log("Project files: %s, %s, %s", farmhouseDoc.fileName, nistDoc.fileName, iaqDoc.fileName);
   console.log("\nDemo accounts (password: %s):", DEMO_PASSWORD);

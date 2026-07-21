@@ -1,6 +1,6 @@
 import Link from "next/link";
+import { AuthShell } from "@/components/AuthShell";
 import { SignUpForm } from "@/components/SignUpForm";
-import { Card } from "@/components/ui/Card";
 
 export default async function SignUpPage({
   searchParams,
@@ -8,25 +8,23 @@ export default async function SignUpPage({
   searchParams: Promise<{ callbackURL?: string }>;
 }) {
   const { callbackURL } = await searchParams;
-  // "/" is the marketing landing page — send new users into the app after sign-up.
   const redirectTo = callbackURL || "/projects";
+  const signInHref = `/sign-in${callbackURL ? `?callbackURL=${encodeURIComponent(callbackURL)}` : ""}`;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-soft px-4">
-      <Card className="w-full max-w-sm p-8">
-        <h1 className="font-display text-2xl mb-1">Create your account</h1>
-        <p className="text-sm text-muted mb-6">Start scheduling your construction projects</p>
-        <SignUpForm redirectTo={redirectTo} />
-        <p className="text-sm text-muted text-center mt-6">
+    <AuthShell
+      title="Sign up"
+      description="Create an account to schedule projects, run weekly plans, and use Agent."
+      footer={
+        <>
           Already have an account?{" "}
-          <Link
-            href={`/sign-in${callbackURL ? `?callbackURL=${encodeURIComponent(callbackURL)}` : ""}`}
-            className="text-ink font-medium hover:underline"
-          >
+          <Link href={signInHref} className="font-semibold text-ink underline-offset-2 hover:underline">
             Sign in
           </Link>
-        </p>
-      </Card>
-    </div>
+        </>
+      }
+    >
+      <SignUpForm redirectTo={redirectTo} />
+    </AuthShell>
   );
 }

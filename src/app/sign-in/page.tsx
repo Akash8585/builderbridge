@@ -1,6 +1,6 @@
 import Link from "next/link";
+import { AuthShell } from "@/components/AuthShell";
 import { SignInForm } from "@/components/SignInForm";
-import { Card } from "@/components/ui/Card";
 
 export default async function SignInPage({
   searchParams,
@@ -8,25 +8,23 @@ export default async function SignInPage({
   searchParams: Promise<{ callbackURL?: string }>;
 }) {
   const { callbackURL } = await searchParams;
-  // "/" is the marketing landing page — send signed-in users into the app.
   const redirectTo = callbackURL || "/projects";
+  const signUpHref = `/sign-up${callbackURL ? `?callbackURL=${encodeURIComponent(callbackURL)}` : ""}`;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-soft px-4">
-      <Card className="w-full max-w-sm p-8">
-        <h1 className="font-display text-2xl mb-1">Welcome back</h1>
-        <p className="text-sm text-muted mb-6">Sign in to BuilderBridge</p>
-        <SignInForm redirectTo={redirectTo} />
-        <p className="text-sm text-muted text-center mt-6">
+    <AuthShell
+      title="Sign in"
+      description="Welcome back. Use Google or your email to open BuilderBridge."
+      footer={
+        <>
           Don&apos;t have an account?{" "}
-          <Link
-            href={`/sign-up${callbackURL ? `?callbackURL=${encodeURIComponent(callbackURL)}` : ""}`}
-            className="text-ink font-medium hover:underline"
-          >
+          <Link href={signUpHref} className="font-semibold text-ink underline-offset-2 hover:underline">
             Sign up
           </Link>
-        </p>
-      </Card>
-    </div>
+        </>
+      }
+    >
+      <SignInForm redirectTo={redirectTo} />
+    </AuthShell>
   );
 }

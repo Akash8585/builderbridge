@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { UIMessage } from "ai";
-import { ExternalLink, FileText, Image as ImageIcon } from "lucide-react";
+import { Check, Copy, ExternalLink, FileText, Image as ImageIcon } from "lucide-react";
 import { isFileUIPart, isToolUIPart } from "ai";
 import type { FileUIPart } from "ai";
 import { Streamdown } from "streamdown";
@@ -100,6 +100,20 @@ export function AssistantConversation({
 }: AssistantConversationProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+
+  const copyToClipboard = async (messageId: string, content: string) => {
+    if (!content.trim()) return;
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMessageId(messageId);
+      window.setTimeout(() => {
+        setCopiedMessageId((current) => (current === messageId ? null : current));
+      }, 1400);
+    } catch {
+      setCopiedMessageId(null);
+    }
+  };
 
   useEffect(() => {
     if (!busy) return;
@@ -170,6 +184,19 @@ export function AssistantConversation({
                         {isActiveAssistant ? "Working" : "Worked"} for {formatDuration(elapsedMs)}
                       </div>
                     )}
+                    {!isUser && text && !isActiveAssistant ? (
+                      <div className="mb-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => void copyToClipboard(message.id, text)}
+                          className="inline-flex items-center gap-1 rounded-md border border-[var(--assistant-border)] bg-[var(--assistant-layer)] px-2.5 py-1 text-[11px] font-medium text-[var(--assistant-text-muted)] transition-colors hover:border-[var(--assistant-border-strong)] hover:bg-[var(--assistant-layer-hover)] hover:text-[var(--assistant-text)]"
+                          aria-label="Copy answer"
+                        >
+                          {copiedMessageId === message.id ? <Check size={12} aria-hidden /> : <Copy size={12} aria-hidden />}
+                          {copiedMessageId === message.id ? "Copied" : "Copy"}
+                        </button>
+                      </div>
+                    ) : null}
                     {fileParts.length > 0 && (
                       <div className="grid gap-2">
                         {fileParts.map((part) => (

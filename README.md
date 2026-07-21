@@ -19,14 +19,14 @@ Built for project managers, schedulers, superintendents, and trade partners who 
 <p align="center">
   <a href="https://builderbridge.vercel.app/"><strong>Live Demo</strong></a>
   |
-  <a href="ADD_PUBLIC_YOUTUBE_LINK"><strong>Demo Video</strong></a>
+  <a href="https://youtu.be/MyIDR62UqKg"><strong>Demo Video</strong></a>
   |
   <a href="#judge-it-in-five-minutes"><strong>Judge Walkthrough</strong></a>
 </p>
 
 > **Quick context:** BuilderBridge is a construction operations platform where an AI agent reads live schedules and project documents, cites its evidence, prepares operational changes, and executes them only after human approval.
 
-**Demo Video:** [ADD PUBLIC YOUTUBE LINK]
+**Demo Video:** [Watch the BuilderBridge hackathon demo](https://youtu.be/MyIDR62UqKg)
 
 ## Screenshots
 

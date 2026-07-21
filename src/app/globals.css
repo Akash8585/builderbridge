@@ -49,7 +49,9 @@
   --radius-pill: 9999px;
 }
 
-:root[data-app-theme="dark"] {
+/* Dark theme is scoped to the authenticated app shell only — marketing
+   pages (landing, pricing, features, solutions) always use :root light tokens. */
+.app-shell[data-app-theme="dark"] {
   color-scheme: dark;
   --color-primary: #f5f7fb;
   --color-primary-active: #e6ebf2;
@@ -160,7 +162,7 @@ body {
 }
 
 .assistant-theme-light,
-:root:not([data-app-theme="dark"]) .assistant-theme {
+.app-shell:not([data-app-theme="dark"]) .assistant-theme {
   --assistant-overlay: rgba(237, 242, 249, 0.9);
   --assistant-rail: rgba(239, 244, 251, 0.96);
   --assistant-panel: rgba(255, 255, 255, 0.97);

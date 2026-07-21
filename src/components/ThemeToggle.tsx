@@ -9,16 +9,24 @@ const THEME_STORAGE_KEY = "builderbridge:theme";
 const THEME_CHANGE_EVENT = "builderbridge:theme-change";
 
 function applyTheme(theme: AppTheme) {
-  document.documentElement.dataset.appTheme = theme;
-  document.documentElement.style.colorScheme = theme;
+  const shell = document.querySelector<HTMLElement>(".app-shell");
+  if (shell) {
+    shell.dataset.appTheme = theme;
+    shell.style.colorScheme = theme;
+  }
 }
 
 function readTheme(): AppTheme {
-  const htmlTheme = document.documentElement.dataset.appTheme;
-  if (htmlTheme === "dark" || htmlTheme === "light") return htmlTheme;
+  const shell = document.querySelector<HTMLElement>(".app-shell");
+  const shellTheme = shell?.dataset.appTheme;
+  if (shellTheme === "dark" || shellTheme === "light") return shellTheme;
 
-  const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-  return stored === "dark" || stored === "light" ? stored : "light";
+  try {
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return stored === "dark" || stored === "light" ? stored : "light";
+  } catch {
+    return "light";
+  }
 }
 
 function subscribeTheme(callback: () => void) {

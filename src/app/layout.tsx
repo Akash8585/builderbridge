@@ -3,13 +3,11 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import "./globals.css";
 
+/* Clear any legacy html-level theme so marketing pages never inherit app dark mode. */
 const themeInitializer = `
 try {
-  var theme = window.localStorage.getItem("builderbridge:theme");
-  if (theme === "light" || theme === "dark") {
-    document.documentElement.dataset.appTheme = theme;
-    document.documentElement.style.colorScheme = theme;
-  }
+  delete document.documentElement.dataset.appTheme;
+  document.documentElement.style.colorScheme = "light";
 } catch (_) {}
 `;
 
